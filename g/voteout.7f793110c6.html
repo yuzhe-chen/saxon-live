@@ -1,0 +1,1054 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><!--sx-ob--><style>html,body{overscroll-behavior:none}*{overscroll-behavior-x:none}[data-ob]{overscroll-behavior-y:none!important}</style><script>/* game-ready: the planner keeps its loading screen over this game until the saved data it asked for has arrived and been
+   applied. Each save request holds it (SXR.hold); once nothing is held after the page has parsed, the game posts game-ready */
+(function () {
+  if (window.SXR) return;
+  var n = 0, armed = false, sent = false, keys = {};
+  function go() { if (sent || !armed || n > 0) return; sent = true; try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'game-ready', game: 'voteout' }, '*'); } catch (e) {} }
+  function hold(key) {
+    if (sent) return function () {};
+    n++; var done = false, t;
+    function rel() { if (done) return; done = true; clearTimeout(t); if (key != null && keys[key] === rel) delete keys[key]; n--; setTimeout(go, 0); }
+    if (key != null) keys[key] = rel;
+    t = setTimeout(rel, 16000);
+    return rel;
+  }
+  /* registered before the game's own listeners: the release runs after they have applied the reply */
+  window.addEventListener('message', function (e) { var m = e.data; if (m && m.type === 'game-load-res' && keys[m.reqId]) keys[m.reqId](); });
+  window.SXR = { hold: hold };
+  function arm() { setTimeout(function () { armed = true; go(); }, 0); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arm); else arm();
+})();
+</script><script>/* no bounce and no scroll chaining: a box that really overflows stops dead at its ends */(function(){function ob(e){for(var el=e.target;el&&el.nodeType===1;el=el.parentElement){var o=getComputedStyle(el).overflowY;if(o!=="auto"&&o!=="scroll")continue;var on=el.scrollHeight>el.clientHeight+2;if(on!==el.hasAttribute("data-ob")){if(on)el.setAttribute("data-ob","");else el.removeAttribute("data-ob");}}}["pointerover","wheel","touchstart"].forEach(function(t){addEventListener(t,ob,{capture:true,passive:true});});})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<title>votesout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<script>(function(){var R=document.documentElement;function s(){var t=null;try{t=parent.document.documentElement.getAttribute('data-theme')}catch(e){}
+var d=t?t==='dark':!!(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);R.setAttribute('data-theme',d?'dark':'light')}
+s();try{new MutationObserver(s).observe(parent.document.documentElement,{attributes:true,attributeFilter:['data-theme']})}catch(e){}})();</script>
+<style>
+  :root {
+    --display: 'Fredoka', 'Nunito', system-ui, sans-serif;
+    --font: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --green: #58cc02; --green-dark: #58a700; --green-wash: #d7ffb8;
+    --blue: #4b9af3; --blue-dark: #3c81db; --blue-hi: #63a8f6; --blue-wash: #e6f1ff; --blue-line: #a4ceff;
+    --red: #ff4b4b; --red-dark: #ea2b2b; --red-wash: #ffdfe0;
+    --gold: #ffc800; --gold-dark: #e5a400;
+    --bg: #fff; --panel: #fff; --panel-soft: #f7f7f7; --line: #e5e5e5; --line-hi: #d0d0d0;
+    --text: #4b4b4b; --text-dim: #777; --text-faint: #afafaf;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #131f24; --panel: #131f24; --panel-soft: #202f36; --line: #37464f; --line-hi: #52656d;
+    --text: #f1f7fb; --text-dim: #8799a3; --text-faint: #6f8691;
+    --green-wash: #1c3a12; --blue-wash: #1c3150; --blue-line: #3c81db; --red-wash: #3d1f22;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 700 16px/1.5 var(--font); }
+  body { min-height: 100vh; overflow-x: hidden; }
+  button { font-family: inherit; }
+  :focus, :focus-visible { outline: none; }
+  [hidden] { display: none !important; }
+
+  #bar { position: fixed; top: 0; left: 0; right: 0; z-index: 40; height: 64px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; background: var(--bg); border-bottom: 2px solid var(--line); }
+  #bar .side { width: 220px; display: flex; align-items: center; font-size: 15px; font-weight: 800; color: var(--text-dim); }
+  #barR { justify-content: flex-end; }
+  .brand { cursor: pointer; display: flex; align-items: center; gap: 8px; font: 700 30px/1 var(--display); letter-spacing: -0.02em; color: var(--blue); user-select: none; }
+  .brand::before { content: 'votesout'; }
+  .iconb { border: 0; background: transparent; color: var(--text-faint); cursor: pointer; padding: 6px; display: inline-flex; align-items: center; gap: 6px;
+    font: 800 14px/1 var(--font); letter-spacing: .04em; text-transform: uppercase; }
+  .iconb svg { width: 20px; height: 20px; }
+  .iconb:hover { color: var(--text-dim); }
+  #note { position: fixed; top: 76px; left: 0; right: 0; margin: 0 auto; width: max-content; max-width: calc(100vw - 32px); z-index: 45; background: var(--text); color: var(--bg);
+    padding: 10px 18px; border-radius: 12px; font-weight: 800; font-size: 15px; }
+
+  #main { padding: 128px 32px 96px; min-height: 100vh; }
+  .wrap { max-width: 768px; margin: 0 auto; }
+  h1, .h1 { margin: 0; text-align: center; font: 700 52px/1.1 var(--display); letter-spacing: -0.02em; color: var(--text); overflow-wrap: anywhere; }
+  .h1.sm { font-size: 42px; }
+  .h3 { margin: 0; text-align: center; font: 700 22px/1.35 var(--font); color: var(--text-dim); }
+  .h2s { margin: 0; text-align: center; font: 600 30px/1.25 var(--display); letter-spacing: -0.02em; color: var(--text); }
+  .mt1 { margin-top: 4px; } .mt2 { margin-top: 8px; } .mt3 { margin-top: 12px; } .mt6 { margin-top: 24px; } .mt12 { margin-top: 48px; } .mt16 { margin-top: 64px; } .mt24 { margin-top: 96px; }
+  .center { text-align: center; }
+  .muted { color: var(--text-dim); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 50px; padding: 0 28px; border: 2px solid var(--blue-dark); border-bottom-width: 4px;
+    border-radius: 12px; background: var(--blue); color: #fff; font: 800 15px/1.2 var(--font); letter-spacing: .8px; text-transform: uppercase; cursor: pointer; }
+  .btn:hover { background: var(--blue-hi); }
+  .btn:active { transform: translateY(2px); border-bottom-width: 2px; margin-bottom: 2px; }
+  .btn.sm { min-height: 46px; padding: 0 18px; font-size: 13px; border-radius: 12px; }
+  .btn.gray { background: var(--bg); border-color: var(--line); color: var(--blue); }
+  .btn.gray:hover { background: var(--panel-soft); }
+  .btn:disabled { opacity: .5; cursor: default; transform: none; border-bottom-width: 4px; margin-bottom: 0; }
+  .btn:disabled:hover { background: var(--blue); }
+  .btn.gray:disabled:hover { background: var(--bg); }
+  .row { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
+  .inp { display: block; width: 100%; padding: 11px 16px; border: 2px solid var(--line); border-radius: 12px; background: var(--panel-soft); color: var(--text);
+    font: 700 18px/1.5 var(--font); outline: none; }
+  .inp::placeholder { color: var(--text-faint); }
+  .inp:focus { border-color: var(--blue); background: var(--bg); }
+  .inp.w35 { width: 60%; margin: 0 auto; }
+  .inp.code { width: 224px; height: 46px; font-size: 15px; padding: 0 14px; text-transform: uppercase; letter-spacing: .06em; }
+  .inp.code::placeholder { text-transform: none; letter-spacing: 0; }
+  textarea.inp { resize: vertical; min-height: 44px; font-size: 16px; }
+  .err { margin-top: 12px; text-align: center; font-weight: 800; color: var(--red); min-height: 24px; }
+
+  .packs { margin: 24px auto 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; max-width: 768px; }
+  .pack { margin: 12px 8px; width: 144px; border: 0; background: transparent; cursor: pointer; text-align: center; padding: 0; color: var(--text); }
+  .pack .cv { position: relative; display: flex; align-items: center; justify-content: center; width: 128px; height: 160px; margin: 0 auto; border-radius: 16px;
+    background: var(--line-hi); color: #fff; overflow: hidden; border-bottom: 6px solid rgba(0,0,0,.2); }
+  .pack .cv svg { width: 88px; height: 88px; }
+  .pack .cv .tag { position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 4px 6px; border-radius: 999px; font: 800 12px/1.2 var(--font); letter-spacing: .06em; text-transform: uppercase;
+    background: rgba(255,255,255,.9); color: #4b4b4b; }
+  .pack:hover .cv { filter: brightness(1.06); }
+  .pack:active .cv { transform: translateY(3px); border-bottom-width: 3px; margin-bottom: 3px; }
+  .pack .nm { display: block; margin-top: 10px; font: 800 16px/1.25 var(--font); overflow-wrap: anywhere; }
+  .pack.played .cv { opacity: .35; }
+  .pack.played:hover .cv { opacity: 1; }
+  .pack .ed { display: block; margin-top: 2px; font-size: 13px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--text-faint); }
+  .pack .ed:hover { color: var(--blue); }
+
+  .card { background: var(--panel); border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 16px; padding: 24px; max-width: 448px; margin: 0 auto; text-align: center; font-size: 18px; overflow-wrap: anywhere; }
+  .card strong { font: 700 22px/1.2 var(--display); letter-spacing: .06em; color: var(--blue); }
+
+  .plist { list-style: none; margin: 24px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  .plist li { padding: 16px; text-align: center; width: 128px; }
+  .plist li.off { opacity: .35; }
+  .pname { font-weight: 800; margin-top: 8px; }
+  .plist .nm { font-weight: 800; margin-top: 8px; word-break: break-word; }
+  .av { position: relative; display: inline-flex; width: 96px; height: 96px; border-radius: 50%; background: var(--line); flex-shrink: 0; }
+  .av > svg { width: 100%; height: 100%; border-radius: 50%; display: block; }
+  .av.md { width: 56px; height: 56px; }
+  .av.lg { width: 96px; height: 96px; }
+  .av .ck { position: absolute; top: -2px; right: -2px; width: 30px; height: 30px; border-radius: 50%; background: var(--blue); border: 3px solid var(--bg); display: flex; align-items: center; justify-content: center; }
+  .av .ck svg { width: 16px; height: 16px; color: #fff; }
+
+  .avgrid { list-style: none; margin: 24px auto 0; padding: 0; max-width: 560px; display: flex; flex-wrap: wrap; justify-content: center; }
+  .avgrid li { padding: 10px; }
+  .avpick { width: 96px; height: 96px; padding: 0; border-radius: 50%; border: 6px solid var(--line); background: var(--line); cursor: pointer; overflow: hidden; box-sizing: content-box; }
+  .avpick:hover { border-color: var(--line-hi); }
+  .avpick svg { width: 96px; height: 96px; display: block; }
+  .avpick.on, .avpick.on:hover { border-color: var(--blue); }
+  .avpick.taken { opacity: .3; cursor: default; }
+
+  .timer { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px 8px 12px; border-radius: 12px; color: var(--text-dim); background: var(--panel-soft);
+    border: 2px solid var(--line); font-weight: 800; line-height: 20px; font-variant-numeric: tabular-nums; }
+  .timer.hot { background: var(--red); border-color: var(--red-dark); color: #fff; }
+  .timer svg { width: 20px; height: 20px; }
+
+  .alist { position: relative; margin-top: 56px; }
+  .ans { display: block; width: 60%; margin: 0 auto 16px; padding: 16px 20px; border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 16px; text-align: left;
+    font: 700 19px/1.4 var(--font); background: var(--panel); color: var(--text); cursor: pointer; }
+  .ans .in { display: flex; align-items: center; }
+  .ans .dot { flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg); display: flex; align-items: center; justify-content: center; color: transparent; }
+  .ans .dot svg { width: 26px; height: 26px; }
+  .ans .tx { flex: 1; padding-left: 18px; word-break: break-word; }
+  .ans:hover { background: var(--panel-soft); }
+  .ans:active { transform: translateY(2px); border-bottom-width: 2px; margin-bottom: 18px; }
+  .ans.on, .ans.on:hover { background: var(--blue-wash); border-color: var(--blue-line); color: var(--blue); }
+  .ans.on .dot { background: var(--blue); border-color: var(--blue-dark); color: #fff; }
+  .ans.own, .ans.own:hover { color: var(--text-faint); cursor: default; background: var(--panel-soft); transform: none; border-bottom-width: 4px; margin-bottom: 16px; }
+  .alist .veil { position: absolute; inset: 0; z-index: 10; background: var(--bg); opacity: .5; }
+
+  .tbl { max-width: 512px; margin: 48px auto 0; border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 16px; overflow: hidden; background: var(--panel); }
+  .tbl.narrow { max-width: 448px; }
+  .tbl table { width: 100%; border-collapse: collapse; }
+  .tbl th { padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); background: var(--panel-soft); }
+  .tbl th.r { text-align: right; }
+  .tbl td { padding: 14px 16px 14px 0; border-top: 2px solid var(--line); font-size: 16px; color: var(--text-dim); vertical-align: middle; }
+  .tbl tr:first-child td { border-top: 0; }
+  .tbl thead + tbody tr:first-child td { border-top: 2px solid var(--line); }
+  .tbl td.a { width: 72px; padding-left: 16px; }
+  .tbl td.r { width: 60px; text-align: right; }
+  .tbl strong { color: var(--text); font-weight: 800; }
+  .tbl .who { display: flex; align-items: center; gap: 8px; }
+  .tbl .say { word-break: break-word; }
+  .bub { display: inline-block; min-width: 30px; height: 30px; padding: 0 8px; border-radius: 999px; line-height: 30px; text-align: center; color: #fff; font-weight: 800; font-size: 14px; background: var(--text-faint); }
+  .bub.on { background: var(--blue); }
+  .drop { border: 0; cursor: pointer; padding: 0 10px; border-radius: 999px; background: var(--panel-soft); color: var(--text-dim); font: 800 11px/22px var(--font); letter-spacing: .06em; text-transform: uppercase; }
+  .drop:hover { background: var(--red); color: #fff; }
+
+  .ed-list { margin-top: 24px; display: grid; gap: 10px; }
+  .ed-q { display: flex; align-items: center; gap: 10px; }
+  .ed-q .n { width: 28px; text-align: right; font-weight: 800; color: var(--text-faint); flex-shrink: 0; }
+  .ed-q .inp { font-size: 16px; }
+  .xb { border: 0; background: transparent; color: var(--text-faint); cursor: pointer; padding: 6px; flex-shrink: 0; border-radius: 10px; }
+  .xb:hover { color: var(--red); background: var(--red-wash); }
+  .xb svg { width: 18px; height: 18px; display: block; }
+  .lbl { display: block; font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 8px; }
+  .link { border: 0; background: transparent; color: var(--blue); cursor: pointer; font: 800 14px/1.5 var(--font); letter-spacing: .06em; text-transform: uppercase; padding: 8px 12px; border-radius: 12px; }
+  .link:hover { background: var(--panel-soft); }
+
+  @media (max-width: 767px) {
+    #main { padding: 96px 16px 72px; }
+    #bar { padding: 0 12px; height: 56px; }
+    #bar .side { width: 96px; font-size: 14px; }
+    #bar .side .lg { display: none; }
+    .brand { font-size: 25px; }
+    h1, .h1 { font-size: 34px; }
+    .h1.sm { font-size: 30px; }
+    .h3 { font-size: 18px; }
+    .h2s { font-size: 23px; }
+    .inp.w35, .ans { width: 100%; }
+    .ans { padding: 12px; font-size: 16px; }
+    .ans .dot { width: 34px; height: 34px; border-radius: 10px; }
+    .ans .dot svg { width: 20px; height: 20px; }
+    .ans .tx { padding-left: 12px; }
+    .plist li { padding: 12px 4px; width: 100px; }
+    .av { width: 80px; height: 80px; }
+    .av.md { width: 44px; height: 44px; }
+    .avpick, .avpick svg { width: 72px; height: 72px; }
+    .avpick { border-width: 4px; }
+    .avgrid li { padding: 5px; }
+    .pack { width: 112px; margin: 10px 6px; }
+    .pack .cv { width: 104px; height: 132px; }
+    .pack .cv svg { width: 70px; height: 70px; }
+    .inp.code { width: 180px; }
+    .tbl th { padding: 12px 8px; letter-spacing: .04em; }
+    .tbl td { padding: 12px 8px 12px 0; }
+    .tbl td.a { width: 58px; padding-left: 10px; }
+    .tbl td.r, .tbl th.r { width: 1%; padding-right: 10px; white-space: nowrap; }
+    .tbl .who { flex-wrap: wrap; gap: 4px 8px; }
+  }
+</style>
+</head>
+<body>
+<div id="bar">
+  <div class="side" id="barL"></div>
+  <div class="brand" id="brand"></div>
+  <div class="side" id="barR"></div>
+</div>
+<div id="note" hidden></div>
+<main id="main"></main>
+<script>
+'use strict';
+/* ================= room bridge ================= */
+var Room = (function () {
+  var n = 0, waits = {};
+  window.addEventListener('message', function (e) {
+    var m = e.data; if (!m || m.type !== 'room-res' || !waits[m.reqId]) return;
+    var w = waits[m.reqId]; delete waits[m.reqId]; m.ok ? w.res(m.result) : w.rej(new Error(m.error || 'conn'));
+  });
+  function call(op, args) {
+    return new Promise(function (res, rej) {
+      if (window.parent === window) { rej(new Error('conn')); return; }
+      var id = 'r' + (++n) + '_' + Date.now();
+      waits[id] = { res: res, rej: rej };
+      try { parent.postMessage({ type: 'room', reqId: id, op: op, args: args || {} }, '*'); } catch (e) { delete waits[id]; rej(new Error('conn')); }
+      setTimeout(function () { if (waits[id]) { delete waits[id]; rej(new Error('conn')); } }, 20000);
+    });
+  }
+  return { call: call };
+})();
+
+/* ================= utils ================= */
+const GAME = 'voteout';
+const MAXP = 12, NQ = 12, Q_TIME = 60, RECAP_AT = 7;
+const $ = (s, r) => (r || document).querySelector(s);
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function add(p, ...k) { k.forEach(c => c && p.appendChild(c)); return p; }
+function btn(label, cls, fn) { const b = el('button', 'btn' + (cls ? ' ' + cls : ''), label); b.type = 'button'; b.onclick = fn; return b; }
+function rid() { return Math.random().toString(36).slice(2, 10); }
+function sget(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function sset(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function clean(s, max) { return String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f\u2028\u2029]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max); }
+function trimName(s) { return s.length > 18 ? s.slice(0, 18).trim() + '...' : s; }
+/* keys typed into inputs stay in the game (the planner listens for keys on this document) */
+function stopKeys(i) { ['keydown', 'keyup', 'keypress'].forEach(t => i.addEventListener(t, e => e.stopPropagation())); return i; }
+function inp(cls, ph, max) {
+  const i = el('input', 'inp' + (cls ? ' ' + cls : '')); i.type = 'text'; i.autocomplete = 'off'; i.spellcheck = false;
+  if (ph) i.placeholder = ph; if (max) i.maxLength = max;
+  return stopKeys(i);
+}
+function onEnter(i, fn) { i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); fn(); } }); }
+function focusSoon(i) { if (!matchMedia('(pointer: coarse)').matches) setTimeout(() => { try { i.focus(); } catch (e) {} }, 30); }
+const SVG = {
+  ck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>',
+  vote: '<svg viewBox="0 0 444.2 444.2"><path fill="currentColor" d="M180.4,382.5c-11,0-21.4-4.8-28.6-13.1L61.4,263.9c-13.5-15.8-11.7-39.6,4.1-53.1c15.8-13.5,39.5-11.7,53.1,4.1l59.1,68.9L364.3,58.7c28.9-40.5,59.1-18.1,30.1,22.6L211,366.7c-6.7,9.4-17.4,15.2-29,15.7C181.5,382.5,180.9,382.5,180.4,382.5z"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+  out: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>',
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  pencil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 5.2l3.6 3.6M4 20l1-4.6L16.6 3.8a1.6 1.6 0 012.3 0l1.3 1.3a1.6 1.6 0 010 2.3L8.6 19z"/></svg>'
+};
+
+/* ================= avatars (drawn, one per player) ================= */
+const AVATARS = (function () {
+  /* flat object drawings, one per player, on a round tile; index order is part of the room data so never reorder */
+  const L = [
+    /* lemon */ ['#ddf4ff', '<g transform="rotate(-18 50 54)"><g fill="#e5a400" transform="translate(0 5)"><path d="M14 54Q16 50 21 49Q28 32 50 32Q72 32 79 49Q84 50 86 54Q84 58 79 59Q72 76 50 76Q28 76 21 59Q16 58 14 54Z"/></g><path d="M14 54Q16 50 21 49Q28 32 50 32Q72 32 79 49Q84 50 86 54Q84 58 79 59Q72 76 50 76Q28 76 21 59Q16 58 14 54Z" fill="#ffc800"/><path d="M79 59Q72 76 50 76Q34 76 26 66Q48 72 66 62Q76 56 79 59Z" fill="#f5b800"/><ellipse cx="38" cy="44" rx="9" ry="3.5" fill="#ffe680" transform="rotate(-8 38 44)"/><ellipse cx="27" cy="50" rx="2.5" ry="2.5" fill="#ffe680"/></g><rect x="47" y="18" width="5" height="12" rx="2.5" fill="#8b5a2b" transform="rotate(20 49 24)"/><path d="M52 22Q60 10 74 14Q68 28 52 22Z" fill="#58cc02"/><path d="M52 22Q64 18 74 14Q68 28 52 22Z" fill="#46a302"/>'],
+    /* rocket */ ['#f3dfff', '<g transform="translate(50 50) rotate(40) scale(1.02) translate(0 3)"><path d="M-10 4L-19 15V22H-10z" fill="#ea2b2b"/><path d="M10 4L19 15V22H10z" fill="#c81e1e"/><path d="M-6 21Q0 37 6 21z" fill="#ff9600"/><path d="M-3 21Q0 30 3 21z" fill="#ffc800"/><path d="M-10 -16Q-10 -30 0 -42Q10 -30 10 -16V20H-10z" fill="#ffffff"/><path d="M0 -42Q10 -30 10 -16V20H0z" fill="#d3dde3"/><path d="M-6.6 -31Q-4 -37 0 -42V-31z" fill="#ff4b4b"/><path d="M0 -42Q4 -37 6.6 -31H0z" fill="#ea2b2b"/><rect x="-10" y="14" width="20" height="7" rx="2" fill="#8a9aa5"/><rect x="0" y="14" width="10" height="7" rx="2" fill="#6f7f8a"/><circle cx="0" cy="-10" r="6.6" fill="#8a9aa5"/><circle cx="0" cy="-10" r="5" fill="#1cb0f6"/><path d="M0 -15a5 5 0 0 1 0 10z" fill="#1899d6"/><ellipse cx="-2" cy="-12" rx="1.4" ry="2" fill="#bfeaff"/></g>'],
+    /* cupcake */ ['#ffdfe0', '<g fill="#1477a8" transform="translate(0 3)"><path d="M27 56H73L67 84Q66 88 62 88H38Q34 88 33 84Z"/></g><path d="M27 56H73L67 84Q66 88 62 88H38Q34 88 33 84Z" fill="#1cb0f6"/><path d="M50 56H73L67 84Q66 88 62 88H50Z" fill="#1899d6"/><rect x="38.5" y="58" width="4" height="28" rx="2" fill="#1899d6" transform="rotate(-6 40 72)"/><rect x="57.5" y="58" width="4" height="28" rx="2" fill="#1477a8" transform="rotate(6 60 72)"/><g fill="#e5e5e5" transform="translate(0 4)"><path d="M22 54a8 8 0 0 1 6-12a10 10 0 0 1 10-12a12 12 0 0 1 24 0a10 10 0 0 1 10 12a8 8 0 0 1 6 12a6 6 0 0 1-6 6H28a6 6 0 0 1-6-6z"/></g><path d="M22 54a8 8 0 0 1 6-12a10 10 0 0 1 10-12a12 12 0 0 1 24 0a10 10 0 0 1 10 12a8 8 0 0 1 6 12a6 6 0 0 1-6 6H28a6 6 0 0 1-6-6z" fill="#ffffff"/><rect x="32" y="36" width="7" height="4" rx="2" fill="#ffffff"/><ellipse cx="36" cy="40" rx="5" ry="2.5" fill="#f7f7f7"/><rect x="33" y="46" width="6" height="3" rx="1.5" fill="#ce82ff" transform="rotate(-30 36 47)"/><rect x="54" y="40" width="6" height="3" rx="1.5" fill="#58cc02" transform="rotate(25 57 41)"/><rect x="62" y="50" width="6" height="3" rx="1.5" fill="#ffc800" transform="rotate(-20 65 51)"/><rect x="44" y="50" width="6" height="3" rx="1.5" fill="#1cb0f6" transform="rotate(15 47 51)"/><path d="M50 22Q50 14 56 10" fill="none" stroke="#8b5a2b" stroke-width="3" stroke-linecap="round"/><circle cx="50" cy="25" r="7" fill="#ff4b4b"/><path d="M50 18a7 7 0 0 1 0 14z" fill="#ea2b2b"/><ellipse cx="47.5" cy="22.5" rx="1.8" ry="2.6" fill="#ff9a9a" transform="rotate(30 47.5 22.5)"/>'],
+    /* guitar */ ['#fff5d3', '<g transform="translate(0 4)"><g transform="rotate(32 50 50)" fill="#c47300"><circle cx="50" cy="58" r="13"/><circle cx="50" cy="74" r="17"/></g></g><g transform="rotate(32 50 50)"><rect x="45" y="10" width="10" height="50" rx="3" fill="#8b5a2b"/><rect x="50" y="10" width="5" height="50" rx="0" fill="#6e4522"/><rect x="41" y="2" width="18" height="14" rx="5" fill="#4b4b4b"/><circle cx="44" cy="8" r="2" fill="#afafaf"/><circle cx="56" cy="8" r="2" fill="#afafaf"/><circle cx="50" cy="58" r="13" fill="#ff9600"/><circle cx="50" cy="74" r="17" fill="#ff9600"/><path d="M50 45a13 13 0 0 1 0 26z" fill="#e08600"/><path d="M50 57a17 17 0 0 1 0 34z" fill="#e08600"/><rect x="45" y="26" width="10" height="34" rx="3" fill="#8b5a2b"/><rect x="50" y="26" width="5" height="34" rx="0" fill="#6e4522"/><rect x="45" y="30" width="10" height="2" rx="1" fill="#d9b680"/><rect x="45" y="38" width="10" height="2" rx="1" fill="#d9b680"/><rect x="45" y="46" width="10" height="2" rx="1" fill="#d9b680"/><circle cx="50" cy="64" r="6.5" fill="#4b4b4b"/><rect x="41" y="79" width="18" height="5" rx="2.5" fill="#4b4b4b"/><ellipse cx="40" cy="70" rx="3" ry="6" fill="#ffc06b" transform="rotate(0 40 70)"/></g>'],
+    /* cactus */ ['#ffe7c2', '<g fill="#3a8a02" transform="translate(0 3)"><path d="M40 52H32a8 8 0 0 1-8-8V34a5 5 0 0 1 10 0v8h6z"/><path d="M60 44h6V30a5 5 0 0 1 10 0v12a8 8 0 0 1-8 8h-8z"/></g><rect x="40" y="14" width="20" height="60" rx="10" fill="#58cc02"/><path d="M50 14a10 10 0 0 1 10 10V74H50z" fill="#46a302"/><path d="M40 52H32a8 8 0 0 1-8-8V34a5 5 0 0 1 10 0v8h6z" fill="#58cc02"/><path d="M60 44h6V30a5 5 0 0 1 10 0v12a8 8 0 0 1-8 8h-8z" fill="#46a302"/><rect x="44" y="22" width="4" height="16" rx="2" fill="#a5ed6e"/><rect x="27" y="34" width="3" height="6" rx="1.5" fill="#a5ed6e"/><circle cx="54" cy="30" r="1.5" fill="#d7ffb8"/><circle cx="54" cy="44" r="1.5" fill="#d7ffb8"/><circle cx="45" cy="50" r="1.5" fill="#d7ffb8"/><circle cx="54" cy="58" r="1.5" fill="#d7ffb8"/><path d="M32 74H68L64 88Q63 91 59 91H41Q37 91 36 88Z" fill="#ea2b2b"/><path d="M50 74H68L64 88Q63 91 59 91H50Z" fill="#c81e1e"/><rect x="27" y="68" width="46" height="10" rx="5" fill="#c81e1e" transform="translate(0 3)"/><rect x="27" y="68" width="46" height="10" rx="5" fill="#ff4b4b"/><rect x="31" y="70" width="10" height="3" rx="1.5" fill="#ff8f8f"/>'],
+    /* crown */ ['#d7ffb8', '<g stroke-linejoin="round" stroke-width="6"><path d="M22 40L37 52L50 31L63 52L78 40L72 74H28Z" fill="#e5a400" stroke="#e5a400" transform="translate(0 4)"/><path d="M22 40L37 52L50 31L63 52L78 40L72 74H28Z" fill="#ffc800" stroke="#ffc800"/></g><path d="M50 31L63 52L78 40L72 74H50Z" fill="#f5b800"/><circle cx="21" cy="37" r="5.5" fill="#ffc800"/><circle cx="79" cy="37" r="5.5" fill="#e5a400"/><circle cx="50" cy="26" r="5.5" fill="#ffc800"/><path d="M50 20.5a5.5 5.5 0 0 1 0 11z" fill="#e5a400"/><rect x="25" y="62" width="50" height="6" rx="3" fill="#e5a400"/><circle cx="36" cy="72" r="4" fill="#1cb0f6"/><circle cx="50" cy="72" r="5" fill="#ff4b4b"/><circle cx="64" cy="72" r="4" fill="#58cc02"/><circle cx="48.5" cy="70.5" r="1.5" fill="#ff9a9a"/><rect x="31" y="52" width="4" height="6" rx="2" fill="#ffe680"/><ellipse cx="47.5" cy="24" rx="1.5" ry="2" fill="#ffe680"/>'],
+    /* umbrella */ ['#ddf4ff', '<path d="M50 50V78a7 7 0 0 1-14 0" fill="none" stroke="#4b4b4b" stroke-width="6" stroke-linecap="round"/><g fill="#8a49c9" transform="translate(0 4)"><path d="M14 52Q14 18 50 18Q86 18 86 52Q80 46 74 46Q68 46 62 52Q56 46 50 46Q44 46 38 52Q32 46 26 46Q20 46 14 52Z"/></g><path d="M14 52Q14 18 50 18Q86 18 86 52Q80 46 74 46Q68 46 62 52Q56 46 50 46Q44 46 38 52Q32 46 26 46Q20 46 14 52Z" fill="#ce82ff"/><path d="M38 52Q38 22 50 18Q62 22 62 52Q56 46 50 46Q44 46 38 52Z" fill="#a560e8"/><path d="M62 52Q62 22 50 18Q86 18 86 52Q80 46 74 46Q68 46 62 52Z" fill="#b872f5"/><ellipse cx="26" cy="34" rx="3" ry="7" fill="#e3bbff" transform="rotate(35 26 34)"/><rect x="47" y="11" width="6" height="9" rx="3" fill="#4b4b4b"/>'],
+    /* kite */ ['#d7ffb8', '<path d="M50 72Q44 80 52 84T50 96" fill="none" stroke="#4b4b4b" stroke-width="3" stroke-linecap="round"/><path d="M44 80l-7-4v8z" fill="#1cb0f6"/><path d="M44 80l7-4v8z" fill="#1899d6"/><g stroke-linejoin="round" stroke-width="6"><path d="M50 14L74 40L50 70L26 40Z" fill="#c81e1e" stroke="#c81e1e" transform="translate(0 4)"/><path d="M50 14L74 40L50 70L26 40Z" fill="#ff4b4b" stroke="#ff4b4b"/><path d="M50 14L74 40L50 70Z" fill="#ea2b2b" stroke="#ea2b2b"/></g><path d="M26 40H74" fill="none" stroke="#ffc800" stroke-width="4"/><path d="M50 12V72" fill="none" stroke="#ffc800" stroke-width="4"/><ellipse cx="38" cy="32" rx="2.5" ry="6" fill="#ff9a9a" transform="rotate(45 38 32)"/>'],
+    /* donut */ ['#f3dfff', '<ellipse cx="50" cy="57" rx="34" ry="26" fill="#d9912f"/><ellipse cx="50" cy="52" rx="34" ry="26" fill="#f7b451"/><path d="M22 50Q22 32 50 30Q78 32 78 50Q76 56 70 54Q66 62 60 58Q54 66 48 60Q40 66 36 58Q28 62 26 56Q22 56 22 50Z" fill="#ff86d0"/><path d="M50 30Q78 32 78 50Q76 56 70 54Q66 62 60 58Q54 66 50 61Z" fill="#f56cc0"/><ellipse cx="50" cy="49" rx="10" ry="7" fill="#f3dfff"/><path d="M40 49a10 7 0 0 1 20 0a10 4 0 0 0-20 0z" fill="#d9912f"/><rect x="32" y="40" width="6" height="3" rx="1.5" fill="#ffffff" transform="rotate(-30 35 41)"/><rect x="58" y="36" width="6" height="3" rx="1.5" fill="#ffc800" transform="rotate(20 61 37)"/><rect x="64" y="46" width="6" height="3" rx="1.5" fill="#1cb0f6" transform="rotate(-50 67 47)"/><rect x="42" y="34" width="6" height="3" rx="1.5" fill="#58cc02" transform="rotate(10 45 35)"/><rect x="46" y="58" width="6" height="3" rx="1.5" fill="#ffffff" transform="rotate(-10 49 59)"/><rect x="30" y="50" width="6" height="3" rx="1.5" fill="#1cb0f6" transform="rotate(40 33 51)"/><ellipse cx="30" cy="40" rx="2" ry="4" fill="#ffc2e8" transform="rotate(50 30 40)"/>'],
+    /* balloon */ ['#fff5d3', '<path d="M50 74q-6 5 0 10t0 10" fill="none" stroke="#8b8b8b" stroke-width="2.5" stroke-linecap="round"/><path d="M44 76L50 68L56 76Q50 79 44 76Z" fill="#c81e1e"/><path d="M50 12C66 12 76 25 76 40C76 58 62 70 50 70C38 70 24 58 24 40C24 25 34 12 50 12Z" fill="#ff4b4b"/><path d="M50 12C66 12 76 25 76 40C76 58 62 70 50 70C60 62 64 52 64 40C64 26 58 16 50 12Z" fill="#ea2b2b"/><ellipse cx="37" cy="30" rx="4.5" ry="9" fill="#ff9a9a" transform="rotate(25 37 30)"/><circle cx="41" cy="45" r="2.2" fill="#ff9a9a"/>'],
+    /* ice cream */ ['#ffdfe0', '<path d="M33 52H67L53 86Q50 92 47 86Z" fill="#ffc800"/><path d="M50 52H67L53 86Q51.5 89 50 89Z" fill="#e5a400"/><path d="M38 58l20 12M44 54l18 10M62 58l-20 12M56 54l-18 10" fill="none" stroke="#cc8f00" stroke-width="2.5" stroke-linecap="round" opacity=".6"/><g fill="#46a302" transform="translate(0 3)"><path d="M31 38a19 19 0 1 0 38 0a19 19 0 1 0 -38 0z"/><path d="M30 46h40v4a5 5 0 0 1-10 0a5 5 0 0 1-10 0a5 5 0 0 1-10 0a5 5 0 0 1-10 0z"/></g><circle cx="50" cy="38" r="19" fill="#58cc02"/><path d="M30 46h40v4a5 5 0 0 1-10 0a5 5 0 0 1-10 0a5 5 0 0 1-10 0a5 5 0 0 1-10 0z" fill="#58cc02"/><path d="M50 19a19 19 0 0 1 0 38z" fill="#4fb802"/><ellipse cx="40" cy="30" rx="3.5" ry="6" fill="#a5ed6e" transform="rotate(35 40 30)"/><circle cx="50" cy="19" r="6" fill="#ff4b4b"/><path d="M50 13a6 6 0 0 1 0 12z" fill="#ea2b2b"/><ellipse cx="48" cy="17" rx="1.5" ry="2.2" fill="#ff9a9a" transform="rotate(30 48 17)"/>'],
+    /* lightbulb */ ['#d7ffb8', '<g transform="translate(50 49) scale(0.92) translate(-48 -48)"><path d="M48 8a28 28 0 0 1 17 50c-3 2-5 6-5 10v2H36v-2c0-4-2-8-5-10A28 28 0 0 1 48 8z" fill="#e5a400" transform="translate(0 4)"/><path d="M48 8a28 28 0 0 1 17 50c-3 2-5 6-5 10v2H36v-2c0-4-2-8-5-10A28 28 0 0 1 48 8z" fill="#ffc800"/><rect x="30" y="20" width="8" height="18" rx="4" fill="#ffe680"/><rect x="34" y="73" width="28" height="8" rx="4" fill="#8b8b8b"/><rect x="34" y="70" width="28" height="8" rx="4" fill="#afafaf"/><rect x="36" y="82" width="24" height="7" rx="3.5" fill="#8b8b8b"/><rect x="36" y="80" width="24" height="7" rx="3.5" fill="#afafaf"/><rect x="41" y="88" width="14" height="5" rx="2.5" fill="#777"/></g>'],
+    /* watermelon */ ['#ddf4ff', '<g transform="rotate(-10 50 50)"><g fill="#3a8a02" transform="translate(0 4)"><path d="M12 42H88A38 38 0 0 1 12 42Z"/></g><path d="M12 42H88A38 38 0 0 1 12 42Z" fill="#58cc02"/><path d="M50 42H88A38 38 0 0 1 50 80Z" fill="#46a302"/><path d="M18 42H82A32 32 0 0 1 18 42Z" fill="#d7ffb8"/><path d="M22 42H78A28 28 0 0 1 22 42Z" fill="#ff4b4b"/><path d="M50 42H78A28 28 0 0 1 50 70Z" fill="#ea2b2b"/><ellipse cx="36" cy="50" rx="2" ry="3.2" fill="#4b4b4b" transform="rotate(-20 36 50)"/><ellipse cx="50" cy="54" rx="2" ry="3.2" fill="#4b4b4b"/><ellipse cx="64" cy="50" rx="2" ry="3.2" fill="#4b4b4b" transform="rotate(20 64 50)"/><ellipse cx="43" cy="61" rx="2" ry="3.2" fill="#4b4b4b" transform="rotate(-10 43 61)"/><ellipse cx="57" cy="61" rx="2" ry="3.2" fill="#4b4b4b" transform="rotate(10 57 61)"/></g>'],
+    /* mug */ ['#ffe7c2', '<path d="M64 44h6a10 10 0 0 1 0 20h-6" fill="none" stroke="#8a49c9" stroke-width="7" transform="translate(0 4)"/><path d="M64 44h6a10 10 0 0 1 0 20h-6" fill="none" stroke="#a560e8" stroke-width="7"/><rect x="20" y="36" width="46" height="48" rx="10" fill="#8a49c9" transform="translate(0 4)"/><rect x="20" y="36" width="46" height="48" rx="10" fill="#ce82ff"/><path d="M43 36h13a10 10 0 0 1 10 10v28a10 10 0 0 1-10 10H43z" fill="#b872f5"/><rect x="20" y="32" width="46" height="10" rx="5" fill="#a560e8"/><rect x="24" y="34" width="38" height="6" rx="3" fill="#7a3b13"/><rect x="25" y="46" width="5" height="18" rx="2.5" fill="#e3bbff"/><path d="M35 58a5 5 0 0 1 8-4a5 5 0 0 1 8 4q0 5-8 10q-8-5-8-10z" fill="#ffffff"/><path d="M36 26q-4-5 0-9t0-9M50 26q-4-5 0-9t0-9" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>'],
+    /* pencil */ ['#f3dfff', '<g transform="translate(50 50) scale(0.86) translate(-48 -48)"><g transform="rotate(-40 48 48)"><path d="M18 40L4 48l14 8z" fill="#ffd9a8"/><path d="M8.5 45.4L4 48l4.5 2.6z" fill="#4b4b4b"/><rect x="18" y="40" width="54" height="16" fill="#ffc800"/><rect x="18" y="48" width="54" height="8" fill="#e5a400"/><rect x="18" y="44" width="54" height="3" fill="#ffe680"/><rect x="72" y="40" width="8" height="16" fill="#afafaf"/><rect x="72" y="48" width="8" height="8" fill="#8b8b8b"/><path d="M80 40h6a6 6 0 0 1 6 6v4a6 6 0 0 1-6 6h-6z" fill="#ff8f8f"/><path d="M80 48h12v2a6 6 0 0 1-6 6h-6z" fill="#ff6b6b"/></g></g>'],
+    /* paper plane */ ['#fff5d3', '<g transform="translate(49 52) scale(0.8) translate(-48 -48)"><g stroke-linejoin="round" stroke-width="6"><path d="M86 14L14 44L38 54Z" fill="#1899d6" stroke="#1899d6" transform="translate(0 4)"/><path d="M86 14L42 58L50 82Z" fill="#1477a8" stroke="#1477a8"/><path d="M86 14L42 58L70 74Z" fill="#1899d6" stroke="#1899d6" transform="translate(0 4)"/><path d="M86 14L42 58L70 74Z" fill="#84d8ff" stroke="#84d8ff"/><path d="M86 14L14 44L38 54Z" fill="#1cb0f6" stroke="#1cb0f6"/><path d="M86 14L38 54L42 58Z" fill="#1cb0f6" stroke="#1cb0f6"/></g></g>']
+  ];
+  return L.map(([bg, body]) => '<svg viewBox="0 0 100 100"><rect width="100" height="100" fill="' + bg + '"/>' + body + '</svg>');
+})();
+function avEl(a, cls, done) {
+  const d = el('div', 'av' + (cls ? ' ' + cls : ''));
+  if (a >= 0 && a < AVATARS.length) d.innerHTML = AVATARS[a];
+  if (done) { const c = el('div', 'ck'); c.innerHTML = SVG.ck; d.appendChild(c); }
+  return d;
+}
+
+/* ================= question packs ================= */
+const PACK_ICON = {
+  spark: '<svg viewBox="0 0 64 64"><g transform="scale(.6667)"><path d="M48 8a28 28 0 0 1 17 50c-3 2-5 6-5 10v2H36v-2c0-4-2-8-5-10A28 28 0 0 1 48 8z" fill="#e5a400" transform="translate(0 4)"/><path d="M48 8a28 28 0 0 1 17 50c-3 2-5 6-5 10v2H36v-2c0-4-2-8-5-10A28 28 0 0 1 48 8z" fill="#ffc800"/><rect x="30" y="20" width="8" height="18" rx="4" fill="#ffe680"/><rect x="34" y="73" width="28" height="8" rx="4" fill="#8b8b8b"/><rect x="34" y="70" width="28" height="8" rx="4" fill="#afafaf"/><rect x="36" y="82" width="24" height="7" rx="3.5" fill="#8b8b8b"/><rect x="36" y="80" width="24" height="7" rx="3.5" fill="#afafaf"/><rect x="41" y="88" width="14" height="5" rx="2.5" fill="#777"/><path d="M14 14l6 6M82 14l-6 6M8 40h7M88 40h-7" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/></g></svg>',
+  chat: '<svg viewBox="0 0 64 64"><g transform="scale(.6667)"><path d="M48 70q-7 4 0 8t0 8t0 8" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/><g fill="#cc8f00" transform="translate(0 3)"><path d="M48 4C64 4 75 17 75 33C75 50 61 62 48 62C35 62 21 50 21 33C21 17 32 4 48 4Z"/><path d="M42 70L48 61L54 70Q48 73 42 70Z"/></g><path d="M42 70L48 61L54 70Q48 73 42 70Z" fill="#e5a400"/><path d="M48 4C64 4 75 17 75 33C75 50 61 62 48 62C35 62 21 50 21 33C21 17 32 4 48 4Z" fill="#ffc800"/><path d="M48 4C64 4 75 17 75 33C75 50 61 62 48 62C58 55 63 45 63 33C63 19 57 9 48 4Z" fill="#e5a400"/><ellipse cx="35" cy="21" rx="5" ry="10" fill="#ffe680" transform="rotate(25 35 21)"/><circle cx="38" cy="38" r="3" fill="#ffe680"/></g></svg>',
+  brief: '<svg viewBox="0 0 64 64"><g transform="scale(.6667)"><path d="M34 26V18a6 6 0 0 1 6-6h16a6 6 0 0 1 6 6v8" fill="none" stroke="#afafaf" stroke-width="7"/><rect x="10" y="28" width="76" height="56" rx="10" fill="#6e3f19" transform="translate(0 4)"/><rect x="10" y="28" width="76" height="56" rx="10" fill="#b5733a"/><path d="M48 28h28a10 10 0 0 1 10 10v36a10 10 0 0 1-10 10H48z" fill="#9c5f2c"/><rect x="10" y="48" width="76" height="6" rx="0" fill="#8b5223"/><rect x="40" y="44" width="16" height="14" rx="4" fill="#e5a400"/><rect x="40" y="42" width="16" height="14" rx="4" fill="#ffc800"/><rect x="45" y="47" width="6" height="4" rx="2" fill="#e5a400"/><rect x="16" y="33" width="12" height="4" rx="2" fill="#d99a5f"/></g></svg>',
+  food: '<svg viewBox="0 0 64 64"><g transform="scale(.6667)"><g fill="#c47300" transform="translate(0 3)"><path d="M12 46a36 30 0 0 1 72 0z"/><path d="M12 70h72v4a10 10 0 0 1-10 10H22a10 10 0 0 1-10-10z"/></g><rect x="12" y="68" width="72" height="6" rx="0" fill="#c47300"/><path d="M12 70h72v4a10 10 0 0 1-10 10H22a10 10 0 0 1-10-10z" fill="#ffc06b"/><rect x="14" y="56" width="68" height="12" rx="6" fill="#7a3b13"/><rect x="48" y="56" width="34" height="12" rx="6" fill="#5e2c0d"/><rect x="48" y="56" width="10" height="12" rx="0" fill="#5e2c0d"/><path d="M10 52h76l-6 8-6-4-6 4-6-4-6 4-6-4-6 4-6-4-6 4-6-4-6 4z" fill="#ffc800"/><path d="M10 50h76a4 4 0 0 1 0 8H10a4 4 0 0 1 0-8z" fill="#58cc02"/><path d="M12 46a36 30 0 0 1 72 0z" fill="#ffc06b"/><path d="M48 16a36 30 0 0 1 36 30H48z" fill="#f2a94e"/><ellipse cx="32" cy="30" rx="2" ry="3.2" fill="#ffffff" transform="rotate(-30 32 30)"/><ellipse cx="48" cy="24" rx="2" ry="3.2" fill="#ffffff"/><ellipse cx="64" cy="30" rx="2" ry="3.2" fill="#ffffff" transform="rotate(30 64 30)"/><ellipse cx="40" cy="38" rx="2" ry="3.2" fill="#ffffff" transform="rotate(-10 40 38)"/><ellipse cx="57" cy="38" rx="2" ry="3.2" fill="#ffffff" transform="rotate(10 57 38)"/></g></svg>',
+  star: '<svg viewBox="0 0 64 64"><g transform="scale(.6667)"><path d="M48 8l11 24 26 3-19 18 5 26-23-13-23 13 5-26-19-18 26-3z" fill="#e5a400" stroke="#e5a400" stroke-width="4" stroke-linejoin="round" transform="translate(0 4)"/><path d="M48 8l11 24 26 3-19 18 5 26-23-13-23 13 5-26-19-18 26-3z" fill="#ffc800" stroke="#ffc800" stroke-width="4" stroke-linejoin="round"/><rect x="30" y="36" width="7" height="7" rx="3.5" fill="#ffe680" transform="rotate(-20 33 39)"/></g></svg>',
+  globe: '<svg viewBox="0 0 64 64"><g transform="scale(.6667)"><rect x="24" y="80" width="48" height="10" rx="5" fill="#8b8b8b" transform="translate(0 3)"/><rect x="24" y="80" width="48" height="10" rx="5" fill="#afafaf"/><rect x="44" y="70" width="8" height="12" rx="0" fill="#8b8b8b"/><circle cx="48" cy="44" r="32" fill="#1899d6" transform="translate(0 4)"/><circle cx="48" cy="44" r="32" fill="#84d8ff"/><path d="M48 12a32 32 0 0 1 0 64z" fill="#5ec8f8"/><path d="M24 22Q34 18 40 26Q44 34 36 38Q34 46 26 46Q20 48 16.5 42A32 32 0 0 1 24 22Z" fill="#58cc02"/><path d="M44 52Q52 48 58 54Q64 60 58 68Q54 76 48 76A32 32 0 0 1 44 74Q40 62 44 52Z" fill="#58cc02"/><path d="M56 18Q66 16 72 24Q70 30 64 30Q56 28 56 18Z" fill="#46a302"/><path d="M68 40Q76 38 79 44A32 32 0 0 1 76 56Q68 54 68 40Z" fill="#46a302"/><ellipse cx="32" cy="58" rx="4" ry="2.5" fill="#ddf4ff" transform="rotate(30 32 58)"/></g></svg>',
+  ghost: '<svg viewBox="0 0 64 64"><g transform="scale(.6667)"><path d="M48 20Q46 10 54 6" fill="none" stroke="#58a700" stroke-width="6" stroke-linecap="round"/><g fill="#c47300" transform="translate(0 4)"><path d="M48 22C60 16 84 22 84 52C84 74 68 84 48 84C28 84 12 74 12 52C12 22 36 16 48 22Z"/></g><path d="M48 22C60 16 84 22 84 52C84 74 68 84 48 84C28 84 12 74 12 52C12 22 36 16 48 22Z" fill="#ff9600"/><path d="M48 22C60 16 84 22 84 52C84 74 68 84 48 84Z" fill="#e08600"/><path d="M34 24Q24 52 34 82" fill="none" stroke="#e08600" stroke-width="3.5" stroke-linecap="round"/><path d="M62 24Q72 52 62 82" fill="none" stroke="#c47300" stroke-width="3.5" stroke-linecap="round"/><path d="M26 48l10-10 8 10z" fill="#4b4b4b"/><path d="M52 48l8-10 10 10z" fill="#4b4b4b"/><path d="M44 56l4-6 4 6z" fill="#4b4b4b"/><path d="M26 62q22 16 44 0q-2 10-10 12l-2-5-4 6-4-6-4 6-4-6-2 5q-8-2-10-12z" fill="#4b4b4b"/><ellipse cx="24" cy="34" rx="3" ry="6" fill="#ffc06b" transform="rotate(30 24 34)"/></g></svg>',
+  people: '<svg viewBox="0 0 64 64"><g transform="scale(.6667)"><rect x="14" y="42" width="68" height="44" rx="8" fill="#cc8f00" transform="translate(0 4)"/><rect x="14" y="42" width="68" height="44" rx="8" fill="#ffc800"/><path d="M48 42h26a8 8 0 0 1 8 8v28a8 8 0 0 1-8 8H48z" fill="#e5a400"/><rect x="8" y="30" width="80" height="18" rx="6" fill="#e5a400" transform="translate(0 3)"/><rect x="8" y="30" width="80" height="18" rx="6" fill="#ffd94d"/><path d="M48 30h34a6 6 0 0 1 6 6v6a6 6 0 0 1-6 6H48z" fill="#ffc800"/><rect x="41" y="30" width="14" height="56" rx="0" fill="#1cb0f6"/><rect x="48" y="30" width="7" height="56" rx="0" fill="#1899d6"/><rect x="41" y="48" width="14" height="4" rx="0" fill="#1477a8"/><path d="M48 30C40 14 22 14 24 24C26 32 40 30 48 30Z" fill="#1cb0f6"/><path d="M48 30C56 14 74 14 72 24C70 32 56 30 48 30Z" fill="#1899d6"/><rect x="42" y="25" width="12" height="9" rx="4" fill="#1477a8"/><rect x="16" y="34" width="10" height="4" rx="2" fill="#fff0a8"/></g></svg>',
+  pencil: '<svg viewBox="0 0 64 64"><g transform="scale(.6667)"><g transform="rotate(-40 48 48)"><path d="M18 40L4 48l14 8z" fill="#ffd9a8"/><path d="M8.5 45.4L4 48l4.5 2.6z" fill="#4b4b4b"/><rect x="18" y="40" width="54" height="16" fill="#ffc800"/><rect x="18" y="48" width="54" height="8" fill="#e5a400"/><rect x="18" y="44" width="54" height="3" fill="#ffe680"/><rect x="72" y="40" width="8" height="16" fill="#afafaf"/><rect x="72" y="48" width="8" height="8" fill="#8b8b8b"/><path d="M80 40h6a6 6 0 0 1 6 6v4a6 6 0 0 1-6 6h-6z" fill="#ff8f8f"/><path d="M80 48h12v2a6 6 0 0 1-6 6h-6z" fill="#ff6b6b"/></g></g></svg>',
+  plus: '<svg viewBox="0 0 64 64"><rect x="27" y="12" width="10" height="40" rx="5" fill="#fff"/><rect x="12" y="27" width="40" height="10" rx="5" fill="#fff"/></svg>'
+};
+const PACKS = [
+  { id: 'starter', name: 'Starter Pack', icon: 'spark', c: '#1cb0f6', q: [
+    'I hope my last words are...', 'The worst thing to hear from your pilot', 'A terrible name for a pet goldfish', 'The secret ingredient in grandma\'s cookies',
+    'What aliens would find most confusing about humans', 'The worst superpower to have', 'A bad thing to say on a first date', 'The real reason dinosaurs went extinct',
+    'A rejected flavor of ice cream', 'What cats are actually thinking', 'The strangest thing to bring to a picnic', 'A slogan for a very honest airline',
+    'The worst advice to give a new parent', 'What really happens in the Bermuda Triangle', 'A fortune cookie you would not want to open', 'A sign you are in a horror movie',
+    'A terrible name for a boat', 'Something you should never say to a ghost', 'The world\'s most useless invention', 'What the moon is secretly made of'] },
+  { id: 'party', name: 'Party Time', icon: 'chat', c: '#ce82ff', q: [
+    'The worst theme for a birthday party', 'What not to write in a greeting card', 'The best excuse for leaving a party early', 'A terrible party game',
+    'The most awkward song to slow dance to', 'What the karaoke machine is thinking', 'An unusual thing to find in the punch bowl', 'The worst party favor',
+    'A sign the party has gone too far', 'The worst thing to hear the DJ say', 'An odd gift to bring to a housewarming', 'What the last guest to leave always says',
+    'The worst topping for a birthday cake', 'A rejected name for a dance move', 'The worst thing to shout when you win a game', 'What is really in the piñata',
+    'The worst person to sit next to at dinner', 'An unexpected guest at a surprise party', 'The real reason the neighbors called', 'The worst thing to forget for a party'] },
+  { id: 'work', name: 'Office Hours', icon: 'brief', c: '#2b70c9', q: [
+    'The worst thing to accidentally send to the whole company', 'A terrible job interview answer', 'What the office printer really wants', 'A meeting that should have been an email',
+    'The worst motivational poster slogan', 'What your boss does when nobody is looking', 'A bad reason to call in sick', 'The worst team building activity',
+    'A terrible name for a startup', 'Something you should not microwave at work', 'The real reason the coffee machine is broken', 'A job title that does not exist yet',
+    'The worst thing to put on your resume', 'What the out of office reply should really say', 'An unusual perk at a tech company', 'The worst way to quit a job',
+    'A secret rule of the break room', 'The worst thing to say in a performance review', 'What happens at the end of a very long meeting', 'The worst password ever'] },
+  { id: 'food', name: 'Food Fight', icon: 'food', c: '#ff9600', q: [
+    'A pizza topping that should be illegal', 'The worst name for a restaurant', 'What the chef is really cooking in the back', 'A new cereal mascot nobody asked for',
+    'The worst thing to find in a sandwich', 'A rejected candy bar name', 'What vegetables say about each other', 'The worst food to eat on a first date',
+    'A food truck that would go out of business fast', 'A terrible flavor of potato chips', 'The worst thing to say to a waiter', 'An unusual use for leftover spaghetti',
+    'What the fortune in a fortune cookie should really say', 'A smoothie ingredient that ruins everything', 'The worst snack for a long road trip', 'The secret of the world\'s best taco',
+    'A sauce that should never exist', 'What the gingerbread man was running from', 'The worst thing to bring to a potluck', 'A slogan for a very honest fast food chain'] },
+  { id: 'kids', name: 'Family Friendly', icon: 'star', c: '#58cc02', q: [
+    'A new rule for school that everyone would love', 'What dogs dream about', 'The silliest name for a superhero', 'What is hiding under the bed',
+    'The best excuse for not doing homework', 'A new holiday everyone should celebrate', 'What your shadow does at night', 'The weirdest animal to have as a class pet',
+    'A rejected name for a dinosaur', 'What the tooth fairy does with all those teeth', 'The worst thing to find in your lunchbox', 'A new flavor of toothpaste',
+    'What penguins talk about', 'The most useless robot', 'A new sport for the Olympics', 'The worst thing to say to a dragon',
+    'What clouds are made of', 'A great name for a pet rock', 'The best thing about being a giant', 'What your teacher does on weekends'] },
+  { id: 'travel', name: 'Wanderlust', icon: 'globe', c: '#00c2a8', q: [
+    'The worst souvenir to bring home', 'A terrible tourist attraction', 'What the hotel minibar should really have', 'The worst thing to forget on vacation',
+    'A bad name for a cruise ship', 'What the GPS is secretly thinking', 'The worst seat on an airplane', 'A strange thing to declare at customs',
+    'The worst slogan for a city', 'What the travel brochure leaves out', 'An awful road trip game', 'The worst thing to hear from a tour guide',
+    'A new rule for airport security', 'The weirdest thing to pack in your carry on', 'What is really in the lost luggage room', 'A terrible honeymoon destination',
+    'The worst thing to find in your hotel room', 'What the seagulls are planning', 'A postcard you should never send home', 'The worst way to arrive at a beach'] },
+  { id: 'spooky', name: 'Spooky Season', icon: 'ghost', c: '#6f4ba8', q: [
+    'The least scary Halloween costume', 'What the vampire orders at a restaurant', 'The worst candy to hand out', 'A terrible name for a haunted house',
+    'What zombies do on their day off', 'The worst thing a fortune teller could say', 'What the witch keeps in her purse', 'A ghost\'s biggest pet peeve',
+    'The worst place to hide during a horror movie', 'What the scarecrow is afraid of', 'A rejected monster from a scary movie', 'The worst thing to carve into a pumpkin',
+    'What werewolves argue about', 'The scariest thing to find in your basement', 'What the skeleton says at the doctor', 'A Halloween party rule nobody follows',
+    'The worst last words in a horror movie', 'What Frankenstein wants for his birthday', 'A spell that backfires badly', 'The real reason the house is haunted'] },
+  { id: 'friends', name: 'Know Your Friends', icon: 'people', c: '#ff4b4b', q: [
+    'The worst nickname for someone in this game', 'What this group would be famous for', 'The title of a movie about this group', 'What everyone here secretly googles',
+    'The worst group vacation idea', 'Our group\'s official motto', 'The first thing this group would do with a million dollars', 'A rule for the next group trip',
+    'What this group would be arrested for', 'The reality show this group would star in', 'Our group chat\'s real name', 'The worst thing to say at a friend\'s wedding',
+    'What this group will be doing in twenty years', 'The worst gift you have ever given', 'A sign you have been friends too long', 'The theme song of this group',
+    'What would get this group kicked out of a restaurant', 'The worst job for anyone here', 'A secret talent nobody here would guess', 'The best way to end this game'] }
+];
+const packById = id => PACKS.find(p => p.id === id);
+
+/* ================= saves (the planner keeps them per device; storage in the frame is a fallback) ================= */
+const Save = {
+  d: { custom: [], played: [], last: null },
+  load(done) {
+    try { const ls = JSON.parse(sget('voteout-save') || 'null'); if (ls && typeof ls === 'object') this.fix(ls); } catch (e) {}
+    try { if (!parent || parent === window) { done(); return; } } catch (e) { done(); return; }
+    const reqId = 'vo' + Date.now().toString(36) + rid();
+    let fin = false;
+    const end = () => { if (fin) return; fin = true; window.removeEventListener('message', onMsg); done(); };
+    const onMsg = e => {
+      const m = e.data; if (!m || m.type !== 'game-load-res' || m.reqId !== reqId) return;
+      try { const o = typeof m.data === 'string' && m.data ? JSON.parse(m.data) : null; if (o && typeof o === 'object') this.fix(o); } catch (err) {}
+      end();
+    };
+    window.addEventListener('message', onMsg);
+    if (window.SXR) SXR.hold(reqId); try { parent.postMessage({ type: 'game-load', game: GAME, reqId: reqId }, '*'); } catch (e) { end(); return; }
+    setTimeout(end, 15000);
+  },
+  fix(o) {
+    if (Array.isArray(o.custom)) this.d.custom = o.custom.filter(g => g && typeof g.id === 'string' && Array.isArray(g.q)).slice(0, 20)
+      .map(g => ({ id: g.id.slice(0, 20), name: clean(g.name, 40) || 'My Game', q: g.q.map(x => clean(x, 200)).filter(Boolean).slice(0, 40) }));
+    if (Array.isArray(o.played)) this.d.played = o.played.filter(x => typeof x === 'string').slice(-50);
+    if (o.last && typeof o.last === 'object' && typeof o.last.code === 'string') this.d.last = o.last;
+    if (o.music) this.d.music = o.music;
+  },
+  put() {
+    const s = JSON.stringify(this.d);
+    sset('voteout-save', s);
+    try { if (parent && parent !== window) parent.postMessage({ type: 'game-save', game: GAME, data: s }, '*'); } catch (e) {}
+  }
+};
+
+/* ================= view ================= */
+let viewKey = null, viewUpd = null;
+function view(key, build) {
+  if (key === viewKey) { if (viewUpd) viewUpd(); return; }
+  viewKey = key; const m = $('#main'); m.innerHTML = '';
+  const w = el('div', 'wrap'); m.appendChild(w);
+  viewUpd = build(w) || null; if (viewUpd) viewUpd();
+  window.scrollTo(0, 0);
+}
+/* the bar is rebuilt only when what it shows changes: render() runs on every poll, and a button swapped
+   out between mousedown and mouseup loses the click */
+let barKey = null;
+function bar() {
+  const L = $('#barL'), R = $('#barR'), key = MODE === 'online' && Net.on ? 'on:' + Net.code : 'off';
+  if (key === barKey && (L.firstChild || key === 'off')) return;
+  barKey = key;
+  L.innerHTML = ''; R.innerHTML = '';
+  if (MODE === 'online' && Net.on) {
+    const b = el('button', 'iconb'); b.type = 'button'; b.innerHTML = SVG.out + '<span class="lg">Leave</span>'; b.title = 'Leave';
+    b.onclick = () => netLeave(); L.appendChild(b);
+    const c = el('span'); add(c, el('span', 'lg', 'Game Code: '), el('strong', '', Net.code)); R.appendChild(c);
+  }
+}
+/* the countdown badge: every .timer on the page follows Tm.dl */
+const Tm = { dl: () => 0, hot: 10 };
+function timerEl() { const t = el('div', 'timer'); t.innerHTML = SVG.clock + '<span></span>'; tickTimers(); return t; }
+function tickTimers() {
+  const dl = Tm.dl(), s = dl ? Math.max(0, Math.ceil((dl - Date.now()) / 1000)) : 0;
+  document.querySelectorAll('.timer').forEach(t => { t.lastChild.textContent = s + 's left'; t.classList.toggle('hot', s <= Tm.hot); });
+}
+setInterval(tickTimers, 250);
+function note(text) {
+  const n = $('#note'); n.textContent = text; n.hidden = false;
+  clearTimeout(note.t); note.t = setTimeout(() => { n.hidden = true; }, 4000);
+}
+
+/* ================= home ================= */
+let MODE = null;
+const Home = { err: '', next: null, edit: null };
+const ERRS = { noroom: 'That game doesn\'t exist.', full: 'That game is full.', taken: 'That name is already taken.', wronggame: 'That code is for a different game.',
+  conn: 'Could not connect. Try again.', rate: 'Busy, try again.', badtoken: 'You left the game.', bad: 'Check the name and code.', dropped: 'You were dropped from the game.' };
+function lastRecent() { const l = Save.d.last; return l && Date.now() - (l.at || 0) < 7200000 ? l : null; }
+function scrHome() {
+  MODE = null; Tm.dl = () => 0; bar();
+  view('home', w => {
+    const last = lastRecent();
+    if (last) {
+      const r = el('div', 'center');
+      add(r, el('div', 'h2s', 'Rejoin Game ' + last.code + '?'), add(el('div', 'row mt6'),
+        btn('Join Existing Game', 'sm', () => { Home.next = { kind: 'join', code: last.code }; doRoom(last.name); }),
+        btn('Ignore', 'sm gray', () => { Save.d.last = null; Save.put(); viewKey = null; scrHome(); })));
+      r.style.marginBottom = '48px'; w.appendChild(r);
+    }
+    const cd = inp('code', 'Game Code', 4);
+    const join = () => {
+      const c = cd.value.trim().toUpperCase();
+      if (!c) { err.textContent = ''; cd.focus(); return; }
+      if (!/^[A-Z]{4}$/.test(c)) { err.textContent = ERRS.noroom; cd.focus(); return; }
+      Home.next = { kind: 'join', code: c }; Home.err = ''; scrName();
+    };
+    onEnter(cd, join);
+    const err = el('div', 'err', Home.err); Home.err = '';
+    add(w, el('div', 'h2s', 'Join a Game'), add(el('div', 'row mt6'), cd, btn('Join Game', 'sm', join)), err);
+    w.appendChild(el('div', 'h2s mt16', 'Start a New Game'));
+    const g = el('div', 'packs');
+    PACKS.forEach(p => g.appendChild(packTile(p.name, p.icon, p.c, Save.d.played.includes(p.id), () => pickPack({ id: p.id }))));
+    w.appendChild(g);
+    w.appendChild(el('div', 'h2s mt12', 'My Games'));
+    const g2 = el('div', 'packs');
+    Save.d.custom.forEach(c => {
+      const t = packTile(c.name, 'pencil', '#ff86d0', Save.d.played.includes(c.id), () => pickPack({ id: c.id, custom: c }));
+      const e = el('span', 'ed', 'Edit'); e.onclick = ev => { ev.stopPropagation(); Home.edit = clone(c); scrEdit(); };
+      t.appendChild(e); g2.appendChild(t);
+    });
+    g2.appendChild(packTile('Write A New Game', 'plus', '#d0d0d0', false, () => { Home.edit = { id: 'c' + rid(), name: '', q: [''] , isNew: true }; scrEdit(); }));
+    w.appendChild(g2);
+  });
+}
+function packTile(name, icon, color, played, fn) {
+  const b = el('button', 'pack' + (played ? ' played' : '')); b.type = 'button';
+  const cv = el('span', 'cv'); cv.style.background = color; cv.innerHTML = PACK_ICON[icon] || SVG[icon] || '';
+  add(b, cv, el('span', 'nm', name)); b.onclick = fn; return b;
+}
+function pickPack(p) {
+  if (p.custom && !p.custom.q.length) return;
+  Home.next = { kind: 'create', pack: p.custom ? { id: p.id, name: p.custom.name, q: p.custom.q.slice() } : { id: p.id } };
+  scrName();
+}
+function scrName() {
+  view('name:' + rid(), w => {
+    const nm = inp('w35', 'Your Name', 16); nm.value = sget('party-name') || Save.d.name || '';
+    const err = el('div', 'err');
+    let busy = false;
+    const go = () => {
+      const n = clean(nm.value, 16); if (!n) { nm.focus(); return; }
+      if (busy) return; busy = true; err.textContent = '';
+      doRoom(n, e => { busy = false; err.textContent = ERRS[e] || ERRS.conn; });
+    };
+    onEnter(nm, go);
+    add(w, el('h1', '', 'What\'s Your Name?'), add(el('div', 'mt6'), nm), add(el('div', 'mt6 center'), btn('Continue', '', go)), err,
+      add(el('div', 'center mt6'), (() => { const b = el('button', 'link', 'Back'); b.type = 'button'; b.onclick = () => scrHome(); return b; })()));
+    focusSoon(nm);
+  });
+}
+function doRoom(name, fail) {
+  const nx = Home.next; if (!nx) return;
+  sset('party-name', name); Save.d.name = name;
+  const p = nx.kind === 'create' ? Room.call('create', { game: GAME, name: name, max: MAXP }) : Room.call('join', { game: GAME, code: nx.code, name: name });
+  p.then(r => { Save.d.last = { code: r.code, name: name, at: Date.now() }; Save.put(); netEnter(r, nx.kind === 'create' ? nx.pack : null); },
+    e => {
+      const m = e && e.message || 'conn';
+      if (nx.kind === 'join' && (m === 'noroom' || m === 'wronggame') && Save.d.last && Save.d.last.code === nx.code) { Save.d.last = null; Save.put(); }
+      if (fail) fail(m); else { Home.err = ERRS[m] || ERRS.conn; viewKey = null; scrHome(); }
+    });
+}
+function scrEdit() {
+  const G = Home.edit;
+  view('edit:' + G.id + ':' + rid(), w => {
+    const name = inp('', 'Game Name', 40); name.value = G.name; name.oninput = () => { G.name = name.value; };
+    const list = el('div', 'ed-list');
+    const draw = () => {
+      list.innerHTML = '';
+      G.q.forEach((q, i) => {
+        const r = el('div', 'ed-q'), x = inp('', 'Question ' + (i + 1), 200); x.value = q;
+        x.oninput = () => { G.q[i] = x.value; };
+        onEnter(x, () => { if (i === G.q.length - 1 && G.q.length < 40) { G.q.push(''); draw(); list.querySelectorAll('input')[i + 1].focus(); } });
+        const rm = el('button', 'xb'); rm.type = 'button'; rm.innerHTML = SVG.x; rm.title = 'Remove';
+        rm.onclick = () => { G.q.splice(i, 1); if (!G.q.length) G.q.push(''); draw(); };
+        add(r, el('div', 'n', String(i + 1)), x, rm); list.appendChild(r);
+      });
+      addB.disabled = G.q.length >= 40;
+    };
+    const addB = btn('Add Question', 'sm gray', () => { G.q.push(''); draw(); const ins = list.querySelectorAll('input'); ins[ins.length - 1].focus(); });
+    const err = el('div', 'err');
+    const save = () => {
+      const q = G.q.map(x => clean(x, 200)).filter(Boolean);
+      if (!q.length) { err.textContent = 'Add at least one question.'; return; }
+      const g = { id: G.id, name: clean(G.name, 40) || 'My Game', q: q };
+      const i = Save.d.custom.findIndex(c => c.id === g.id);
+      if (i >= 0) Save.d.custom[i] = g; else Save.d.custom.push(g);
+      Save.put(); scrHome();
+    };
+    const acts = add(el('div', 'row mt12'), btn('Save Game', '', save));
+    if (!G.isNew) acts.appendChild(btn('Delete This Game', 'gray', () => {
+      if (!confirm('Delete this game?')) return;
+      Save.d.custom = Save.d.custom.filter(c => c.id !== G.id); Save.put(); scrHome();
+    }));
+    const back = el('button', 'link', 'Back'); back.type = 'button'; back.onclick = () => scrHome();
+    add(w, el('h1', 'sm', 'Custom Game Editor'), add(el('div', 'mt12'), el('label', 'lbl', 'Game Name'), name),
+      add(el('div', 'mt6'), el('label', 'lbl', 'Questions'), list, add(el('div', 'mt3'), addB)), acts, err, add(el('div', 'center mt3'), back));
+    draw();
+    if (G.isNew) focusSoon(name);
+  });
+}
+
+/* ================= online ================= */
+const Net = { on: false, code: null, token: null, me: null, hostId: null, players: [], since: 0, pt: 0, off: null, q: Promise.resolve(), snapT: 0, snap: null, roster: '', known: null };
+const C = { st: null, deadline: 0, sent: {}, myv: {}, av: -1, avAt: 0, avErr: '', voteErr: '', pack: null };
+let H = null;
+const isHost = () => Net.on && Net.hostId === Net.me;
+const present = id => Net.players.some(p => p.id === id);
+function netEnter(r, pack) {
+  Object.assign(Net, { on: true, code: r.code, token: r.token, me: r.playerId, hostId: r.host ? r.playerId : null, players: [], since: 0, off: null, roster: '', known: null });
+  Object.assign(C, { st: null, deadline: 0, sent: {}, myv: {}, av: -1, avAt: 0, avErr: '', voteErr: '', pack: pack || null });
+  H = null; MODE = 'online'; viewKey = null; bar();
+  poll(); render();
+}
+function netLeave(msg) {
+  if (Net.on) Room.call('leave', { code: Net.code, token: Net.token }).catch(() => {});
+  Net.on = false; clearTimeout(Net.pt); H = null;
+  Save.d.last = null; Save.put();
+  Home.err = msg || ''; viewKey = null; scrHome();
+}
+function poll() {
+  clearTimeout(Net.pt);
+  if (!Net.on) return;
+  // one poll at a time; a wake while one is out runs another right after it
+  if (Net.polling) { Net.again = true; return; }
+  Net.polling = true; Net.again = false;
+  const code = Net.code;
+  Room.call('poll', { code, token: Net.token, since: Net.since }).then(r => {
+    if (!Net.on || Net.code !== code) return;
+    const evs = r.events || [];
+    Net.players = r.players || []; Net.hostId = hostOf(r);
+    if (r.state && r.state.k === 'st' && (!C.st || r.state.v > C.st.v)) applySt(r.state, { local: true });
+    evs.forEach(e => {
+      if (e.seq <= Net.since) return; Net.since = e.seq;
+      if (e.at) { const a = e.at < 1e11 ? e.at * 1000 : e.at, d = Date.now() - a; if (Net.off === null || d < Net.off) Net.off = d; }
+      try { onEvent(e); } catch (err) { console.error(err); }
+    });
+    if (typeof r.seq === 'number' && r.seq > Net.since && !evs.length) Net.since = r.seq;
+    onRoster();
+    Net.pt = setTimeout(poll, evs.length >= 200 ? 30 : (document.hidden ? 3000 : 900));
+  }, e => {
+    if (!Net.on) return;
+    if (e.message === 'noroom' || e.message === 'badtoken') { netLeave(ERRS.badtoken); return; }
+    Net.pt = setTimeout(poll, e.message === 'rate' ? 2000 : 1500);
+  }).catch(err => console.error(err)).then(() => {
+    Net.polling = false;
+    if (Net.again && Net.on) { clearTimeout(Net.pt); Net.pt = setTimeout(poll, 0); }
+  });
+}
+// the planner page says when something arrived for the room: poll now instead of waiting for the timer
+window.addEventListener('message', e => { const m = e.data; if (m && m.type === 'room-wake' && e.source === parent && Net.on && m.code === Net.code) poll(); });
+function rawSend(data, to, tries) {
+  const a = { code: Net.code, token: Net.token, data }; if (to) a.to = to;
+  return Room.call('send', a).catch(e => {
+    if (Net.on && (tries || 0) < 3 && (e.message === 'rate' || e.message === 'conn')) return new Promise(r => setTimeout(r, e.message === 'rate' ? 2000 : 800)).then(() => rawSend(data, to, (tries || 0) + 1));
+  });
+}
+function netSend(data, to) { Net.q = Net.q.then(() => rawSend(data, to)).catch(() => {}); }
+function local(d) { onEvent({ from: Net.me, data: d, local: true }); }
+function broadcast(d) { local(d); netSend(d); }
+function toHost(d) { if (isHost()) local(d); else if (Net.hostId) netSend(d, Net.hostId); }
+function evTime(e) { if (e.local || !e.at || Net.off === null) return Date.now(); return (e.at < 1e11 ? e.at * 1000 : e.at) + Net.off; }
+
+let rq = 0;
+function dirty() { if (!rq) rq = setTimeout(() => { rq = 0; render(); }, 0); }
+function applySt(d, e) {
+  if (C.st && d.v <= C.st.v) return;
+  C.st = d; C.deadline = d.endIn > 0 ? evTime(e) + d.endIn : 0;
+  if ((d.dr || []).includes(Net.me) && Net.on) { setTimeout(() => netLeave(ERRS.dropped), 0); return; }
+  if (d.phase === 'end' && d.pk && d.pk.id && !Save.d.played.includes(d.pk.id) && (d.pl || []).some(p => p.id === Net.me)) { Save.d.played.push(d.pk.id); Save.put(); }
+}
+function onEvent(e) {
+  const d = e.data; if (!d || typeof d !== 'object') return;
+  if (e.from === Net.me && !e.local) return;
+  if (d.k === 'st') applySt(d, e);
+  else if (d.k === 'ans' || d.k === 'vote' || d.k === 'av') { if (isHost() && H) hostMsg(e.from, d); return; }
+  dirty();
+}
+/* the room reports host as a flag on the player list (and as true or false for me); keep the host's id */
+function hostOf(r) {
+  const h = (r.players || []).find(p => p && p.host);
+  if (h) return h.id;
+  if (r.host === true) return Net.me;
+  if (typeof r.host === 'string' && r.host) return r.host;
+  return r.host === false && Net.hostId === Net.me ? null : Net.hostId;
+}
+function onRoster() {
+  const ids = Net.players.map(p => p.id);
+  if (Net.known) Net.known.forEach(p => { if (p.id !== Net.me && !ids.includes(p.id)) note(p.name + ' left'); });
+  Net.known = Net.players.map(p => ({ id: p.id, name: p.name }));
+  if (isHost() && !H) hostInit();
+  if (!isHost()) H = null;
+  if (H) hostRoster();
+  const k = JSON.stringify(Net.players) + Net.hostId;
+  if (k !== Net.roster) { Net.roster = k; dirty(); }
+}
+
+/* ---------- host (authoritative) ---------- */
+/* H is the full public state; hidden from it are only the answers of the question being written (H.sub) */
+function hostInit() {
+  if (C.st) {
+    H = clone(C.st); delete H.k; delete H.endIn; H.sub = {};
+    H.dl = C.deadline || Date.now() + 15000;
+  } else {
+    H = { v: 0, g: rid(), phase: 'lobby', pl: [], dr: [], pk: null, qs: [], qi: 0, rs: false, done: [], ans: [], vt: {}, win: [], av: 1, sub: {}, dl: 0 };
+    hostPack(C.pack || { id: 'starter' });
+  }
+  pub();
+}
+function hostPack(p) {
+  const b = packById(p.id);
+  H.pk = b ? { id: b.id, name: b.name } : { id: p.id, name: p.name || 'My Game', q: (p.q || []).slice(0, 40) };
+}
+function packQs(pk) { const all = pk.q || (packById(pk.id) || PACKS[0]).q; return shuffle(all).slice(0, NQ); }
+function pub() {
+  H.v++;
+  const s = { k: 'st', v: H.v, g: H.g, phase: H.phase, pl: H.pl, dr: H.dr, pk: H.pk, qs: H.qs, qi: H.qi, rs: H.rs, done: H.done, ans: H.ans, vt: H.vt, win: H.win, av: H.av,
+    endIn: (H.phase === 'question' || H.phase === 'voting') ? Math.max(0, H.dl - Date.now()) : 0 };
+  broadcast(clone(s));
+  Net.snap = s;
+  if (!Net.snapT) Net.snapT = setTimeout(() => { Net.snapT = 0; if (isHost() && Net.snap) Room.call('state', { code: Net.code, token: Net.token, state: Net.snap }).catch(() => {}); }, 1200);
+}
+const plOf = id => H.pl.find(p => p.id === id);
+function hostRoster() {
+  let ch = false;
+  /* someone back under the same name (a reload, or a closed tab) takes over their old seat */
+  Net.players.forEach(np => {
+    if (plOf(np.id) || H.dr.includes(np.id)) return;
+    const old = H.pl.find(p => !present(p.id) && p.name.toLowerCase() === np.name.toLowerCase());
+    if (!old) return;
+    const from = old.id, to = np.id;
+    old.id = to; old.name = np.name;
+    H.done = H.done.map(x => x === from ? to : x);
+    H.ans.forEach(a => { if (a.a === from) a.a = to; });
+    if (H.vt[from]) { H.vt[to] = H.vt[from]; delete H.vt[from]; }
+    if (H.sub[from] !== undefined) { H.sub[to] = H.sub[from]; delete H.sub[from]; }
+    ch = true;
+  });
+  if (H.phase === 'lobby') { const n = H.pl.length; H.pl = H.pl.filter(p => present(p.id)); if (H.pl.length !== n) ch = true; }
+  if (ch) pub();
+}
+function hostMsg(from, d) {
+  if (!H || H.dr.includes(from)) return;
+  if (d.k === 'av') {
+    const a = d.a | 0; if (a < 0 || a >= AVATARS.length) return;
+    if (H.pl.some(p => p.id !== from && p.a === a)) { pub(); return; }
+    const np = Net.players.find(p => p.id === from); if (!np) return;
+    let p = plOf(from);
+    if (!p) { if (H.pl.length >= MAXP) return; p = { id: from, name: np.name, a: a, w: 0, t: 0, nv: 0 }; H.pl.push(p); }
+    else p.a = a;
+    pub(); return;
+  }
+  if (d.g !== H.g || d.qi !== H.qi || !plOf(from)) return;
+  if (d.k === 'ans' && H.phase === 'question') {
+    if (H.done.includes(from)) return;
+    const t = clean(d.t, 300); if (!t) return;
+    H.sub[from] = t; H.done.push(from); pub(); return;
+  }
+  if (d.k === 'vote' && H.phase === 'voting' && Array.isArray(d.v)) {
+    const mine = H.vt[from] || [], cap = voteCap(from);
+    let ch = false;
+    d.v.forEach(i => {
+      i = i | 0;
+      if (mine.length >= cap || i < 0 || i >= H.ans.length || mine.includes(i) || H.ans[i].a === from) return;
+      mine.push(i); ch = true;
+    });
+    if (ch) { H.vt[from] = mine; pub(); }
+  }
+}
+function voteCap(id) { return Math.min(H.av, H.ans.filter(a => a.a !== id).length); }
+function hostStart() {
+  if (!H || H.phase !== 'lobby' || H.pl.filter(p => present(p.id)).length < 3) return;
+  H.pl = H.pl.filter(p => present(p.id));
+  H.pl.forEach(p => { p.w = 0; p.t = 0; p.nv = 0; });
+  H.g = rid(); H.qs = packQs(H.pk); H.rs = false;
+  startQuestion(0);
+}
+function startQuestion(i) {
+  Object.assign(H, { phase: 'question', qi: i, done: [], ans: [], vt: {}, win: [], sub: {}, dl: Date.now() + Q_TIME * 1000 });
+  H.pl.forEach(p => { p.nv = 0; });
+  pub();
+}
+function startVoting() {
+  const n = H.pl.filter(p => present(p.id)).length;
+  H.ans = shuffle(Object.keys(H.sub).map(id => ({ a: id, t: H.sub[id] })));
+  H.av = n <= 4 ? 1 : n <= 6 ? 2 : 3;
+  H.vt = {}; H.sub = {}; H.phase = 'voting';
+  H.dl = Date.now() + (n <= 3 ? 20 : n <= 5 ? 30 : 35) * 1000;
+  pub();
+}
+function endVoting() {
+  const cnt = H.ans.map(() => 0);
+  Object.keys(H.vt).forEach(v => (H.vt[v] || []).forEach(i => { if (i >= 0 && i < cnt.length) cnt[i]++; }));
+  H.ans.forEach((a, i) => { a.n = cnt[i]; });
+  const top = cnt.length ? Math.max.apply(null, cnt) : 0;
+  H.win = H.ans.map((a, i) => i).filter(i => cnt[i] === top);
+  H.pl.forEach(p => { p.nv = 0; });
+  H.ans.forEach((a, i) => { const p = plOf(a.a); if (!p) return; p.nv = a.n; p.t += a.n; if (H.win.includes(i)) p.w++; });
+  H.phase = 'winner';
+  pub();
+}
+function hostNext() {
+  if (!H) return;
+  if (H.phase === 'winner') {
+    const nx = H.qi + 1;
+    if (nx === RECAP_AT && !H.rs && H.qs.length > RECAP_AT) { H.rs = true; H.phase = 'recap'; pub(); }
+    else if (nx < H.qs.length) startQuestion(nx);
+    else { H.phase = 'end'; pub(); }
+  } else if (H.phase === 'recap') startQuestion(H.qi + 1);
+}
+function hostAgain() {
+  if (!H || H.phase !== 'end') return;
+  Object.assign(H, { phase: 'lobby', g: rid(), qs: [], qi: 0, rs: false, done: [], ans: [], vt: {}, win: [] });
+  H.pl.forEach(p => { p.w = 0; p.t = 0; p.nv = 0; });
+  pub();
+}
+function hostDrop(id) {
+  if (!H || id === Net.me) return;
+  H.pl = H.pl.filter(p => p.id !== id);
+  if (!H.dr.includes(id)) H.dr.push(id);
+  H.done = H.done.filter(x => x !== id); delete H.sub[id]; delete H.vt[id];
+  pub();
+}
+setInterval(() => {
+  if (!H || !isHost()) return;
+  const act = H.pl.filter(p => present(p.id));
+  if (H.phase === 'question') { if ((act.length && act.every(p => H.done.includes(p.id))) || Date.now() > H.dl + 600) startVoting(); }
+  else if (H.phase === 'voting') { if (act.every(p => (H.vt[p.id] || []).length >= voteCap(p.id)) || Date.now() > H.dl + 600) endVoting(); }
+}, 300);
+/* things sent to the host that the state does not show yet go again (the host may have changed) */
+setInterval(() => {
+  const st = C.st; if (!Net.on || !st || isHost()) return;
+  const me = (st.pl || []).find(p => p.id === Net.me), key = st.g + ':' + st.qi, t = Date.now();
+  if (C.av >= 0 && (!me || me.a !== C.av) && t - C.avAt > 2500) { C.avAt = t; toHost({ k: 'av', a: C.av }); }
+  if (!me) return;
+  const s = C.sent[key];
+  if (st.phase === 'question' && s && !(st.done || []).includes(Net.me) && t - s.at > 2500) { s.at = t; toHost({ k: 'ans', g: st.g, qi: st.qi, t: s.t }); }
+  const v = C.myv[key];
+  if (st.phase === 'voting' && v && v.list.some(i => !((st.vt || {})[Net.me] || []).includes(i)) && t - v.at > 2500) { v.at = t; toHost({ k: 'vote', g: st.g, qi: st.qi, v: v.list }); }
+}, 1000);
+
+/* ---------- online screens ---------- */
+function render() {
+  if (MODE !== 'online' || !Net.on) return;
+  bar();
+  const st = C.st;
+  if (!st) return scrWaitConn();
+  const me = (st.pl || []).find(p => p.id === Net.me);
+  if (!me) return scrAvatar();
+  if (C.av >= 0 && me.a === C.av) C.av = -1;
+  if (st.phase === 'lobby') return scrLobby();
+  if (st.phase === 'question') return scrQuestion();
+  if (st.phase === 'voting') return scrVoting();
+  if (st.phase === 'winner') return scrWinner();
+  if (st.phase === 'recap') return scrRecap();
+  return scrEnd();
+}
+const plById = id => (C.st.pl || []).find(p => p.id === id);
+function scrWaitConn() { Tm.dl = () => 0; view('conn', w => { w.appendChild(el('div', 'h3', 'Joining game ' + Net.code + '...')); }); }
+function plItem(p, done) {
+  const li = el('li', present(p.id) ? '' : 'off');
+  add(li, avEl(p.a, '', done), el('div', 'nm', trimName(p.name)));
+  return li;
+}
+function scrAvatar() {
+  Tm.dl = () => 0;
+  view('avatar:' + Net.code, w => {
+    const nm = (Net.players.find(p => p.id === Net.me) || {}).name || Save.d.name || '';
+    const grid = el('ul', 'avgrid'), err = el('div', 'err');
+    let pick = -1;
+    const taken = a => (C.st.pl || []).some(p => p.id !== Net.me && p.a === a);
+    const joinB = btn('Join Game', '', () => {
+      if (pick < 0 || taken(pick)) return;
+      const full = (C.st.pl || []).length >= MAXP;
+      if (full) { err.textContent = ERRS.full; return; }
+      C.av = pick; C.avAt = Date.now(); C.avErr = ''; toHost({ k: 'av', a: pick }); upd();
+    });
+    add(w, el('div', 'h3 mt6', 'Hey ' + nm + '!'), el('h1', '', 'Choose Your Photo'), grid, add(el('div', 'mt6 center'), joinB), err);
+    const btns = AVATARS.map((svg, i) => {
+      const b = el('button', 'avpick'); b.type = 'button'; b.innerHTML = svg;
+      b.onclick = () => { if (taken(i) || C.av >= 0) return; pick = pick === i ? -1 : i; upd(); };
+      grid.appendChild(add(el('li'), b)); return b;
+    });
+    const upd = () => {
+      if (pick >= 0 && taken(pick)) { pick = -1; if (C.av >= 0) { C.av = -1; err.textContent = 'That photo was just taken.'; } }
+      if (pick < 0 && C.av < 0) for (let i = 0; i < AVATARS.length; i++) if (!taken(i)) { pick = i; break; }
+      btns.forEach((b, i) => { b.classList.toggle('on', i === pick); b.classList.toggle('taken', taken(i) && i !== pick); });
+      joinB.disabled = pick < 0 || C.av >= 0;
+    };
+    return upd;
+  });
+}
+function scrLobby() {
+  Tm.dl = () => 0;
+  view('lobby:' + Net.code, w => {
+    const list = el('ul', 'plist'), foot = el('div', 'mt6 center');
+    const card = el('div', 'card'); add(card, document.createTextNode('Game Code: '), el('strong', '', Net.code));
+    add(w, el('h1', '', 'Invite Others to Join'), add(el('div', 'mt6'), card), list, foot);
+    const startB = btn('Start The Game', '', () => hostStart());
+    let fk = '';
+    return () => {
+      const st = C.st;
+      list.innerHTML = '';
+      st.pl.filter(p => present(p.id)).forEach(p => list.appendChild(plItem(p)));
+      const n = st.pl.filter(p => present(p.id)).length, k = isHost() + ':' + (n >= 3);
+      if (k !== fk) {
+        fk = k; foot.innerHTML = '';
+        if (isHost()) add(foot, el('div', 'h3', 'When all players are ready'), add(el('div', 'mt3'), startB));
+        else foot.appendChild(el('div', 'h3', 'Waiting for host to start the game...'));
+      }
+      startB.disabled = n < 3;
+      startB.title = n < 3 ? '3 players needed' : '';
+    };
+  });
+}
+function scrQuestion() {
+  const st = C.st, key = st.g + ':' + st.qi;
+  const done = !!C.sent[key] || (st.done || []).includes(Net.me);
+  Tm.dl = () => C.deadline; Tm.hot = 10;
+  view('q:' + key + ':' + done, w => {
+    add(w, el('div', 'h3', 'Question ' + (st.qi + 1) + ' of ' + st.qs.length), el('h1', 'mt3', st.qs[st.qi]), add(el('div', 'mt6 center'), timerEl()));
+    if (!done) {
+      const a = inp('w35', 'Your Answer...', 300);
+      const go = () => {
+        const t = clean(a.value, 300); if (!t || C.sent[key]) return;
+        C.sent[key] = { t: t, at: Date.now() }; toHost({ k: 'ans', g: st.g, qi: st.qi, t: t }); render();
+      };
+      onEnter(a, go);
+      add(w, add(el('div', 'mt16'), a), add(el('div', 'mt6 center'), btn('Add Answer', '', go)));
+      focusSoon(a);
+      return;
+    }
+    const list = el('ul', 'plist');
+    add(w, el('div', 'h3 mt6', 'Waiting for other players...'), list);
+    return () => { list.innerHTML = ''; C.st.pl.forEach(p => list.appendChild(plItem(p, (C.st.done || []).includes(p.id) || (p.id === Net.me && !!C.sent[key])))); };
+  });
+}
+function myVotes(st) {
+  const key = st.g + ':' + st.qi, a = ((st.vt || {})[Net.me] || []).slice(), l = C.myv[key];
+  if (l) l.list.forEach(i => { if (!a.includes(i)) a.push(i); });
+  return a;
+}
+function capFor(st, id) { return Math.min(st.av, (st.ans || []).filter(a => a.a !== id).length); }
+function scrVoting() {
+  const st = C.st, key = st.g + ':' + st.qi;
+  Tm.dl = () => C.deadline; Tm.hot = 5;
+  view('v:' + key, w => {
+    add(w, el('h1', '', st.qs[st.qi]), el('div', 'h3 mt6', st.av === 1 ? 'Vote for the best answer!' : 'Vote for up to ' + st.av + ' answers!'), add(el('div', 'mt2 center'), timerEl()));
+    const al = el('div', 'alist'), veil = el('div', 'veil'), err = el('div', 'err'), below = el('div');
+    err.style.minHeight = '0';
+    const items = st.ans.map((a, i) => {
+      const own = a.a === Net.me;
+      const b = el(own ? 'div' : 'button', 'ans' + (own ? ' own' : ''));
+      if (!own) b.type = 'button';
+      const dot = el('span', 'dot'); if (!own) dot.innerHTML = SVG.vote;
+      add(b, add(el('span', 'in'), dot, el('span', 'tx', a.t)));
+      if (!own) b.onclick = () => vote(i);
+      al.appendChild(b); return b;
+    });
+    if (!st.ans.length) al.appendChild(el('div', 'h3', 'It would appear there were no answers...'));
+    al.appendChild(veil);
+    const list = el('ul', 'plist');
+    add(w, add(el('div', 'mt16'), al), err, below);
+    const vote = i => {
+      const s = C.st, mine = myVotes(s);
+      if (mine.includes(i)) { err.textContent = 'You can\'t change your vote!'; return; }
+      if (mine.length >= s.av) { err.textContent = 'Looks like you are out of votes!'; return; }
+      err.textContent = '';
+      const l = C.myv[key] = C.myv[key] || { list: [], at: 0 };
+      l.list.push(i); l.at = Date.now();
+      toHost({ k: 'vote', g: s.g, qi: s.qi, v: l.list.slice() });
+      upd();
+    };
+    let bk = '';
+    const upd = () => {
+      const s = C.st, mine = myVotes(s), out = mine.length >= capFor(s, Net.me);
+      items.forEach((b, i) => b.classList.toggle('on', mine.includes(i)));
+      veil.hidden = !out;
+      const k = out ? 'out' : 'left:' + (s.av - mine.length);
+      if (k !== bk) {
+        bk = k; below.innerHTML = '';
+        if (out) add(below, el('div', 'h3 mt6', 'Waiting for other players...'), list);
+        else below.appendChild(el('div', 'mt3 center muted', 'You have ' + (s.av - mine.length) + ' vote' + (s.av - mine.length === 1 ? '' : 's') + ' remaining...'));
+      }
+      if (out) { list.innerHTML = ''; s.pl.forEach(p => list.appendChild(plItem(p, ((s.vt || {})[p.id] || []).length >= capFor(s, p.id) || (p.id === Net.me)))); }
+    };
+    return upd;
+  });
+}
+function hostBtnOr(label, waitText, fn) {
+  const d = el('div', 'mt12 center');
+  if (isHost()) d.appendChild(btn(label, '', fn)); else d.appendChild(el('div', 'muted', waitText));
+  return d;
+}
+function dropBtn(p) {
+  if (!isHost() || p.id === Net.me) return null;
+  const b = el('button', 'drop', 'Drop'); b.type = 'button';
+  b.onclick = () => { if (confirm('Are you sure you want to drop this player from the game?')) hostDrop(p.id); };
+  return b;
+}
+function scrWinner() {
+  const st = C.st;
+  Tm.dl = () => 0;
+  view('w:' + st.g + ':' + st.qi + ':' + isHost() + ':' + st.v, w => {
+    const win = (st.win || []).map(i => st.ans[i]).filter(Boolean);
+    if (!st.ans.length) w.appendChild(el('div', 'h3', 'It would appear there were no answers...'));
+    else {
+      if (win.length === 1) {
+        const a = win[0], p = plById(a.a) || { name: '', a: -1 };
+        add(w, el('div', 'h3', 'The Winning Answer Is...'), el('h1', 'mt6', a.t), el('div', 'h3 mt3', a.n + (a.n === 1 ? ' Vote' : ' Votes')),
+          add(el('div', 'mt6 center'), avEl(p.a, 'lg'), el('div', 'pname', p.name)));
+      } else {
+        const ul = el('ul', 'plist');
+        win.forEach(a => { const p = plById(a.a) || { id: '', name: '', a: -1 }; const li = el('li'); add(li, avEl(p.a), el('div', 'nm', p.name)); ul.appendChild(li); });
+        add(w, el('div', 'h3', 'It\'s a Tie!'), el('div', 'h3 mt1', (win[0] ? win[0].n : 0) + ' Votes Each'), ul);
+      }
+      const rows = st.pl.slice().sort((a, b) => b.nv - a.nv);
+      const tb = el('div', 'tbl'), table = el('table'), body = el('tbody');
+      rows.forEach(p => {
+        const ans = st.ans.find(a => a.a === p.id), won = (st.win || []).some(i => st.ans[i] && st.ans[i].a === p.id);
+        const tr = el('tr');
+        add(tr, add(el('td', 'a'), avEl(p.a, 'md')),
+          add(el('td'), add(el('div', 'who'), el('strong', '', p.name), dropBtn(p)), el('div', 'say', ans ? ans.t : '')),
+          add(el('td', 'r'), el('span', 'bub' + (won ? ' on' : ''), String(p.nv || 0))));
+        body.appendChild(tr);
+      });
+      w.appendChild(add(tb, add(table, body)));
+    }
+    const last = st.qi + 1 >= st.qs.length;
+    w.appendChild(hostBtnOr(last ? 'Determine Game Winner' : 'Next Question',
+      last ? 'Waiting for host to move to game end...' : 'Waiting for host to start next question...', () => hostNext()));
+  });
+}
+function scoreTable(st) {
+  const rows = st.pl.slice().sort((a, b) => b.w - a.w || b.t - a.t);
+  const tb = el('div', 'tbl narrow'), table = el('table'), head = el('thead'), body = el('tbody');
+  const hr = el('tr'); add(hr, el('th', '', 'Player'), el('th'), el('th', 'r', 'Questions'), el('th', 'r', 'Votes')); head.appendChild(hr);
+  rows.forEach(p => {
+    const tr = el('tr');
+    add(tr, add(el('td', 'a'), avEl(p.a, 'md')), add(el('td'), add(el('div', 'who'), el('strong', '', p.name), dropBtn(p))),
+      add(el('td', 'r'), el('span', 'bub on', String(p.w))), add(el('td', 'r'), el('span', 'bub', String(p.t))));
+    body.appendChild(tr);
+  });
+  return add(tb, add(table, head, body));
+}
+function scrRecap() {
+  const st = C.st;
+  Tm.dl = () => 0;
+  view('r:' + st.g + ':' + isHost() + ':' + st.v, w => {
+    const left = st.qs.length - (st.qi + 1);
+    add(w, el('div', 'h1 sm', left + ' Questions Left!'), el('div', 'h3 mt6', 'The Score So Far...'), scoreTable(st),
+      hostBtnOr('Continue The Game', 'Waiting for host to continue the game...', () => hostNext()));
+  });
+}
+function finalWinners(pl) {
+  if (!pl.length) return { win: [], most: [] };
+  const mw = Math.max.apply(null, pl.map(p => p.w)), mt = Math.max.apply(null, pl.map(p => p.t));
+  let win = pl.filter(p => p.w === mw);
+  if (win.length > 1) { const bt = Math.max.apply(null, win.map(p => p.t)); win = win.filter(p => p.t === bt); }
+  return { win, most: pl.filter(p => p.t === mt) };
+}
+function scrEnd() {
+  const st = C.st;
+  Tm.dl = () => 0;
+  view('e:' + st.g + ':' + isHost() + ':' + st.v, w => {
+    const r = finalWinners(st.pl);
+    const big = p => add(el('div', 'mt6 center'), avEl(p.a, 'lg'), el('h1', 'mt2', p.name));
+    if (r.win.length === 1) {
+      const p = r.win[0];
+      add(w, el('div', 'h3', 'The Game Winner Is...'), big(p), el('div', 'h3 mt6', p.w + (p.w === 1 ? ' Question Won' : ' Questions Won')), el('div', 'h3', p.t + (p.t === 1 ? ' Total Vote' : ' Total Votes')));
+      if (r.most.length === 1 && r.most[0].id !== p.id) {
+        const m = r.most[0];
+        add(w, el('div', 'h3 mt12', 'Player with the Most Votes...'), big(m), el('div', 'h3 mt6', m.t + (m.t === 1 ? ' Total Vote' : ' Total Votes')));
+      }
+    } else if (r.win.length > 1) {
+      const ul = el('ul', 'plist');
+      r.win.forEach(p => { const li = el('li'); add(li, avEl(p.a), el('div', 'nm', p.name)); ul.appendChild(li); });
+      add(w, el('div', 'h3', 'The Game Is a Tie!'), el('div', 'h3 mt6', r.win[0].w + ' Questions Won Each'), el('div', 'h3', r.win[0].t + ' Votes Each'), ul);
+    }
+    w.appendChild(scoreTable(st));
+    if (isHost()) w.appendChild(add(el('div', 'mt12 center'), btn('Play Again', '', () => hostAgain())));
+  });
+}
+
+function quitRoom() { if (Net.on) { Net.on = false; Room.call('leave', { code: Net.code, token: Net.token }).catch(() => {}); } }
+document.getElementById('brand').onclick = () => { quitRoom(); try { parent.postMessage({ type: 'games-menu' }, '*'); } catch (e) {} };
+window.addEventListener('pagehide', quitRoom);
+Save.load(() => { if (!MODE && viewKey === 'home') { viewKey = null; scrHome(); } });
+scrHome();
+</script>
+</body>
+</html>

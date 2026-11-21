@@ -1,0 +1,77 @@
+<!doctype html><html><head><meta charset="utf-8"><!--sx-ob--><style>html,body{overscroll-behavior:none}*{overscroll-behavior-x:none}[data-ob]{overscroll-behavior-y:none!important}</style><script>/* no bounce and no scroll chaining: a box that really overflows stops dead at its ends */(function(){function ob(e){for(var el=e.target;el&&el.nodeType===1;el=el.parentElement){var o=getComputedStyle(el).overflowY;if(o!=="auto"&&o!=="scroll")continue;var on=el.scrollHeight>el.clientHeight+2;if(on!==el.hasAttribute("data-ob")){if(on)el.setAttribute("data-ob","");else el.removeAttribute("data-ob");}}}["pointerover","wheel","touchstart"].forEach(function(t){addEventListener(t,ob,{capture:true,passive:true});});})();</script><title>Drive Mad</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden}
+iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+/* the game runs in its own frame, so H can't reach the planner: this button goes back to the games menu */
+#back{position:absolute;left:0;top:50%;transform:translateY(-50%);z-index:2;width:24px;height:46px;border:0;border-radius:0 6px 6px 0;padding:0;background:rgba(0,0,0,.45);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.7}
+#back:hover{opacity:1}
+#back svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.6}
+#err{position:absolute;inset:0;z-index:1;display:none;align-items:center;justify-content:center}
+#err button{font:600 15px/1 system-ui,-apple-system,"Segoe UI",sans-serif;color:#fff;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28);border-radius:8px;padding:11px 20px;cursor:pointer}
+#err button:hover{background:rgba(255,255,255,.2)}
+</style></head><body>
+<iframe id="g" sandbox="allow-scripts allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-modals allow-forms allow-downloads allow-orientation-lock allow-presentation" allow="autoplay *; fullscreen *; gamepad *; clipboard-write *" title="Drive Mad"></iframe>
+<div id="err"><button id="retry">Retry</button></div>
+<button id="back" aria-label="Games" title="Games"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+<script>
+var GAME='drivemad',DIR='drivemad';
+/* REV: which commit of the arcade repo jsDelivr serves. '@main' follows the branch (cached by jsDelivr for up to 12 h); pin it to '@<commit>' after pushing */
+var REV='@0f5a55f85d8d427afa2af08a9baba3a9466dd4cf';
+var CDN='https:'+'/'+'/cdn.jsdelivr.net/gh/yuzhe-chen/saxon-arcade'+REV;
+/* BOOT: the arcade commit boot.js is read from (pinned on its own, so a boot.js change never recools the game files) */
+var BOOT='https:'+'/'+'/cdn.jsdelivr.net/gh/yuzhe-chen/saxon-arcade@41baca4e1c374657246623d86cc0a4ef9a053fcb/boot.js';
+/* testing mode (the planner sets SX_TEST for admins): the game starts from the maxed save below and nothing is saved */
+var TEST=window.SX_TEST===true;
+var PRESET='H4sIAAAAAAAC_32Vx87jyBVG30VbtrvETDYwCzGKYhCTmDDAgDnnrEa_u_Vj7PF4Ya_O_W7hoAqoi6qfl-3yA_52aebLj5-XuG-_t-G0lF0b5l35PZnKLW3DBGzpNJd9d_lx-fn75V_h94_46_Ltf0rfo3Re_kx_fOIfyD-uH58kCPL_SCAJlxDMYZdE_QGS6GOk2rS0PLwhV98oNkh51-Ghgm0RybpWTtSysD4ta3l_aL3pz604qLl02wCqzA0uuld7gMrhTpFCD7dWhYdv6jyarBljgc7WcBN3Fz5sbo4PVL56ME65LaUjKEujGj43Ch3rEKQPlCjQSEXOBaLfMR_IDTFOzAthBoLtfDnIB4htMTk2hoJr4pbljV0qpUDMLSGvVUYKWZ_gD-pRvfkFU7g9TWPaK2ln2LTOefRp7C3kOi30DAFdA9aKwalGIBDwvuor8O6OR2OctRGprupTmqI4cK9oQKeHoczFjJz6ed65TKepjAY7pWueSdDQCrIII1kfEg9KKL72XXT2SlXm7HRFmAoD5v6HYsoHmNnV9-bf5V90UyHAnC8egiq_90lnZ-rDTmdj6vEXXWErnimPY3ZXpKmAY97faFsKpbz3TWdZSlL2fPsbbzJhowWTCgL28grzv5mbpP1G1WMI-1B13GYshsMN3VGchOSrRzliszJAqJ1aTIKgWVrPDbKgFVofCRrsdjDiqgTGwBXci4_zquYTo1r5p1EgvG4U0E0nnGav5c-VWSJr3iyFZXpTZ2XJ5NhHz8hBmlI30fbNhFUwk2FlnzEZ2X_YjFxLziAmy-kakhkxivQIGSWW4uI-S2shUNKci0qDH7saVAVfS3AhXqV3Lr74a97WPGyUax1Q6AtnC5Hi0by78dheyXywVxaf7tV4SwqvzZiia_88dGpUyC0zbIjNdoNhjcDqGIqRQIc_bQgimwjnbY8fIMHEHXNBhhKLw1pbXqitJuvgs4MzwCGO5J9RDrWFlI5RXoAgKPPIySpH3H2-TiFrOrvAaWt65YYYG6v3tvncURmDxsljPqOwphETxh-KKHqOmOhD2Wu65LLXqOnu73HrMze7ObYgRo0SvUR0CkT31Xh-EkIhQVX7fFRm-DCvo0Vcz3acnyr8hK5erfcy9uhiGXe9XPaS157CL82s0cZnklcUbrmceqTBtacZtnJXo_ZS7jwCWULkzp44J0wYHyofZuEh9zDKue2NzGDDSrdNdKske-KQEllO_mph4yB32w6JIJiI9pyfo949i4Kb3ZqKg1S9Ao19JJF7-LjWuDT9WE0YHwxSlR0k1LmhqpGobdhp0_xCOVeM8xIXvz5nv3I3F_X7BTG56gXPIXqbBFTpZBo0UDD52LKW1nXosnNSptpX4EhcXPpKCLCe8O7oUlWjjQ9ljPgRdhRkRSeSHh0Uotborr0BgPJIW4b6ia8RTbpb0u7ZGxAEjpvgfkeWyqw90QxD5c1YgWI_vEAhJWO4C9SydqfNWHKjri8YaYf6WNqoP2n3FZ6VKUPb5tEKNrcnKQ_9ehLhY17LMvqMRVuSytC3JyF_WucY3VmPOK7w8ayl-RFXAqOUkXQYFt6yN4-HzDJvDvVrjZpo2PMzFvUJBymJFSBvvQnMrdvB51EmRjxRX4MiR6q3-wAn7_2KnjgkkFv-BDdAreo9q9JlnCqwmXC2VZREOgc4bPnpZ0QFsF3V8m3YHZzKjl49Wg1GTsRGadjf_EwdaJDLCIqWHJRIuEAAyKuGJmszRMrVrYUMfi4hiPaaY2wgSum64q0unFUhOmNPCpNmVQHdObCKe02nyFwqNJqqPrnjtv7A3Z2cpCPYnDTZ3xq5NVSCchhlhPpJkiDt9jhqcSTBgSeTGR3HNrzaJyXo2UZSlD7su9eJ6BZ7NxDdwfZ8iCBlYHTNEQLlkRbXeeywUyvmdqi3GDUk0mG7O9hhbuRJk0RW69X1WBTjt98uv75dyq8f8uevX_8EHGc6CscHAAA=';
+function preset(){return PRESET?'g:'+PRESET.replace(/-/g,'+').replace(/_/g,'/'):'';}
+var g=document.getElementById('g'),err=document.getElementById('err');
+/* github.io is blocked at school, so the game page is read from jsDelivr as text and written into a sandboxed frame.
+   The frame has an opaque origin: the game can't touch the planner's storage, cookies or DOM, and boot.js keeps its saves in memory. */
+function get(u,n){return fetch(u,{credentials:'omit'}).then(function(r){if(!r.ok)throw new Error(u+' '+r.status);return r.text();})
+  .catch(function(e){if(n>0)return new Promise(function(res){setTimeout(res,900);}).then(function(){return get(u,n-1);});throw e;});}
+function stage(v){return function(x){try{parent.postMessage({type:'game-stage',game:GAME,n:++stage.n},'*');}catch(_){}return x;};}
+stage.n=0;
+function load(){err.style.display='none';stage.n=0;
+  Promise.all([get(CDN+'/'+DIR+'/index.html',3).then(stage()),get(BOOT,3).then(stage())]).then(function(a){
+    var html=a[0].replace(/<script src="\.\.\/bridge\.js"><\/script>/i,''),js=a[1].replace(/<\/script/gi,'<\\/script');
+    var head='<base href="'+CDN+'/'+DIR+'/"><script>window.__SX='+JSON.stringify({game:GAME,dir:DIR,cdn:CDN})+';</'+'script><script>'+js+'</'+'script>';
+    html=/<head[^>]*>/i.test(html)?html.replace(/<head[^>]*>/i,function(m){return m+head;}):head+html;
+    g.srcdoc=html;
+  }).catch(function(e){console.warn('game load failed',e);err.style.display='flex';});}
+document.getElementById('retry').onclick=load;
+load();
+function toGame(o){try{g.contentWindow.postMessage(o,'*');}catch(_){}}
+/* back: let the game send its latest save first, then go to the games menu */
+var pend={},flush={},n=0;
+document.getElementById('back').onclick=function(){var id='f'+(++n),done=false;
+  var go=function(){if(done)return;done=true;delete flush[id];try{parent.postMessage({type:'games-menu'},'*');}catch(e){}};
+  flush[id]=go;toGame({type:'arcade-flush',reqId:id});setTimeout(go,700);};
+g.addEventListener('load',function(){g.focus();});
+window.addEventListener('focus',function(){g.focus();});
+/* save relay: the game frame asks for its save (arcade-load) and sends snapshots (arcade-save);
+   the planner stores them with game-load / game-save */
+window.addEventListener('message',function(e){
+  var m=e.data;if(!m||typeof m!=='object')return;
+  if(e.source===g.contentWindow&&e.origin==='null'){
+    if(m.type==='arcade-load'){
+      if(TEST){toGame({type:'arcade-load-res',reqId:m.reqId,data:preset(),test:true});return;}
+      var id='w'+(++n);pend[id]=m.reqId;
+      try{parent.postMessage({type:'game-load',game:GAME,reqId:id},'*');}catch(_){}
+    }else if(m.type==='arcade-progress'){
+      /* real loading progress (bytes, and Unity's own figure) for the planner's loading bar */
+      try{parent.postMessage({type:'game-progress',game:GAME,loaded:m.loaded,unity:m.unity},'*');}catch(_){}
+    }else if(m.type==='arcade-hide'){
+      try{parent.postMessage({type:'games-close'},'*');}catch(_){}
+    }else if(m.type==='arcade-save'&&!TEST&&typeof m.data==='string'){
+      /* the planner stores JSON objects only: the bridge's (compressed) save goes inside one */
+      var w=JSON.stringify({arc:m.data});
+      if(w.length<=150000)try{parent.postMessage({type:'game-save',game:GAME,data:w},'*');}catch(_){}
+    }else if(m.type==='arcade-flushed'&&flush[m.reqId]){flush[m.reqId]();}
+  }else if(e.source===parent&&m.type==='game-load-res'&&pend[m.reqId]){
+    var r=pend[m.reqId];delete pend[m.reqId];
+    var d=typeof m.data==='string'?m.data:'';
+    try{var o=d?JSON.parse(d):null;if(o&&typeof o.arc==='string')d=o.arc;}catch(_){}
+    toGame({type:'arcade-load-res',reqId:r,data:d});
+  }
+});
+</script></body></html>

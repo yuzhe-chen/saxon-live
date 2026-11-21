@@ -1,0 +1,77 @@
+<!doctype html><html><head><meta charset="utf-8"><!--sx-ob--><style>html,body{overscroll-behavior:none}*{overscroll-behavior-x:none}[data-ob]{overscroll-behavior-y:none!important}</style><script>/* no bounce and no scroll chaining: a box that really overflows stops dead at its ends */(function(){function ob(e){for(var el=e.target;el&&el.nodeType===1;el=el.parentElement){var o=getComputedStyle(el).overflowY;if(o!=="auto"&&o!=="scroll")continue;var on=el.scrollHeight>el.clientHeight+2;if(on!==el.hasAttribute("data-ob")){if(on)el.setAttribute("data-ob","");else el.removeAttribute("data-ob");}}}["pointerover","wheel","touchstart"].forEach(function(t){addEventListener(t,ob,{capture:true,passive:true});});})();</script><title>Stickman Hook</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden}
+iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+/* the game runs in its own frame, so H can't reach the planner: this button goes back to the games menu */
+#back{position:absolute;left:0;top:50%;transform:translateY(-50%);z-index:2;width:24px;height:46px;border:0;border-radius:0 6px 6px 0;padding:0;background:rgba(0,0,0,.45);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.7}
+#back:hover{opacity:1}
+#back svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.6}
+#err{position:absolute;inset:0;z-index:1;display:none;align-items:center;justify-content:center}
+#err button{font:600 15px/1 system-ui,-apple-system,"Segoe UI",sans-serif;color:#fff;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28);border-radius:8px;padding:11px 20px;cursor:pointer}
+#err button:hover{background:rgba(255,255,255,.2)}
+</style></head><body>
+<iframe id="g" sandbox="allow-scripts allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-modals allow-forms allow-downloads allow-orientation-lock allow-presentation" allow="autoplay *; fullscreen *; gamepad *; clipboard-write *" title="Stickman Hook"></iframe>
+<div id="err"><button id="retry">Retry</button></div>
+<button id="back" aria-label="Games" title="Games"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+<script>
+var GAME='stickmanhook',DIR='stickmanhook';
+/* REV: which commit of the arcade repo jsDelivr serves. '@main' follows the branch (cached by jsDelivr for up to 12 h); pin it to '@<commit>' after pushing */
+var REV='@0f5a55f85d8d427afa2af08a9baba3a9466dd4cf';
+var CDN='https:'+'/'+'/cdn.jsdelivr.net/gh/yuzhe-chen/saxon-arcade'+REV;
+/* BOOT: the arcade commit boot.js is read from (pinned on its own, so a boot.js change never recools the game files) */
+var BOOT='https:'+'/'+'/cdn.jsdelivr.net/gh/yuzhe-chen/saxon-arcade@41baca4e1c374657246623d86cc0a4ef9a053fcb/boot.js';
+/* testing mode (the planner sets SX_TEST for admins): the game starts from the maxed save below and nothing is saved */
+var TEST=window.SX_TEST===true;
+var PRESET='H4sIAAAAAAAC_3WUTW8aMRCG_0rlM4dW6iW5wdKECAgrIKdSRYN36nXWzCCvDaoi_nvdKI1mFkV7msevx_O182pO5vbbyITe3L6azfahmi_Hj7PVav7sOK1Cs-k8lTOzMylm3Bkz0iqbY0RKCzxhKLKbm08E9xGOx4D_dd-vdJkC2w4_Hvy5M9VsvH6uAvS9tzsz-vJOphEckwCb5G1XB6Ak4JIPHoU9JofhTSngj5O_YmvwtOfzEL_Zq4y2FXDuyV0J8xHjEE5ydBgFqMCm3EvA0XlhP5G3HGWaE6DyCfDo6UXamxbxKOwaqJHna95zWoL0ufWd12TGacpOgAUemLRmWOtt6_G3zKVlywESLvgke1Dlo29U66aeWPbDuQn0HUrnd4HPqnR34Y-w7lvupbwMGpEUzAlsJ8ECDrIqC68i-hfyBCEOUAm9gg4HtOakby9fOJCXl8s_VLKS4BxUj8JBmt4hJwXI1UzSQXkUEqNqPEQ5bVsk8nq4wgljUuQsw4ZkW-zVrPSYEqoR1nWtAudm22ZqVHdqBMoqA4hRpbRm_b9A7sGpdBBKiX4NN0RZBOlJbIm3rSQuDPU1Rls2T_H9rv76yW7Szj4WjrmMjG_2ZTFeLn8Bg3b2rigFAAA=';
+function preset(){return PRESET?'g:'+PRESET.replace(/-/g,'+').replace(/_/g,'/'):'';}
+var g=document.getElementById('g'),err=document.getElementById('err');
+/* github.io is blocked at school, so the game page is read from jsDelivr as text and written into a sandboxed frame.
+   The frame has an opaque origin: the game can't touch the planner's storage, cookies or DOM, and boot.js keeps its saves in memory. */
+function get(u,n){return fetch(u,{credentials:'omit'}).then(function(r){if(!r.ok)throw new Error(u+' '+r.status);return r.text();})
+  .catch(function(e){if(n>0)return new Promise(function(res){setTimeout(res,900);}).then(function(){return get(u,n-1);});throw e;});}
+function stage(v){return function(x){try{parent.postMessage({type:'game-stage',game:GAME,n:++stage.n},'*');}catch(_){}return x;};}
+stage.n=0;
+function load(){err.style.display='none';stage.n=0;
+  Promise.all([get(CDN+'/'+DIR+'/index.html',3).then(stage()),get(BOOT,3).then(stage())]).then(function(a){
+    var html=a[0].replace(/<script src="\.\.\/bridge\.js"><\/script>/i,''),js=a[1].replace(/<\/script/gi,'<\\/script');
+    var head='<base href="'+CDN+'/'+DIR+'/"><script>window.__SX='+JSON.stringify({game:GAME,dir:DIR,cdn:CDN})+';</'+'script><script>'+js+'</'+'script>';
+    html=/<head[^>]*>/i.test(html)?html.replace(/<head[^>]*>/i,function(m){return m+head;}):head+html;
+    g.srcdoc=html;
+  }).catch(function(e){console.warn('game load failed',e);err.style.display='flex';});}
+document.getElementById('retry').onclick=load;
+load();
+function toGame(o){try{g.contentWindow.postMessage(o,'*');}catch(_){}}
+/* back: let the game send its latest save first, then go to the games menu */
+var pend={},flush={},n=0;
+document.getElementById('back').onclick=function(){var id='f'+(++n),done=false;
+  var go=function(){if(done)return;done=true;delete flush[id];try{parent.postMessage({type:'games-menu'},'*');}catch(e){}};
+  flush[id]=go;toGame({type:'arcade-flush',reqId:id});setTimeout(go,700);};
+g.addEventListener('load',function(){g.focus();});
+window.addEventListener('focus',function(){g.focus();});
+/* save relay: the game frame asks for its save (arcade-load) and sends snapshots (arcade-save);
+   the planner stores them with game-load / game-save */
+window.addEventListener('message',function(e){
+  var m=e.data;if(!m||typeof m!=='object')return;
+  if(e.source===g.contentWindow&&e.origin==='null'){
+    if(m.type==='arcade-load'){
+      if(TEST){toGame({type:'arcade-load-res',reqId:m.reqId,data:preset(),test:true});return;}
+      var id='w'+(++n);pend[id]=m.reqId;
+      try{parent.postMessage({type:'game-load',game:GAME,reqId:id},'*');}catch(_){}
+    }else if(m.type==='arcade-progress'){
+      /* real loading progress (bytes, and Unity's own figure) for the planner's loading bar */
+      try{parent.postMessage({type:'game-progress',game:GAME,loaded:m.loaded,unity:m.unity},'*');}catch(_){}
+    }else if(m.type==='arcade-hide'){
+      try{parent.postMessage({type:'games-close'},'*');}catch(_){}
+    }else if(m.type==='arcade-save'&&!TEST&&typeof m.data==='string'){
+      /* the planner stores JSON objects only: the bridge's (compressed) save goes inside one */
+      var w=JSON.stringify({arc:m.data});
+      if(w.length<=150000)try{parent.postMessage({type:'game-save',game:GAME,data:w},'*');}catch(_){}
+    }else if(m.type==='arcade-flushed'&&flush[m.reqId]){flush[m.reqId]();}
+  }else if(e.source===parent&&m.type==='game-load-res'&&pend[m.reqId]){
+    var r=pend[m.reqId];delete pend[m.reqId];
+    var d=typeof m.data==='string'?m.data:'';
+    try{var o=d?JSON.parse(d):null;if(o&&typeof o.arc==='string')d=o.arc;}catch(_){}
+    toGame({type:'arcade-load-res',reqId:r,data:d});
+  }
+});
+</script></body></html>

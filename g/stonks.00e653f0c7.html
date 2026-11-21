@@ -1,0 +1,20 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Stonks</title>
+<style>
+html,body{margin:0;height:100%;background:#0B0B0B;overflow:hidden;overscroll-behavior:none}
+iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+#err{position:absolute;inset:0;z-index:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#F1ECE0;font:600 15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;text-align:center;padding:20px}
+#err a{color:#1B1B1B;background:#C6FF3D;padding:11px 20px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+</style></head><body>
+<!-- Stonks runs on its own site (owner-coded); the planner shows it full size in this frame -->
+<iframe id="g" allow="fullscreen; autoplay; clipboard-write" title="Stonks"></iframe>
+<div id="err"><div>Stonks didn't load.</div><a id="open" target="_blank" rel="noopener">Open Stonks in a new tab</a></div>
+<script>
+(function(){
+  var URL_='https:'+'/'+'/brrr.web.app/',g=document.getElementById('g'),err=document.getElementById('err'),ok=false;
+  document.getElementById('open').href=URL_;
+  g.addEventListener('load',function(){ok=true;err.style.display='none';try{g.focus();}catch(e){}});
+  setTimeout(function(){if(!ok)err.style.display='flex';},20000);
+  g.src=URL_;
+  window.addEventListener('focus',function(){try{g.focus();}catch(e){}});
+})();
+</script></body></html>

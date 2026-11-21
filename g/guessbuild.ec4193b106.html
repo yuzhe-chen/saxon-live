@@ -1,0 +1,1892 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><!--sx-ob--><style>html,body{overscroll-behavior:none}*{overscroll-behavior-x:none}[data-ob]{overscroll-behavior-y:none!important}</style><script>/* game-ready: the planner keeps its loading screen over this game until the saved data it asked for has arrived and been
+   applied. Each save request holds it (SXR.hold); once nothing is held after the page has parsed, the game posts game-ready */
+(function () {
+  if (window.SXR) return;
+  var n = 0, armed = false, sent = false, keys = {};
+  function go() { if (sent || !armed || n > 0) return; sent = true; try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'game-ready', game: 'guessbuild' }, '*'); } catch (e) {} }
+  function hold(key) {
+    if (sent) return function () {};
+    n++; var done = false, t;
+    function rel() { if (done) return; done = true; clearTimeout(t); if (key != null && keys[key] === rel) delete keys[key]; n--; setTimeout(go, 0); }
+    if (key != null) keys[key] = rel;
+    t = setTimeout(rel, 16000);
+    return rel;
+  }
+  /* registered before the game's own listeners: the release runs after they have applied the reply */
+  window.addEventListener('message', function (e) { var m = e.data; if (m && m.type === 'game-load-res' && keys[m.reqId]) keys[m.reqId](); });
+  window.SXR = { hold: hold };
+  function arm() { setTimeout(function () { armed = true; go(); }, 0); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arm); else arm();
+})();
+</script><script>/* no bounce and no scroll chaining: a box that really overflows stops dead at its ends */(function(){function ob(e){for(var el=e.target;el&&el.nodeType===1;el=el.parentElement){var o=getComputedStyle(el).overflowY;if(o!=="auto"&&o!=="scroll")continue;var on=el.scrollHeight>el.clientHeight+2;if(on!==el.hasAttribute("data-ob")){if(on)el.setAttribute("data-ob","");else el.removeAttribute("data-ob");}}}["pointerover","wheel","touchstart"].forEach(function(t){addEventListener(t,ob,{capture:true,passive:true});});})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<title>guess the drawing</title>
+<!--duo--><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<script>(function(){var R=document.documentElement;function s(){var t=null;try{t=parent.document.documentElement.getAttribute('data-theme')}catch(e){}
+var d=t?t==='dark':!!(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);R.setAttribute('data-theme',d?'dark':'light')}
+s();try{new MutationObserver(s).observe(parent.document.documentElement,{attributes:true,attributeFilter:['data-theme']})}catch(e){}})();</script>
+<style>
+  :root {
+    --display: 'Fredoka', 'Nunito', system-ui, sans-serif; --sans: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif; --font: var(--sans);
+    --green: #58cc02; --green-dark: #58a700; --green-wash: #d7ffb8; --blue: #4b9af3; --blue-dark: #3c81db; --blue-hi: #63a8f6; --blue-wash: #e6f1ff; --blue-line: #a4ceff;
+    --red: #ff4b4b; --red-dark: #ea2b2b; --red-wash: #ffdfe0; --gold: #ffc800; --gold-dark: #e5a400; --gold-wash: #fff5d3;
+    --bg: #fff; --panel: #fff; --panel-soft: #f7f7f7; --line: #e5e5e5; --line-hi: #d0d0d0; --text: #4b4b4b; --text-dim: #777; --text-faint: #afafaf;
+    --hov: #f7f7f7; --scrim: rgba(255,255,255,0.94); color-scheme: light;
+    --panel2: var(--panel-soft); --panel3: var(--panel-soft); --edge: var(--line);
+    --fg: var(--text); --fg2: var(--text-dim); --fg3: var(--text-faint); --lbl: var(--text-faint);
+    --accent: var(--blue); --accent-hi: var(--blue-hi); --accent-fg: #fff; --good: var(--green); --good-ink: #58a700; --bad: var(--red);
+  }
+  :root[data-theme="dark"] {
+    --bg: #131f24; --panel: #131f24; --panel-soft: #202f36; --line: #37464f; --line-hi: #52656d; --text: #f1f7fb; --text-dim: #8799a3; --text-faint: #6f8691;
+    --green-wash: #1c3a12; --blue-wash: #1c3150; --red-wash: #3d1f22; --gold-wash: #3a3112; --blue-line: #3c81db; --blue-ink: #78b0fc; --good-ink: #58cc02; --hov: #202f36; --scrim: rgba(19,31,36,0.95); color-scheme: dark;
+  }
+  * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+  *:focus, *:focus-visible { outline: none; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 400 15.5px/1.5 var(--font); color-scheme: dark; }
+  body { overflow-x: hidden; min-height: 100vh; }
+  button { font-family: inherit; color: inherit; }
+  [hidden] { display: none !important; }
+  .lbl { font: 500 12.5px/1.3 var(--font); letter-spacing: 0.03em; text-transform: uppercase; color: var(--lbl); }
+
+  #bar { position: sticky; top: 0; z-index: 30; min-height: 58px; display: flex; align-items: center; gap: 14px; padding: 8px 24px; background: var(--bg); border-bottom: 1px solid var(--edge); }
+  .brand { cursor: pointer; font: 800 26px/1.1 var(--font); text-transform: uppercase; letter-spacing: -0.02em; white-space: nowrap; }
+  #bar .sp { flex: 1; min-width: 4px; }
+  #hud { display: flex; align-items: center; gap: 4px; }
+  .st { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-width: 44px; padding: 0 8px; }
+  .st .k { font: 500 12px/1.2 var(--font); letter-spacing: 0.03em; text-transform: uppercase; color: var(--lbl); margin-bottom: 2px; white-space: nowrap; }
+  .st b { font: 800 22px/1.15 var(--font); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .st b.warn { color: var(--bad); }
+
+  .btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 10px 18px; cursor: pointer;
+    font: 600 12.5px/1.2 var(--font); letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap;
+    background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 0;
+    transform: scale(1); transition: background .15s, opacity .15s, transform .32s cubic-bezier(0.34, 1.9, 0.6, 1); }
+  .btn:not(:disabled):active { transform: scale(0.9); transition-duration: .15s, .15s, .08s; transition-timing-function: ease; }
+  .btn.ghost { background: var(--panel2); color: var(--fg); }
+  .btn.sm { min-height: 38px; padding: 8px 14px; }
+  .btn:disabled { opacity: 0.35; cursor: default; }
+  @media (hover: hover) { .btn:not(:disabled):hover { background: var(--accent-hi); } .btn.ghost:not(:disabled):hover { background: #3a3a35; } }
+
+  #main { max-width: 1100px; margin: 0 auto; padding: 22px 16px 56px; }
+  .panel { background: var(--panel); border: 1px solid var(--edge); padding: 22px; }
+  .inp { width: 100%; min-width: 0; height: 52px; padding: 0 16px; border: 1px solid var(--edge); border-radius: 0; background: var(--panel3);
+    color: var(--fg); font: 500 18px/1.3 var(--font); -webkit-user-select: text; user-select: text; }
+  .inp:focus { background: #262624; }
+  .inp::placeholder { color: rgba(235,234,229,0.3); }
+  .inp.code { text-transform: uppercase; letter-spacing: 0.2em; font-weight: 700; }
+  .row { display: flex; gap: 10px; align-items: center; }
+  .row > .inp { flex: 1; }
+  .err { min-height: 22px; margin-top: 12px; font: 700 14px/1.3 var(--font); color: var(--bad); }
+  .seg { display: inline-flex; flex-wrap: wrap; gap: 2px; }
+  .seg button { min-height: 40px; padding: 10px 16px; border: 0; border-radius: 0; cursor: pointer; background: var(--panel2);
+    font: 500 12.5px/1.2 var(--font); letter-spacing: 0.03em; text-transform: uppercase; color: var(--fg); }
+  .seg button.on { background: var(--fg); color: var(--bg); }
+  .seg button:disabled { cursor: default; }
+  @media (hover: hover) { .seg button:not(.on):not(:disabled):hover { background: #3a3a35; } }
+
+  /* home */
+  .home { max-width: 560px; margin: 4vh auto 0; }
+  .home .seg { margin-bottom: 14px; }
+  
+  .field { margin-bottom: 16px; }
+  .field .lbl { margin-bottom: 8px; }
+  .or { height: 1px; background: var(--edge); margin: 22px 0; }
+  .names { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .names .row .x { width: 52px; height: 52px; flex: none; border: 0; color: var(--fg); background: var(--panel2); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .names .row .x svg { width: 16px; height: 16px; stroke: var(--fg); stroke-width: 2.4; fill: none; }
+  .names .n { width: 28px; flex: none; font: 800 16px/1 var(--font); color: var(--fg3); text-align: right; }
+
+  /* lobby */
+  .lobby { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+  .codebox .code { font: 800 68px/1.1 var(--font); letter-spacing: 0.06em; margin: 6px 0 18px; }
+  .acts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+  .plist { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+  .pl { display: flex; align-items: center; gap: 12px; padding: 11px 14px; background: var(--panel2); min-width: 0; }
+  .pl .nm { font: 700 18px/1.35 var(--font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .pl .tag { font: 500 12px/1.2 var(--font); letter-spacing: 0.03em; text-transform: uppercase; color: var(--fg3); flex: none; }
+  .pl .tag.a { color: var(--accent); }
+  .pl .ck { margin-left: auto; width: 20px; height: 20px; flex: none; }
+  .pl .ck svg { width: 20px; height: 20px; stroke: var(--good); stroke-width: 3; fill: none; }
+  .pl.off { opacity: 0.4; }
+
+  .board { position: relative; width: 100%; max-width: max(300px, calc((100vh - 270px) * 4 / 3)); margin: 0 auto; aspect-ratio: 4 / 3; background: #fff; overflow: hidden; }
+  .board canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .board.ed canvas { cursor: crosshair; }
+  .board .over { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 700 26px/1.2 var(--font); color: #999; }
+  .tools { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: flex-start; justify-content: center; margin: 12px auto 0; max-width: 900px; }
+  .tg { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; justify-content: center; }
+  .tools .tb { width: 38px; height: 38px; border: 1px solid var(--edge); background: var(--panel2); }
+  .tools .tb.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .tools .tb:disabled { opacity: 0.35; cursor: default; transform: none; }
+  .tools .tb svg { stroke-width: 1.8; stroke-linecap: square; stroke-linejoin: miter; }
+  .tools .tb i { display: block; background: currentColor; border-radius: 50%; }
+  .tg.cols { flex-wrap: nowrap; align-items: stretch; }
+  .pal { display: grid; grid-template-columns: repeat(10, 30px); grid-auto-rows: 30px; gap: 2px; }
+  .sw { position: relative; width: 30px; height: 30px; border: 1px solid rgba(255,255,255,0.14); border-radius: 0; cursor: pointer; padding: 0; background: var(--panel2); }
+  .sw.on { border: 1px solid var(--fg); box-shadow: inset 0 0 0 2px var(--bg); }
+  .sw.cu { width: 34px; height: auto; display: flex; align-items: center; justify-content: center; color: #fff; }
+  .sw.cu.lt { color: #14161c; }
+  .sw.cu svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: square; }
+  .sw.cu input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; cursor: pointer; }
+  .tb { width: 40px; height: 40px; border: 0; border-radius: 0; cursor: pointer; background: var(--panel2); display: flex; align-items: center; justify-content: center; padding: 0;
+    transform: scale(1); transition: background .15s, transform .32s cubic-bezier(0.34, 1.9, 0.6, 1); }
+  .tb:active { transform: scale(0.88); transition-duration: .15s, .08s; }
+  .tb.on { background: var(--fg); color: var(--bg); }
+  .tb { color: var(--fg); }
+  .tb svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  /* game */
+  .gg { display: grid; grid-template-columns: 220px minmax(0, 1fr) 290px; gap: 14px; align-items: start; }
+  .gc { min-width: 0; }
+  .sb { padding: 0; }
+  .sr { display: flex; align-items: center; gap: 10px; padding: 11px 14px; box-shadow: inset 0 -1px 0 var(--edge); min-width: 0; }
+  .sr.me { background: var(--panel2); }
+  .sr .rk { width: 16px; flex: none; font: 700 14px/1.2 var(--font); color: var(--fg3); }
+  .sr .nm { flex: 1; min-width: 0; font: 700 17px/1.35 var(--font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sr.ok .nm { color: var(--good); }
+  .sr .ic { width: 18px; height: 18px; flex: none; }
+  .sr .ic svg { width: 18px; height: 18px; fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .sr.ok .ic svg { stroke: var(--good); stroke-width: 3; }
+  .sr .pt { font: 800 17px/1.2 var(--font); font-variant-numeric: tabular-nums; flex: none; }
+  .wordbar { display: flex; align-items: center; justify-content: center; gap: 14px; min-height: 58px; margin-bottom: 10px; flex-wrap: wrap; text-align: center; }
+  .wordbar .word { font: 800 36px/1.15 var(--font); text-transform: uppercase; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+  .wordbar .word.dim { color: var(--text-dim); }
+  .wordbar .lbl.ok { color: var(--good); }
+  .mask { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 22px; }
+  .mw { display: flex; gap: 6px; }
+  .mw i { display: block; width: 24px; height: 40px; font: 800 30px/36px var(--font); font-style: normal; text-align: center; text-transform: uppercase; box-shadow: inset 0 -3px 0 var(--fg); }
+  .mw i.u { box-shadow: inset 0 -3px 0 var(--fg3); }
+  .wlen { font: 600 15px/1.2 var(--font); color: var(--fg2); }
+  .bwrap { position: relative; }
+  .bwrap .board { max-width: max(300px, calc((100vh - 230px) * 4 / 3)); }
+  .ov { position: absolute; left: 50%; top: 0; bottom: 0; transform: translateX(-50%); width: 100%; max-width: max(300px, calc((100vh - 230px) * 4 / 3));
+    z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 16px; text-align: center; background: rgba(23,23,22,0.95); animation: fade .25s ease both; }
+  .ov .big { font: 800 50px/1.1 var(--font); text-transform: uppercase; letter-spacing: -0.03em; margin: 0; overflow-wrap: anywhere; }
+  .choices { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .choices .btn { font-size: 17px; font-weight: 700; min-height: 56px; padding: 12px 20px; }
+  .gains { display: flex; flex-direction: column; gap: 4px; min-width: 220px; max-width: 100%; }
+  .gr { display: flex; justify-content: space-between; gap: 18px; padding: 8px 14px; background: var(--panel2); font: 600 17px/1.35 var(--font); }
+  .gr b { color: var(--good); font-weight: 800; }
+  .gr.none { justify-content: center; color: var(--fg3); }
+  .chat { padding: 0; display: flex; flex-direction: column; height: min(640px, calc(100vh - 110px)); min-height: 260px; }
+  .log { flex: 1; overflow-y: auto; padding: 10px 14px; font: 400 16px/1.4 var(--font); -webkit-user-select: text; user-select: text; }
+  .log div { padding: 3px 0; overflow-wrap: anywhere; }
+  .log b { font-weight: 700; }
+  .log .ok { color: var(--good); font-weight: 700; }
+  .log .pv { color: var(--good); }
+  .log .cl { color: var(--gold); font-weight: 700; }
+  .chat .row { padding: 8px; border-top: 1px solid var(--edge); }
+  .chat .inp { height: 48px; font-size: 18px; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+  /* podium */
+  .ptitle { text-align: center; margin: 6px 0 22px; font: 800 44px/1.1 var(--font); letter-spacing: -0.03em; color: var(--fg); }
+  .podium { display: flex; justify-content: center; align-items: flex-end; gap: 10px; max-width: 640px; margin: 0 auto; }
+  .pc { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; animation: rise .5s cubic-bezier(.2,.8,.2,1) both; }
+  .pc.p1 { animation-delay: .25s; } .pc.p3 { animation-delay: .1s; }
+  .pn { font: 800 24px/1.3 var(--font); text-transform: uppercase; letter-spacing: -0.02em; max-width: 100%; padding: 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pp { font: 500 15px/1.3 var(--font); color: var(--fg2); margin: 6px 0 10px; }
+  .pb { width: 100%; background: var(--panel2); display: flex; justify-content: center; padding-top: 14px; }
+  .p1 .pb { height: 200px; background: var(--accent); color: var(--accent-fg); }
+  .p2 .pb { height: 150px; }
+  .p3 .pb { height: 110px; }
+  .prk { font: 800 56px/1.1 var(--font); }
+  .rest { max-width: 640px; margin: 14px auto 0; }
+  .rest .pt { margin-left: auto; font: 700 17px/1.3 var(--font); }
+  .center-acts { justify-content: center; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+  @media (max-width: 1000px) {
+    .gg { grid-template-columns: minmax(0, 1fr); }
+    .gc { order: 1; } .chat { order: 2; height: 300px; } .sb { order: 3; }
+    .bwrap .board, .ov { max-width: max(300px, calc((100vh - 300px) * 4 / 3)); }
+  }
+  @media (max-width: 720px) {
+    .lobby { grid-template-columns: minmax(0, 1fr); }
+    .codebox .code { font-size: 52px; }
+    .wordbar .word { font-size: 26px; }
+    .mw i { width: 18px; height: 32px; font-size: 24px; line-height: 29px; }
+    .mw { gap: 4px; } .mask { gap: 6px 14px; }
+    .ov .big { font-size: 34px; }
+    .choices .btn { font-size: 17px; height: 50px; padding: 0 16px; }
+    .pn { font-size: 18px; }
+    .p1 .pb { height: 150px; } .p2 .pb { height: 112px; } .p3 .pb { height: 84px; }
+    .prk { font-size: 40px; }
+  }
+  @media (max-width: 480px) {
+    #bar { gap: 8px; padding: 8px 12px; }
+    .brand { font-size: 19px; }
+    .st { padding: 0 3px; min-width: 36px; }
+    .st b { font-size: 18px; }
+    #main { padding: 14px 12px 48px; }
+    .panel { padding: 18px 16px; }
+    .sb, .chat { padding: 0; }
+    .tools { gap: 6px 10px; }
+    .tools .tb { width: 36px; height: 36px; }
+    .pal { grid-template-columns: repeat(10, 28px); grid-auto-rows: 28px; }
+    .sw { width: 28px; height: 28px; }
+    .btn { padding: 0 20px; }
+  }
+  #bMusic { flex: none; }
+  #note { position: fixed; left: 0; right: 0; z-index: 29; padding: 9px 16px; background: var(--panel); border-bottom: 1px solid var(--edge); text-align: center;
+    font: 600 13px/1.3 var(--font); letter-spacing: 0.03em; text-transform: uppercase; color: var(--fg); }
+
+  /* ===== chunky flat look ===== */
+  html, body { color-scheme: inherit; font: 700 16px/1.5 var(--sans); }
+  .lbl, .st .k, .pl .tag { font: 800 12.5px/1.3 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+  #bar { min-height: 64px; border-bottom: 2px solid var(--line); }
+  .brand, .codebox .code, .big, .ptext, .alb-top .nm, .wordbar .word, .ov .big, .ptitle, .pn, .prk, .st b { font-family: var(--display); font-weight: 700; letter-spacing: -0.02em; }
+  .brand { text-transform: none; color: var(--blue); font-size: 28px; }
+  .big, .alb-top .nm, .wordbar .word, .ov .big, .pn { text-transform: none; }
+  .st b { color: var(--text); }
+  .st b.warn { color: var(--red); }
+  /* a timer with no time yet hides its label too, instead of showing TIME over a blank */
+  #hud .st:has(b:empty) { visibility: hidden; }
+  .btn { min-height: 48px; padding: 0 20px; border: 2px solid var(--blue-dark); border-bottom-width: 4px; border-radius: 12px; background: var(--blue); color: #fff;
+    font: 800 15px/1.2 var(--sans); letter-spacing: 0.8px; text-transform: uppercase; transform: none; transition: none; }
+  .btn:not(:disabled):active { transform: translateY(2px); border-bottom-width: 2px; margin-bottom: 2px; }
+  .btn.ghost { background: var(--bg); color: var(--blue); border-color: var(--line); }
+  .btn.sm { min-height: 36px; padding: 0 14px; font-size: 13px; border-radius: 10px; border-bottom-width: 3px; }
+  .btn.sm:not(:disabled):active { transform: translateY(1px); border-bottom-width: 2px; margin-bottom: 1px; }
+  .btn:disabled { opacity: 0.5; }
+  @media (hover: hover) { .btn:not(:disabled):hover { background: var(--blue-hi); } .btn.ghost:not(:disabled):hover { background: var(--panel-soft); } }
+  .panel, .ent { background: var(--panel); border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 16px; }
+  .inp { height: 52px; border: 2px solid var(--line); border-radius: 12px; background: var(--panel-soft); color: var(--text); font: 700 18px/1.3 var(--sans); }
+  .inp:focus { background: var(--bg); border-color: var(--blue); }
+  .inp::placeholder { color: var(--text-faint); }
+  .err { font: 800 14px/1.3 var(--sans); color: var(--red); }
+  .seg { gap: 8px; }
+  .seg button { min-height: 42px; padding: 0 16px; border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 12px; background: var(--bg); color: var(--text-dim);
+    font: 800 14px/1.2 var(--sans); letter-spacing: 0.04em; text-transform: uppercase; }
+  .seg button.on { border-color: var(--blue-line); background: var(--blue-wash); color: var(--blue); }
+  .seg button:not(:disabled):active { transform: translateY(2px); border-bottom-width: 2px; margin-bottom: 2px; }
+  @media (hover: hover) { .seg button:not(.on):not(:disabled):hover { background: var(--panel-soft); color: var(--text); } }
+  .or { height: 2px; background: var(--line); border-radius: 2px; }
+  .names .row .x { border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 12px; background: var(--bg); color: var(--text-dim); }
+  .names .row .x svg { stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
+  .names .n { font: 700 18px/1 var(--display); color: var(--text-faint); }
+  .pl { padding: 10px 14px; background: var(--bg); border: 2px solid var(--line); border-radius: 12px; }
+  .pl .nm { font: 800 18px/1.35 var(--sans); }
+  .pl .tag.a { color: var(--blue); }
+  .pl .ck svg { stroke: var(--green); stroke-linecap: round; stroke-linejoin: round; }
+  .codebox .code { color: var(--text); }
+  .board { border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 16px; background: #fff; }
+  .board .over, .ent.draw .skipbox { font: 700 26px/1.2 var(--display); color: #afafaf; }
+  .ent canvas, .ent.draw .skipbox { border-radius: 12px; border: 2px solid var(--line); }
+  .ent .etext { font: 800 26px/1.25 var(--sans); }
+  .ent { animation: none; }
+  .tools { gap: 10px 16px; }
+  .tg { gap: 6px; }
+  .tb, .tools .tb { width: 44px; height: 44px; border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 12px; background: var(--bg); color: var(--text-dim); transform: none; transition: none; }
+  .tb:not(:disabled):active { transform: translateY(2px); border-bottom-width: 2px; margin-bottom: 2px; }
+  .tb.on, .tools .tb.on { background: var(--blue-wash); border-color: var(--blue-line); color: var(--blue); }
+  .tools .tb:disabled { opacity: 0.4; }
+  @media (hover: hover) { .tb:not(.on):not(:disabled):hover { background: var(--panel-soft); } }
+  .tb svg, .tools .tb svg { width: 22px; height: 22px; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+  .tb svg.fl { width: 26px; height: 26px; stroke: none; }
+  .tools .tb i { background: currentColor; }
+  #bMusic { width: 44px; height: 44px; }
+  .pal { gap: 4px; grid-template-columns: repeat(10, 30px); }
+  .sw { border: 2px solid rgba(0,0,0,0.12); border-radius: 8px; }
+  :root[data-theme="dark"] .sw { border-color: rgba(255,255,255,0.18); }
+  .sw.on { border: 2px solid var(--blue); box-shadow: inset 0 0 0 2px var(--bg); }
+  .sw.cu { border-radius: 8px; color: var(--text-dim); }
+  .sw.cu[style*="background"] { color: #fff; }
+  .sw.cu.lt { color: #14161c; }
+  .sw.cu svg { stroke-width: 2.6; stroke-linecap: round; }
+  .dock { border-top: 2px solid var(--line); }
+  #note { background: var(--blue-wash); color: var(--blue); border-bottom: 2px solid var(--blue-line); font: 800 13px/1.3 var(--sans); letter-spacing: 0.04em; }
+  /* guess the drawing */
+  .sb, .chat { overflow: hidden; }
+  .sr { box-shadow: inset 0 -2px 0 var(--line); }
+  .sr.me { background: var(--blue-wash); }
+  .sr .rk { font: 800 14px/1.2 var(--sans); color: var(--text-faint); }
+  .sr .nm, .sr .pt { font-family: var(--sans); font-weight: 800; }
+  .sr.ok .nm { color: var(--good-ink); }
+  .sr .ic svg { stroke: var(--blue); }
+  .sr.ok .ic svg { stroke: var(--green); }
+  .mw i { font-family: var(--display); font-weight: 700; box-shadow: inset 0 -4px 0 var(--text); border-radius: 2px; }
+  .mw i.u { box-shadow: inset 0 -4px 0 var(--line-hi); }
+  .wlen { font: 800 15px/1.2 var(--sans); color: var(--text-dim); }
+  .wordbar { align-items: baseline; }
+  /* the letter count gets a matching empty slot on the left, so the blanks sit exactly in the middle */
+  .wordbar > .wlen { width: 32px; text-align: left; }
+  .wordbar:has(> .wlen)::before { content: ''; width: 32px; order: -1; }
+  .ov { background: var(--scrim); border-radius: 16px; animation: none; }
+  .choices .btn { font-size: 16px; min-height: 56px; }
+  .gr { background: var(--panel-soft); border-radius: 12px; font: 700 17px/1.35 var(--sans); }
+  .gr b { color: var(--good-ink); }
+  .log { font: 700 16px/1.4 var(--sans); }
+  .log b { font-weight: 900; }
+  .log .ok, .log .pv { color: var(--good-ink); }
+  .log .cl { color: var(--gold-dark); }
+  .chat .row { border-top: 2px solid var(--line); }
+  .pp { font: 700 15px/1.3 var(--sans); color: var(--text-dim); }
+  .pb { background: var(--panel-soft); border: 2px solid var(--line); border-bottom: 0; border-radius: 16px 16px 0 0; }
+  .p1 .pb { background: var(--gold); border-color: var(--gold-dark); }
+  .p2 .pb { background: #e5e5e5; border-color: #d0d0d0; }
+  .p3 .pb { background: #ff9600; border-color: #cd7900; }
+  /* one dark ink on every step, readable on gold, grey and orange alike */
+  .p1 .pb, .p2 .pb, .p3 .pb { color: rgba(0,0,0,.45); }
+  .lbl.ptitle { font: 700 40px/1.1 var(--display); letter-spacing: -0.02em; text-transform: none; color: var(--text); }
+  .pc { animation: none; }
+  .rest .pt { font: 800 17px/1.3 var(--sans); }
+  @media (max-width: 480px) {
+    /* lobby options split the row evenly instead of leaving one button alone on a second line */
+    .lobby .seg, .home .panel .seg { display: grid; grid-template-columns: repeat(auto-fit, minmax(36px, 1fr)); gap: 6px; }
+    .lobby .seg button, .home .panel .seg button { padding: 0 4px; }
+    .brand { font-size: 22px; }
+    .tb, .tools .tb { width: 40px; height: 40px; }
+    .pal { grid-template-columns: repeat(10, 28px); }
+    .btn { padding: 0 16px; }
+  }
+</style>
+</head>
+<body>
+<div id="bar">
+  <div class="brand" id="brand">guess the drawing</div>
+  <div class="sp"></div>
+  <div id="hud"></div>
+  <button class="tb" id="bMusic" type="button"></button>
+</div>
+<div id="note" hidden></div>
+<div id="main"></div>
+<script>
+'use strict';
+/* ================= room bridge ================= */
+var Room = (function () {
+  var n = 0, waits = {};
+  window.addEventListener('message', function (e) {
+    var m = e.data; if (!m || m.type !== 'room-res' || !waits[m.reqId]) return;
+    var w = waits[m.reqId]; delete waits[m.reqId]; m.ok ? w.res(m.result) : w.rej(new Error(m.error || 'conn'));
+  });
+  function call(op, args) {
+    return new Promise(function (res, rej) {
+      if (window.parent === window) { rej(new Error('conn')); return; }
+      var id = 'r' + (++n) + '_' + Date.now();
+      waits[id] = { res: res, rej: rej };
+      try { parent.postMessage({ type: 'room', reqId: id, op: op, args: args || {} }, '*'); } catch (e) { delete waits[id]; rej(new Error('conn')); }
+      setTimeout(function () { if (waits[id]) { delete waits[id]; rej(new Error('conn')); } }, 20000);
+    });
+  }
+  return { call: call };
+})();
+
+/* ================= utils ================= */
+const GAME = 'guessbuild';
+const $ = (s, r) => (r || document).querySelector(s);
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function add(p, ...k) { k.forEach(c => c && p.appendChild(c)); return p; }
+function btn(label, cls, fn) { const b = el('button', 'btn' + (cls ? ' ' + cls : ''), label); b.type = 'button'; b.onclick = fn; return b; }
+function rid() { return Math.random().toString(36).slice(2, 10); }
+function sget(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function sset(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+/* keys typed into inputs stay in the game (the planner listens for keys on this document) */
+function inp(cls, ph, max) {
+  const i = el('input', 'inp' + (cls ? ' ' + cls : '')); i.type = 'text'; i.autocomplete = 'off'; i.spellcheck = false;
+  if (ph) i.placeholder = ph; if (max) i.maxLength = max;
+  i.addEventListener('keydown', e => e.stopPropagation()); i.addEventListener('keyup', e => e.stopPropagation()); i.addEventListener('keypress', e => e.stopPropagation());
+  return i;
+}
+function onEnter(i, fn) { i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); fn(); } }); }
+const SVG = {
+  x: '<svg viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13"/></svg>',
+  ck: '<svg viewBox="0 0 20 20"><path d="M4 10.5l4 4 8-9"/></svg>',
+  pen: '<svg class="fl" viewBox="0 0 24 24"><path d="M16.2 2.8l5 5-2.3 2.3-5-5z" fill="#ff4b4b"/><path d="M18.7 5.3l2.5 2.5-2.3 2.3-2.5-2.5z" fill="#ea2b2b"/><path d="M13.9 5.1l5 5L9 20l-5-5z" fill="#ffc800"/><path d="M16.4 7.6l2.5 2.5L9 20l-2.5-2.5z" fill="#e5a400"/><path d="M4 15l5 5-6.5 1.5z" fill="#f5c58b"/><path d="M2.9 18.4l2.7 2.7-3.1.4z" fill="#4b4b4b"/></svg>',
+  eraser: '<svg class="fl" viewBox="0 0 24 24"><path d="M13 3.5l7.5 7.5-6.5 6.5L6.5 10z" fill="#ff86b6"/><path d="M17.3 7.8l3.2 3.2-6.5 6.5-3.2-3.2z" fill="#e5649a"/><path d="M6.5 10l7.5 7.5-3 3H7.5l-4-4z" fill="#1cb0f6"/><path d="M10.8 14.3l3.2 3.2-3 3H7.5l-.2-.2z" fill="#1899d6"/><rect x="12" y="19" width="9" height="2.2" rx="1.1" fill="#afafaf"/></svg>',
+  fill: '<svg class="fl" viewBox="0 0 24 24"><path d="M3.5 11L11 3.5 18.5 11 11 18.5z" fill="#1cb0f6"/><path d="M11 11h7.5L11 18.5z" fill="#1899d6"/><path d="M3.5 11h15" stroke="#ddf4ff" stroke-width="1.6"/><path d="M20.5 14.5c1 1.6 1.6 2.7 1.6 3.6a1.6 1.6 0 0 1-3.2 0c0-.9.6-2 1.6-3.6z" fill="#1cb0f6"/></svg>',
+  line: '<svg viewBox="0 0 24 24"><path d="M5 19L19 5"/></svg>',
+  rect: '<svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2.5"/></svg>',
+  ellipse: '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8.5" ry="6.5"/></svg>',
+  pick: '<svg class="fl" viewBox="0 0 24 24"><path d="M15.8 2.6a3 3 0 0 1 4.2 0l1.4 1.4a3 3 0 0 1 0 4.2l-2.6 2.6-5.6-5.6z" fill="#4b4b4b"/><rect x="11" y="6.5" width="8.5" height="3" rx="1.5" transform="rotate(45 15.25 8)" fill="#777"/><path d="M12.5 8.5l3 3-8 8H4.5v-3z" fill="#ddf4ff"/><path d="M14 10l1.5 1.5-8 8H4.5z" fill="#1cb0f6"/></svg>',
+  solid: '<svg viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="15" height="15" rx="3" fill="currentColor"/></svg>',
+  undo: '<svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>',
+  redo: '<svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>',
+  clear: '<svg class="fl" viewBox="0 0 24 24"><rect x="9" y="2.5" width="6" height="3" rx="1.2" fill="#ea2b2b"/><rect x="3.5" y="5" width="17" height="3.5" rx="1.75" fill="#ff4b4b"/><path d="M5.5 9.5h13l-1.2 11a1.8 1.8 0 0 1-1.8 1.5H8.5a1.8 1.8 0 0 1-1.8-1.5z" fill="#ff4b4b"/><path d="M12 9.5h6.5l-1.2 11a1.8 1.8 0 0 1-1.8 1.5H12z" fill="#ea2b2b"/><rect x="8.6" y="12" width="1.8" height="7" rx=".9" fill="#ffdfe0"/><rect x="13.6" y="12" width="1.8" height="7" rx=".9" fill="#ffdfe0"/></svg>',
+  plus: '<svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg>'
+};
+
+
+/* ================= drawing ================= */
+const LW = 800, LH = 600, SC = 2, MAXD = 84000;
+/* palette slots 0 to 11 keep their old indexes so older drawings look the same */
+const COLORS = ['#14161c', '#ffffff', '#9aa0aa', '#e53935', '#fb8c00', '#fdd835', '#43a047', '#00acc1', '#1e88e5', '#8e24aa', '#ec407a', '#795548',
+  '#55595f', '#8e1b1b', '#1b5e20', '#0d2c6b', '#90caf9', '#f8bbd0', '#ffd7b0', '#c9a36b'];
+const PAL = [0, 12, 2, 1, 11, 19, 18, 3, 13, 4, 5, 6, 14, 7, 16, 8, 15, 9, 10, 17];
+const SIZES = [3, 7, 14, 28, 48, 1.5];
+const SZ = [5, 0, 1, 2, 3, 4];
+const SHAPES = { line: 'l', rect: 'r', ellipse: 'e' };
+const HEXC = /^#[0-9a-f]{6}$/i;
+const colOf = c => typeof c === 'string' && HEXC.test(c) ? c : (COLORS[c] || '#000000');
+function wipe(x) { x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = '#fff'; x.fillRect(0, 0, x.canvas.width, x.canvas.height); x.restore(); }
+function mkCanvas(k) { const c = document.createElement('canvas'); c.width = LW * k; c.height = LH * k; const x = c.getContext('2d'); x.setTransform(k, 0, 0, k, 0, 0); wipe(x); return c; }
+function pts(op) { const a = []; let x = +op[3] || 0, y = +op[4] || 0; a.push(x, y); for (let i = 5; i + 1 < op.length; i += 2) { x += +op[i] || 0; y += +op[i + 1] || 0; a.push(x, y); } return a; }
+function enc(p, c, w) { const o = ['s', c, w, p[0], p[1]]; for (let i = 2; i < p.length; i += 2) o.push(p[i] - p[i - 2], p[i + 1] - p[i - 1]); return o; }
+function rdp(p, eps) {
+  const n = p.length / 2; if (n < 3) return p.slice();
+  const keep = new Uint8Array(n); keep[0] = keep[n - 1] = 1;
+  const st = [0, n - 1];
+  while (st.length) {
+    const b = st.pop(), a = st.pop(); let md = 0, mi = -1;
+    const ax = p[2 * a], ay = p[2 * a + 1], dx = p[2 * b] - ax, dy = p[2 * b + 1] - ay, L = Math.hypot(dx, dy);
+    for (let i = a + 1; i < b; i++) {
+      const px = p[2 * i] - ax, py = p[2 * i + 1] - ay;
+      const d = L ? Math.abs(dy * px - dx * py) / L : Math.hypot(px, py);
+      if (d > md) { md = d; mi = i; }
+    }
+    if (md > eps && mi > 0) { keep[mi] = 1; st.push(a, mi, mi, b); }
+  }
+  const o = []; for (let i = 0; i < n; i++) if (keep[i]) o.push(p[2 * i], p[2 * i + 1]); return o;
+}
+function fitOps(ops) {
+  if (JSON.stringify(ops).length <= MAXD) return ops;
+  let o2 = ops;
+  for (const eps of [1.5, 2.5, 4, 6, 9, 14]) {
+    o2 = ops.map(o => o[0] === 's' ? enc(rdp(pts(o), eps), o[1], o[2]) : o);
+    if (JSON.stringify(o2).length <= MAXD) return o2;
+  }
+  o2 = o2.slice(); while (o2.length && JSON.stringify(o2).length > MAXD) o2.pop();
+  return o2;
+}
+function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function flood(x, lx, ly, hex) {
+  const cv = x.canvas, W = cv.width, H = cv.height, k = W / LW;
+  const sx = Math.floor(lx * k), sy = Math.floor(ly * k);
+  if (!(sx >= 0 && sy >= 0 && sx < W && sy < H)) return;
+  const img = x.getImageData(0, 0, W, H), d = new Uint32Array(img.data.buffer);
+  const [r, g, b] = hexRgb(hex); const fill = ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0;
+  const t = d[sy * W + sx], tr = t & 255, tg = (t >>> 8) & 255, tb = (t >>> 16) & 255;
+  if (Math.abs(tr - r) + Math.abs(tg - g) + Math.abs(tb - b) < 8) return;
+  const seen = new Uint8Array(W * H), TOL = 90;
+  const m = i => { if (seen[i]) return false; const p = d[i]; return Math.abs((p & 255) - tr) + Math.abs(((p >>> 8) & 255) - tg) + Math.abs(((p >>> 16) & 255) - tb) <= TOL; };
+  const st = [sx, sy];
+  while (st.length) {
+    const y = st.pop(); let xx = st.pop(), i = y * W + xx;
+    if (!m(i)) continue;
+    while (xx > 0 && m(i - 1)) { xx--; i--; }
+    let up = false, dn = false;
+    while (xx < W && m(i)) {
+      d[i] = fill; seen[i] = 1;
+      if (y > 0) { const q = m(i - W); if (q && !up) { st.push(xx, y - 1); up = true; } else if (!q) up = false; }
+      if (y < H - 1) { const q = m(i + W); if (q && !dn) { st.push(xx, y + 1); dn = true; } else if (!q) dn = false; }
+      xx++; i++;
+    }
+  }
+  /* grow one pixel to cover antialiased edges */
+  for (let y = 1; y < H - 1; y++) for (let xx = 1, i = y * W + 1; xx < W - 1; xx++, i++) {
+    if (!seen[i] && (seen[i - 1] === 1 || seen[i + 1] === 1 || seen[i - W] === 1 || seen[i + W] === 1)) { d[i] = fill; seen[i] = 2; }
+  }
+  x.putImageData(img, 0, 0);
+}
+/* l, r, e: line, rectangle, ellipse as [type, color, size, x1, y1, x2, y2, filled] */
+function shape(x, op) {
+  const t = op[0], col = colOf(op[1]), w = SIZES[op[2]] || 7, x1 = +op[3] || 0, y1 = +op[4] || 0, x2 = +op[5] || 0, y2 = +op[6] || 0, f = t !== 'l' && op[7] === 1;
+  x.strokeStyle = col; x.fillStyle = col; x.lineWidth = w; x.lineCap = 'round'; x.lineJoin = t === 'r' ? 'miter' : 'round';
+  x.beginPath();
+  if (t === 'l') {
+    if (x1 === x2 && y1 === y2) { x.arc(x1, y1, w / 2, 0, Math.PI * 2); x.fill(); return; }
+    x.moveTo(x1, y1); x.lineTo(x2, y2);
+  } else if (t === 'r') x.rect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+  else x.ellipse((x1 + x2) / 2, (y1 + y2) / 2, Math.abs(x2 - x1) / 2, Math.abs(y2 - y1) / 2, 0, 0, Math.PI * 2);
+  if (f) x.fill();
+  x.stroke();
+}
+function drawOp(x, op) {
+  if (!Array.isArray(op)) return;
+  const t = op[0];
+  if (t === 'c') { wipe(x); return; }
+  if (t === 'f') { flood(x, +op[2], +op[3], colOf(op[1])); return; }
+  if (t === 'l' || t === 'r' || t === 'e') { shape(x, op); return; }
+  if (t !== 's') return;
+  const col = colOf(op[1]), w = SIZES[op[2]] || 7, p = pts(op);
+  x.strokeStyle = col; x.fillStyle = col; x.lineWidth = w; x.lineCap = 'round'; x.lineJoin = 'round';
+  if (p.length <= 2 || (p.length === 4 && p[0] === p[2] && p[1] === p[3])) { x.beginPath(); x.arc(p[0], p[1], w / 2, 0, Math.PI * 2); x.fill(); return; }
+  x.beginPath(); x.moveTo(p[0], p[1]);
+  if (p.length === 4) x.lineTo(p[2], p[3]);
+  else { for (let i = 2; i < p.length - 2; i += 2) x.quadraticCurveTo(p[i], p[i + 1], (p[i] + p[i + 2]) / 2, (p[i + 1] + p[i + 3]) / 2); x.lineTo(p[p.length - 2], p[p.length - 1]); }
+  x.stroke();
+}
+function staticCanvas(ops, k) { const c = mkCanvas(k || 1), x = c.getContext('2d'); (ops || []).forEach(o => drawOp(x, o)); return c; }
+/* zoom and screen changes alter devicePixelRatio: listeners rerun on each change (re-armed every time) */
+const dprFns = [];
+function onDpr(fn) { dprFns.push(fn); }
+(function armDpr() {
+  const mq = matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)');
+  const h = () => { mq.removeEventListener('change', h); armDpr(); dprFns.forEach(f => f()); };
+  mq.addEventListener('change', h);
+})();
+/* a canvas whose backing store follows its displayed size in device pixels; redraw(k) repaints at logical scale k */
+function crisp(c, redraw) {
+  const fit = () => {
+    if (!c.isConnected) return;
+    const w = c.getBoundingClientRect().width;
+    if (!w) return;
+    const bw = Math.max(1, Math.round(w * (window.devicePixelRatio || 1)));
+    if (c.width === bw) return;
+    const k = bw / LW;
+    c.width = bw; c.height = Math.max(1, Math.round(LH * k));
+    redraw(k);
+  };
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(c);
+  onDpr(fit); addEventListener('resize', fit);
+  c._fit = fit;
+  return c;
+}
+/* drawings in the album: always drawn at the screen's real resolution */
+function viewCanvas(ops) {
+  const c = mkCanvas(1);
+  (ops || []).forEach(o => drawOp(c.getContext('2d'), o));
+  return crisp(c, k => { const x = c.getContext('2d'); x.setTransform(k, 0, 0, k, 0, 0); wipe(x); (ops || []).forEach(o => drawOp(x, o)); });
+}
+
+/* a board shows ops; editable boards take mouse, touch and pen input */
+function Board(host, editable) {
+  const B = { ops: [], redo: [], live: null, baked: 0, rebake: false, en: !!editable, color: 0, custom: null, size: 1, tool: 'pen', prev: 'pen', solid: false, df: null, onChange: null, ui: null };
+  const wrap = el('div', 'board' + (editable ? ' ed' : '')), cv = mkCanvas(SC), base = mkCanvas(SC);
+  wrap.appendChild(cv); host.appendChild(wrap);
+  const ctx = cv.getContext('2d'), bx = base.getContext('2d', { willReadFrequently: true });
+  /* match the board's backing store to its on-screen size in device pixels, then rebake every op at that scale */
+  crisp(cv, k => {
+    base.width = cv.width; base.height = cv.height;
+    ctx.setTransform(k, 0, 0, k, 0, 0); bx.setTransform(k, 0, 0, k, 0, 0); wipe(ctx); wipe(bx);
+    cps.length = 0; B.baked = 0; B.rebake = true;
+    if (raf) { cancelAnimationFrame(raf); raf = 0; }
+    paint();
+  });
+  /* copies of the base image after fills, so undo does not replay every fill */
+  const cps = [];
+  const cut = n => { while (cps.length && cps[cps.length - 1].i > n) cps.pop(); };
+  const tag = o => Array.isArray(o) ? o[0] : '';
+  let raf = 0;
+  B.el = wrap;
+  B.draw = () => { if (!raf) raf = requestAnimationFrame(paint); };
+  function paint() {
+    raf = 0;
+    const L = B.ops, n = L.length, lt = n ? tag(L[n - 1]) : '';
+    const upto = B.en || lt === 'f' || lt === 'c' ? n : n - 1;
+    if (B.rebake || B.baked > upto) {
+      B.rebake = false;
+      let s = 0;
+      for (let j = upto - 1; j >= 0; j--) if (tag(L[j]) === 'c') { s = j; break; }
+      let cp = null;
+      for (let j = cps.length - 1; j >= 0; j--) if (cps[j].i <= upto) { cp = cps[j]; break; }
+      if (cp && cp.i > s) { bx.save(); bx.setTransform(1, 0, 0, 1, 0, 0); bx.drawImage(cp.c, 0, 0); bx.restore(); B.baked = cp.i; }
+      else { wipe(bx); B.baked = s; }
+    }
+    for (let i = B.baked; i < upto; i++) {
+      drawOp(bx, L[i]);
+      if (tag(L[i]) === 'f' && (!cps.length || cps[cps.length - 1].i < i + 1)) {
+        const old = cps.length >= 4 ? cps.shift() : null, c = old ? old.c : document.createElement('canvas');
+        c.width = base.width; c.height = base.height; c.getContext('2d').drawImage(base, 0, 0);
+        cps.push({ i: i + 1, c });
+      }
+    }
+    B.baked = upto;
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(base, 0, 0); ctx.restore();
+    if (upto < n) drawOp(ctx, L[n - 1]);
+    if (B.live) drawOp(ctx, B.live);
+  }
+  const ui = () => { if (B.ui) B.ui(); };
+  B.setEn = v => { v = !!v && !!editable; if (B.en !== v) { B.en = v; B.rebake = true; wrap.classList.toggle('ed', v); B.draw(); ui(); } };
+  B.set = ops => { B.ops = (ops || []).slice(); B.redo = []; cps.length = 0; B.rebake = true; B.draw(); ui(); };
+  B.apply = (n, o) => { n = Math.max(0, Math.min(+n || 0, B.ops.length)); if (n < B.baked) B.rebake = true; B.ops.length = n; cut(n); (o || []).forEach(x => B.ops.push(x)); B.draw(); };
+  function mark(i) { B.df = B.df === null ? i : Math.min(B.df, i); B.dv = (B.dv || 0) + 1; if (B.onChange) B.onChange(); }
+  function commit(op) { B.redo = []; B.ops.push(op); mark(B.ops.length - 1); B.draw(); ui(); }
+  B.canUndo = () => B.en && !B.live && B.ops.length > 0;
+  B.canRedo = () => B.en && !B.live && B.redo.length > 0;
+  B.undo = () => { if (!B.canUndo()) return; B.redo.push(B.ops.pop()); cut(B.ops.length); B.rebake = true; mark(B.ops.length); B.draw(); ui(); };
+  B.redoOp = () => { if (!B.canRedo()) return; B.ops.push(B.redo.pop()); mark(B.ops.length - 1); B.draw(); ui(); };
+  B.clear = () => { if (!B.en || B.live || !B.ops.length || tag(B.ops[B.ops.length - 1]) === 'c') return; commit(['c']); };
+  B.setTool = t => { if (t === 'pick' && B.tool !== 'pick') B.prev = B.tool; B.tool = t; ui(); };
+  B.setColor = c => { B.color = c; if (B.tool === 'eraser' || B.tool === 'pick') B.tool = B.tool === 'pick' ? B.prev : 'pen'; ui(); };
+  B.data = () => fitOps(B.ops.slice());
+  if (editable) {
+    let pid = null, raw = null, lx = 0, ly = 0;
+    const pos = e => { const r = cv.getBoundingClientRect(); return { x: Math.max(-20, Math.min(LW + 20, Math.round((e.clientX - r.left) / r.width * LW))), y: Math.max(-20, Math.min(LH + 20, Math.round((e.clientY - r.top) / r.height * LH))) }; };
+    const inside = p => p.x >= 0 && p.y >= 0 && p.x < LW && p.y < LH;
+    function pick(p) {
+      const k = base.width / LW, d = bx.getImageData(Math.min(base.width - 1, Math.floor(p.x * k)), Math.min(base.height - 1, Math.floor(p.y * k)), 1, 1).data;
+      const hex = '#' + [d[0], d[1], d[2]].map(v => v.toString(16).padStart(2, '0')).join('');
+      const i = COLORS.indexOf(hex);
+      if (i < 0) B.custom = hex;
+      B.tool = B.prev === 'eraser' ? 'pen' : B.prev; B.color = i >= 0 ? i : hex; ui();
+    }
+    /* shift keeps lines at 45 degree steps and shapes square */
+    function snap(l, p, sh) {
+      if (!sh) return p;
+      const dx = p.x - l[3], dy = p.y - l[4];
+      if (l[0] === 'l') {
+        const a = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4), r = Math.hypot(dx, dy);
+        return { x: Math.round(l[3] + Math.cos(a) * r), y: Math.round(l[4] + Math.sin(a) * r) };
+      }
+      const m = Math.max(Math.abs(dx), Math.abs(dy));
+      return { x: l[3] + (dx < 0 ? -m : m), y: l[4] + (dy < 0 ? -m : m) };
+    }
+    cv.addEventListener('pointerdown', e => {
+      if (!B.en || pid !== null || e.button > 0) return;
+      e.preventDefault();
+      const p = pos(e);
+      if (B.tool === 'pick') { if (inside(p)) pick(p); return; }
+      if (B.tool === 'fill') { if (inside(p)) commit(['f', B.color, p.x, p.y]); return; }
+      try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+      pid = e.pointerId; lx = p.x; ly = p.y;
+      if (SHAPES[B.tool]) { B.live = [SHAPES[B.tool], B.color, B.size, p.x, p.y, p.x, p.y]; if (B.solid && B.tool !== 'line') B.live.push(1); }
+      else { raw = [p.x, p.y]; B.live = ['s', B.tool === 'eraser' ? 1 : B.color, B.size, p.x, p.y]; }
+      mark(B.ops.length); B.draw(); ui();
+    });
+    cv.addEventListener('pointermove', e => {
+      if (e.pointerId !== pid || !B.live) return;
+      if (B.live[0] !== 's') {
+        const p = snap(B.live, pos(e), e.shiftKey);
+        if (p.x === B.live[5] && p.y === B.live[6]) return;
+        B.live[5] = p.x; B.live[6] = p.y; mark(B.ops.length); B.draw(); return;
+      }
+      let evs = e.getCoalescedEvents ? e.getCoalescedEvents() : null; if (!evs || !evs.length) evs = [e];
+      let moved = false;
+      for (const ev of evs) { const p = pos(ev); if (Math.abs(p.x - lx) + Math.abs(p.y - ly) < 2) continue; raw.push(p.x, p.y); B.live.push(p.x - lx, p.y - ly); lx = p.x; ly = p.y; moved = true; }
+      if (moved) { mark(B.ops.length); B.draw(); }
+    });
+    const up = e => {
+      if (e.pointerId !== pid || !B.live) return;
+      pid = null;
+      const l = B.live; B.live = null;
+      if (l[0] === 's') { commit(enc(rdp(raw, 0.6), l[1], l[2])); return; }
+      if (l[0] !== 'l' && Math.abs(l[5] - l[3]) + Math.abs(l[6] - l[4]) < 2) { mark(B.ops.length); B.draw(); ui(); return; }
+      commit(l);
+    };
+    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up); cv.addEventListener('lostpointercapture', up);
+  }
+  B.draw();
+  return B;
+}
+/* tool bar; the most recently built one also takes keyboard shortcuts */
+const DrawKeys = { B: null, on: false };
+const TOOL_KEYS = { b: 'pen', p: 'pen', e: 'eraser', g: 'fill', l: 'line', r: 'rect', o: 'ellipse', i: 'pick' };
+function Tools(host, B) {
+  const w = el('div', 'tools');
+  const tg = el('div', 'tg'), ag = el('div', 'tg'), sg = el('div', 'tg'), cg = el('div', 'tg cols'), pg = el('div', 'pal');
+  const tb = (k, fn) => { const s = el('button', 'tb'); s.type = 'button'; s.innerHTML = SVG[k]; s.onclick = fn; return s; };
+  const tools = {};
+  ['pen', 'eraser', 'fill', 'line', 'rect', 'ellipse', 'pick'].forEach(k => { tools[k] = tb(k, () => B.setTool(k)); tg.appendChild(tools[k]); });
+  const solid = tb('solid', () => { B.solid = !B.solid; if (!SHAPES[B.tool] || B.tool === 'line') B.tool = 'rect'; sync(); });
+  tg.appendChild(solid);
+  const undo = tb('undo', () => B.undo()), redo = tb('redo', () => B.redoOp());
+  add(ag, undo, redo, tb('clear', () => B.clear()));
+  const szs = SZ.map(i => { const s = el('button', 'tb'); s.type = 'button'; const d = el('i'); const px = Math.max(3, Math.min(24, Math.round(SIZES[i] * 0.6 + 2))); d.style.width = d.style.height = px + 'px'; s.appendChild(d); s.onclick = () => { B.size = i; sync(); }; sg.appendChild(s); return s; });
+  const sws = PAL.map(i => { const s = el('button', 'sw'); s.type = 'button'; s.style.background = COLORS[i]; s.onclick = () => B.setColor(i); pg.appendChild(s); return s; });
+  const cu = el('label', 'sw cu'), ci = el('input');
+  ci.type = 'color'; ci.value = '#3f51b5'; cu.innerHTML = SVG.plus; cu.appendChild(ci);
+  ci.addEventListener('input', () => { B.custom = ci.value; B.setColor(ci.value); });
+  ci.addEventListener('change', () => { B.custom = ci.value; B.setColor(ci.value); });
+  add(cg, pg, cu);
+  function sync() {
+    const t = B.tool, c = B.color;
+    sws.forEach((s, j) => s.classList.toggle('on', PAL[j] === c && t !== 'eraser'));
+    const isCu = typeof c === 'string' && t !== 'eraser';
+    if (B.custom) { cu.style.background = B.custom; cu.classList.toggle('lt', lum(B.custom) > 0.6); if (ci.value !== B.custom) ci.value = B.custom; }
+    cu.classList.toggle('on', isCu);
+    szs.forEach((s, j) => s.classList.toggle('on', SZ[j] === B.size));
+    Object.keys(tools).forEach(k => tools[k].classList.toggle('on', t === k));
+    solid.classList.toggle('on', B.solid);
+    undo.disabled = !B.canUndo(); redo.disabled = !B.canRedo();
+  }
+  B.ui = sync;
+  sync(); add(w, tg, ag, sg, cg); host.appendChild(w);
+  DrawKeys.B = B;
+  if (!DrawKeys.on) {
+    DrawKeys.on = true;
+    document.addEventListener('keydown', e => {
+      const b = DrawKeys.B, t = e.target;
+      if (!b || !b.en || !document.contains(b.el) || !b.el.offsetParent) return;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || ''))) return;
+      const k = (e.key || '').toLowerCase(), mod = e.ctrlKey || e.metaKey;
+      if (mod && !e.altKey && (k === 'z' || k === 'y')) { e.preventDefault(); if (k === 'y' || e.shiftKey) b.redoOp(); else b.undo(); return; }
+      if (mod || e.altKey) return;
+      if (TOOL_KEYS[k]) { e.preventDefault(); b.setTool(TOOL_KEYS[k]); return; }
+      if (k === 'f') { e.preventDefault(); b.solid = !b.solid; if (b.ui) b.ui(); return; }
+      if (k === '[' || k === ']') { const j = SZ.indexOf(b.size) + (k === ']' ? 1 : -1); if (j >= 0 && j < SZ.length) { b.size = SZ[j]; if (b.ui) b.ui(); } }
+    });
+  }
+  return w;
+}
+function lum(h) { const [r, g, b] = hexRgb(h); return (0.299 * r + 0.587 * g + 0.114 * b) / 255; }
+
+/* ================= views ================= */
+let viewKey = null, viewUpd = null;
+function view(key, build) {
+  if (key === viewKey) { if (viewUpd) viewUpd(); return; }
+  viewKey = key; viewUpd = null; Tm.exp = null;
+  const m = $('#main'); m.innerHTML = ''; window.scrollTo(0, 0);
+  const r = build(m); if (typeof r === 'function') { viewUpd = r; r(); }
+}
+function hud(items) {
+  const h = $('#hud'); h.innerHTML = '';
+  (items || []).forEach(([k, v, id]) => { const s = el('div', 'st'); add(s, el('div', 'k', k)); const b = el('b', null, v); if (id) b.id = id; s.appendChild(b); h.appendChild(s); });
+}
+/* countdown shown in the hud; exp fires once when it runs out */
+const Tm = { dl: () => 0, exp: null };
+setInterval(() => {
+  const d = Tm.dl(), t = $('#tmr');
+  if (!d) { if (t) t.textContent = ''; return; }
+  const s = Math.max(0, Math.ceil((d - Date.now()) / 1000));
+  if (t) { t.textContent = s; t.classList.toggle('warn', s <= 10); }
+  if (Date.now() >= d && Tm.exp) { const f = Tm.exp; Tm.exp = null; f(); }
+}, 200);
+
+/* ================= words ================= */
+const WORDS = [...new Set('apple,banana,cherry,grapes,lemon,orange,pear,pineapple,strawberry,watermelon,carrot,potato,tomato,corn,broccoli,mushroom,pumpkin,onion,pepper,peanut,cookie,cupcake,donut,pizza,hamburger,sandwich,taco,popcorn,pancake,waffle,cheese,bread,egg,bacon,sushi,spaghetti,cereal,candy,lollipop,chocolate,cake,pie,ice cream,milkshake,lemonade,coffee,juice,honey,butter,pretzel,muffin,hot dog,french fries,cotton candy,gingerbread man,popsicle,sundae,coconut,avocado,cucumber,peas,noodles,soup,salad,toast,cat,dog,horse,cow,pig,sheep,goat,chicken,duck,rabbit,mouse,hamster,turtle,frog,snake,lizard,dinosaur,dragon,unicorn,lion,tiger,bear,panda,koala,kangaroo,giraffe,elephant,zebra,monkey,gorilla,hippo,rhino,camel,deer,fox,wolf,owl,eagle,parrot,penguin,flamingo,swan,peacock,bat,bee,butterfly,ladybug,spider,ant,snail,worm,octopus,jellyfish,shark,whale,dolphin,crab,lobster,starfish,seahorse,fish,squirrel,raccoon,skunk,hedgehog,sloth,dragonfly,caterpillar,puppy,kitten,polar bear,llama,moose,beaver,otter,seal,walrus,crocodile,chameleon,toucan,hummingbird,house,castle,tent,igloo,barn,lighthouse,bridge,tower,skyscraper,school,hospital,library,pyramid,windmill,treehouse,garage,fence,door,window,chimney,stairs,elevator,ladder,roof,garden,farm,zoo,museum,bakery,airport,playground,fountain,statue,tunnel,car,bus,truck,train,airplane,helicopter,rocket,boat,ship,submarine,bicycle,motorcycle,skateboard,scooter,tractor,ambulance,fire truck,taxi,canoe,sailboat,hot air balloon,parachute,spaceship,wagon,sun,moon,star,cloud,rain,snow,rainbow,lightning,tornado,volcano,mountain,island,beach,desert,forest,river,lake,waterfall,cave,ocean,wave,tree,flower,rose,sunflower,cactus,leaf,grass,palm tree,snowflake,icicle,planet,comet,ball,kite,yo-yo,puzzle,robot,teddy bear,doll,balloon,drum,guitar,piano,violin,trumpet,flute,microphone,headphones,camera,television,computer,laptop,phone,keyboard,clock,watch,calendar,lamp,candle,flashlight,battery,magnet,umbrella,backpack,suitcase,wallet,key,lock,map,compass,globe,book,notebook,pencil,crayon,eraser,scissors,ruler,paintbrush,envelope,light bulb,alarm clock,radio,fan,telescope,magnifying glass,hourglass,hat,crown,helmet,glasses,sunglasses,scarf,glove,mitten,sock,shoe,boot,sandal,shirt,dress,skirt,jacket,sweater,pajamas,tie,belt,ring,necklace,bracelet,button,zipper,pocket,bed,chair,table,sofa,pillow,blanket,bathtub,toilet,sink,mirror,toothbrush,comb,soap,towel,broom,bucket,fridge,oven,microwave,toaster,kettle,mug,plate,bowl,fork,spoon,pan,bottle,jar,basket,hammer,saw,screwdriver,wrench,shovel,rake,nail,rope,chain,wheel,anchor,wheelbarrow,lawn mower,watering can,flower pot,fishing rod,bow and arrow,sword,shield,cannon,football,basketball,baseball,soccer,tennis,golf,bowling,hockey,skiing,surfing,swimming,trophy,medal,whistle,volleyball,pirate,ninja,knight,wizard,witch,ghost,mummy,alien,astronaut,chef,doctor,farmer,firefighter,teacher,clown,king,queen,princess,mermaid,fairy,superhero,cowboy,scarecrow,snowman,heart,smile,eye,nose,ear,mouth,hand,foot,tooth,hair,beard,mustache,brain,skeleton,birthday,present,fireworks,campfire,sandcastle,treasure chest,pirate ship,satellite,jack-o-lantern,flag,traffic light,stop sign,mailbox,bench,swing,slide,seesaw,carousel,roller coaster,ferris wheel,circus,dice,cards,chess,maze,bubble,feather,shell,pearl,diamond,coin,piggy bank,ice cube,sled,nest,spiderweb,beehive,paper airplane,toothpaste,lipstick,bandage,thermometer,stethoscope,rocket ship,map,bone,web'.split(',').map(w => w.trim()).filter(Boolean))];
+const norm = s => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
+function lev(a, b) {
+  if (Math.abs(a.length - b.length) > 1) return 2;
+  let prev = []; for (let j = 0; j <= b.length; j++) prev[j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+const TIMES = [45, 60, 80, 100, 120], PICK_MS = 15000, REVEAL_MS = 6000, DRAW_PTS = 80;
+
+/* ================= home ================= */
+let MODE = null;
+const Home = { err: '' };
+const ERRS = { noroom: 'Room not found', full: 'Room full', taken: 'Name taken', wronggame: 'Different game', conn: 'No connection', rate: 'Busy, try again', badtoken: 'Session ended', name: 'Enter a name' };
+function scrHome() {
+  MODE = null; Tm.dl = () => 0; hud([]);
+  view('home', m => {
+    const w = el('div', 'home'), p = el('div', 'panel'), err = el('div', 'err', Home.err);
+    const nm = inp('', 'Name', 16); nm.value = sget('party-name') || '';
+    const cd = inp('code', 'Code', 4);
+    let busy = false;
+    const need = () => { const n = nm.value.trim(); if (!n) { err.textContent = ERRS.name; nm.focus(); return null; } sset('party-name', n); return n; };
+    const create = () => { const n = need(); if (!n || busy) return; busy = true; err.textContent = '';
+      Room.call('create', { game: GAME, name: n, max: 12 }).then(r => { busy = false; netEnter(r); }, e => { busy = false; err.textContent = ERRS[e.message] || ERRS.conn; }); };
+    const join = () => { const n = need(); if (!n || busy) return; const c = cd.value.trim().toUpperCase(); if (c.length !== 4) { cd.focus(); return; } busy = true; err.textContent = '';
+      Room.call('join', { game: GAME, code: c, name: n }).then(r => { busy = false; netEnter(r); }, e => { busy = false; err.textContent = ERRS[e.message] || ERRS.conn; }); };
+    onEnter(cd, join);
+    add(p, add(el('div', 'field'), el('div', 'lbl', 'Name'), nm), btn('Create room', '', create), el('div', 'or'),
+      add(el('div', 'field'), el('div', 'lbl', 'Join'), add(el('div', 'row'), cd, btn('Join', 'ghost', join))), err);
+    add(w, p); m.appendChild(w);
+  });
+}
+
+/* ================= online core ================= */
+const Net = { on: false, code: null, token: null, me: null, hostId: null, players: [], since: 0, pt: 0, off: null, q: Promise.resolve(), busy: 0, snapT: 0, snap: null, roster: '', known: null };
+const C = { st: null, choices: null, word: null, chat: [], chatSeq: 0, pend: {}, guessTxt: {}, deadline: 0 };
+let H = null;
+const isHost = () => Net.on && Net.hostId === Net.me;
+const present = id => Net.players.some(p => p.id === id);
+function netEnter(r) {
+  Object.assign(Net, { on: true, code: r.code, token: r.token, me: r.playerId, hostId: r.host ? r.playerId : null, players: [], since: 0, off: null, roster: '', known: null });
+  Object.assign(C, { st: null, choices: null, word: null, chat: [], chatSeq: 0, pend: {}, guessTxt: {}, deadline: 0 });
+  H = null; MODE = 'online';
+  poll(); render();
+}
+function netLeave(msg) {
+  if (Net.on) Room.call('leave', { code: Net.code, token: Net.token }).catch(() => {});
+  Net.on = false; clearTimeout(Net.pt); H = null; Home.err = msg || ''; scrHome();
+}
+function poll() {
+  clearTimeout(Net.pt);
+  if (!Net.on) return;
+  // one poll at a time; a wake while one is out runs another right after it
+  if (Net.polling) { Net.again = true; return; }
+  Net.polling = true; Net.again = false;
+  const code = Net.code;
+  Room.call('poll', { code, token: Net.token, since: Net.since }).then(r => {
+    if (!Net.on || Net.code !== code) return;
+    const evs = r.events || [];
+    Net.players = r.players || []; Net.hostId = hostOf(r);
+    if (r.state && r.state.k === 'st' && (!C.st || r.state.v > C.st.v)) applySt(r.state, { local: true });
+    evs.forEach(e => {
+      if (e.seq <= Net.since) return; Net.since = e.seq;
+      if (e.at) { const a = e.at < 1e11 ? e.at * 1000 : e.at, d = Date.now() - a; if (Net.off === null || d < Net.off) Net.off = d; }
+      try { onEvent(e); } catch (err) { console.error(err); }
+    });
+    onRoster();
+    Net.pt = setTimeout(poll, evs.length >= 200 ? 30 : (document.hidden ? 3000 : 1000));
+  }, e => {
+    if (!Net.on) return;
+    if (e.message === 'noroom' || e.message === 'badtoken') { Net.on = false; netLeave(ERRS.badtoken); return; }
+    Net.pt = setTimeout(poll, e.message === 'rate' ? 2000 : 1500);
+  }).catch(err => console.error(err)).then(() => {
+    Net.polling = false;
+    if (Net.again && Net.on) { clearTimeout(Net.pt); Net.pt = setTimeout(poll, 0); }
+  });
+}
+// the planner page says when something arrived for the room: poll now instead of waiting for the timer
+window.addEventListener('message', e => { const m = e.data; if (m && m.type === 'room-wake' && e.source === parent && Net.on && m.code === Net.code) poll(); });
+function rawSend(data, to, tries) {
+  const a = { code: Net.code, token: Net.token, data }; if (to) a.to = to;
+  return Room.call('send', a).catch(e => {
+    if (Net.on && (tries || 0) < 3 && (e.message === 'rate' || e.message === 'conn')) return new Promise(r => setTimeout(r, e.message === 'rate' ? 2000 : 800)).then(() => rawSend(data, to, (tries || 0) + 1));
+  });
+}
+function netSend(data, to) { Net.busy++; Net.q = Net.q.then(() => rawSend(data, to)).then(() => { Net.busy--; }, () => { Net.busy--; }); }
+function local(d) { onEvent({ from: Net.me, data: d, local: true }); }
+function deliver(to, d) { if (to === Net.me) local(d); else netSend(d, to); }
+function broadcast(d) { local(d); netSend(d); }
+function toHost(d) { if (isHost()) local(d); else if (Net.hostId) netSend(d, Net.hostId); }
+function evTime(e) { if (e.local || !e.at || Net.off === null) return Date.now(); return (e.at < 1e11 ? e.at * 1000 : e.at) + Net.off; }
+
+let rq = 0;
+function dirty() { if (!rq) rq = setTimeout(() => { rq = 0; render(); }, 0); }
+function applySt(d, e) { if (C.st && d.v < C.st.v) return; C.st = d; C.deadline = d.endIn > 0 ? evTime(e) + d.endIn : 0; }
+function onEvent(e) {
+  const d = e.data; if (!d || typeof d !== 'object') return;
+  if (e.from === Net.me && !e.local) return;
+  switch (d.k) {
+    case 'st': applySt(d, e); break;
+    case 'choices': C.choices = d; break;
+    case 'word': C.word = d; break;
+    case 'chat': C.chat.push(Object.assign({ id: ++C.chatSeq }, d)); if (C.chat.length > 150) C.chat.shift(); break;
+    case 'close': C.chat.push({ id: ++C.chatSeq, close: 1, text: d.text }); break;
+    case 'd': stroke(e.from, d); return;
+    case 'dl': liveStroke(e.from, d); return;
+    case 'g': if (isHost() && H) hostGuess(e.from, d); return;
+    case 'pick': if (isHost() && H) hostPick(e.from, d); return;
+    default: return;
+  }
+  dirty();
+}
+function stroke(from, d) {
+  if (typeof d.t !== 'string' || !Array.isArray(d.o)) return;
+  const st = C.st;
+  if (st && st.turn === d.t && from !== st.drawer) return;
+  (C.pend[d.t] = C.pend[d.t] || []).push({ from, n: d.n, o: d.o, q: +d.q || 0, at: Date.now() });
+  if (G.board && G.turn === d.t) feed();
+}
+/* a live message is applied only on top of the normal message it was built on (else it waits for that one, newest kept) */
+function liveStroke(from, d) {
+  const st = C.st;
+  if (typeof d.t !== 'string' || !Array.isArray(d.o) || !st || st.turn !== d.t || from !== st.drawer || !G.board || G.turn !== d.t) return;
+  if (!(+d.l > G.al)) return;
+  if (+d.b !== G.ap) { if (+d.b > G.ap && (!G.pl || d.l > G.pl.l)) G.pl = d; return; }
+  G.al = +d.l; G.pl = null; G.board.apply(d.n, d.o);
+}
+/* stroke messages can reach the server out of order (sends run side by side), so they are applied by their number;
+   a missing one is waited for briefly, then skipped */
+function feed() {
+  const B = G.board, st = C.st, P = C.pend[G.turn];
+  clearTimeout(G.ft);
+  if (!B || !st || !P) return;
+  P.sort((a, b) => a.q - b.q);
+  for (const x of P) {
+    if (x.from !== st.drawer || (x.q && x.q <= G.ap)) continue;
+    if (x.q > G.ap + 1 && Date.now() - x.at < 4000) { G.ft = setTimeout(feed, 400); return; }
+    B.apply(x.n, x.o); if (x.q) G.ap = x.q;
+  }
+  const pl = G.pl; if (pl && +pl.b === G.ap) { G.pl = null; if (+pl.l > G.al) { G.al = +pl.l; B.apply(pl.n, pl.o); } }
+}
+/* the room reports host as a flag on the player list (and as true or false for me); keep the host's id */
+function hostOf(r) {
+  const h = (r.players || []).find(p => p && p.host);
+  if (h) return h.id;
+  if (r.host === true) return Net.me;
+  if (typeof r.host === 'string' && r.host) return r.host;
+  return r.host === false && Net.hostId === Net.me ? null : Net.hostId;
+}
+/* a short line under the top bar when someone leaves the room */
+const Note = { names: [], t: 0 };
+function noteLeft(name) {
+  const n = $('#note'); if (!n || !name) return;
+  Note.names.push(name); if (Note.names.length > 3) Note.names.shift();
+  n.textContent = Note.names.join(', ') + ' left';
+  n.style.top = $('#bar').offsetHeight + 'px'; n.hidden = false;
+  clearTimeout(Note.t); Note.t = setTimeout(() => { n.hidden = true; Note.names = []; }, 4000);
+}
+function rosterDiff() {
+  const ids = Net.players.map(p => p.id);
+  if (Net.known) Net.known.forEach(p => { if (p.id !== Net.me && !ids.includes(p.id)) noteLeft(p.name); });
+  Net.known = Net.players.map(p => ({ id: p.id, name: p.name }));
+}
+function onRoster() {
+  rosterDiff();
+  if (isHost() && !H) hostInit();
+  if (!isHost()) H = null;
+  if (H && H.phase !== 'lobby') {
+    let ch = false;
+    Net.players.forEach(p => { if (!(p.id in H.names)) { H.names[p.id] = p.name; H.scores[p.id] = 0; ch = true; } });
+    if (ch) pub();
+  }
+  const k = JSON.stringify(Net.players) + Net.hostId;
+  if (k !== Net.roster) { Net.roster = k; dirty(); }
+}
+
+/* ================= host (authoritative) ================= */
+function hostInit() {
+  const s = C.st || {};
+  H = { v: s.v || 0, g: null, phase: 'lobby', rounds: s.rounds || 3, time: s.time || 80, scores: {}, names: {} };
+  /* the host left mid-game: this player takes over and the game goes on from a new turn, scores kept */
+  if (['pick', 'draw', 'reveal'].includes(s.phase) && s.g && Net.players.length >= 2) {
+    Object.assign(H, { g: s.g, scores: Object.assign({}, s.scores), names: Object.assign({}, s.names), round: s.round || 1, order: Net.players.map(p => p.id), oi: 0, used: new Set() });
+    Net.players.forEach(p => { if (!(p.id in H.scores)) H.scores[p.id] = 0; H.names[p.id] = p.name; });
+    nextTurn(); return;
+  }
+  pub();
+}
+function letterIdx(w) { const a = []; [...w].forEach((c, i) => { if (/[a-z]/i.test(c)) a.push(i); }); return a; }
+function maskStr() { return [...H.word].map((c, i) => /[a-z]/i.test(c) && !H.rev.includes(i) ? '_' : c).join(''); }
+function pub() {
+  H.v++;
+  const s = { k: 'st', v: H.v, g: H.g, phase: H.phase, rounds: H.rounds, time: H.time };
+  if (H.phase !== 'lobby') Object.assign(s, {
+    round: H.round, turn: H.turn, drawer: H.drawer, scores: H.scores, names: H.names, guessed: Object.keys(H.guessed || {}),
+    mask: H.phase === 'draw' ? maskStr() : '', endIn: ['pick', 'draw', 'reveal'].includes(H.phase) ? Math.max(0, H.dl - Date.now()) : 0
+  });
+  if (H.phase === 'reveal') { s.word = H.word; s.gains = H.gains; }
+  broadcast(s);
+  Net.snap = s;
+  if (!Net.snapT) Net.snapT = setTimeout(() => { Net.snapT = 0; if (isHost() && Net.snap) Room.call('state', { code: Net.code, token: Net.token, state: Net.snap }).catch(() => {}); }, 1500);
+}
+function hostStart() {
+  if (!H || H.phase !== 'lobby' || Net.players.length < 2) return;
+  Object.assign(H, { g: rid(), scores: {}, names: {}, round: 0, order: [], oi: 0, used: new Set() });
+  Net.players.forEach(p => { H.scores[p.id] = 0; H.names[p.id] = p.name; });
+  nextTurn();
+}
+function nextTurn() {
+  if (Net.players.length < 2) { Object.assign(H, { phase: 'podium', turn: null, drawer: null, guessed: {} }); pub(); return; }
+  for (;;) {
+    while (H.oi < H.order.length && !present(H.order[H.oi])) H.oi++;
+    if (H.oi < H.order.length) break;
+    H.round++;
+    if (H.round > H.rounds || Net.players.length < 2) { Object.assign(H, { phase: 'podium', turn: null, drawer: null, guessed: {} }); pub(); return; }
+    H.order = Net.players.map(p => p.id); H.oi = 0;
+  }
+  const pool = WORDS.filter(w => !H.used.has(w)), ch = [];
+  while (ch.length < 3) { const w = pool.splice(Math.floor(Math.random() * pool.length), 1)[0]; if (!w) break; ch.push(w); }
+  Object.assign(H, { drawer: H.order[H.oi++], turn: rid(), choices: ch, phase: 'pick', dl: Date.now() + PICK_MS, guessed: {}, gains: {}, word: '', rev: [] });
+  deliver(H.drawer, { k: 'choices', turn: H.turn, words: ch });
+  pub();
+}
+function beginDraw(w) {
+  H.used.add(w);
+  const T = H.time * 1000, n = letterIdx(w).length, nh = n <= 3 ? 0 : n <= 5 ? 1 : n <= 8 ? 2 : 3;
+  Object.assign(H, { word: w, phase: 'draw', t0: Date.now(), rev: [], hintAt: [] });
+  H.dl = H.t0 + T;
+  for (let k = 1; k <= nh; k++) H.hintAt.push(H.t0 + T * (0.25 + 0.6 * k / (nh + 1)));
+  deliver(H.drawer, { k: 'word', turn: H.turn, word: w });
+  pub();
+}
+function endTurn() {
+  if (H.phase === 'pick') { nextTurn(); return; }
+  Object.assign(H, { phase: 'reveal', dl: Date.now() + REVEAL_MS });
+  pub();
+}
+function hostPick(from, d) {
+  if (H.phase === 'pick' && from === H.drawer && d.turn === H.turn && H.choices[d.i]) beginDraw(H.choices[d.i]);
+}
+function hostGuess(from, d) {
+  const text = String(d.text || '').replace(/\s+/g, ' ').trim().slice(0, 60); if (!text) return;
+  const name = H.names[from] || (Net.players.find(p => p.id === from) || {}).name || '?';
+  if (H.phase === 'draw' && d.turn === H.turn) {
+    const nw = norm(H.word), ng = norm(text);
+    if (from === H.drawer || H.guessed[from]) {
+      if (from === H.drawer && nw && ng.includes(nw)) return;
+      const to = new Set([H.drawer].concat(Object.keys(H.guessed)));
+      to.forEach(id => { if (present(id)) deliver(id, { k: 'chat', turn: H.turn, name, text, priv: 1 }); });
+      return;
+    }
+    if (ng && ng === nw) {
+      const left = Math.max(0, Math.min(1, (H.dl - Date.now()) / (H.time * 1000)));
+      const pts = Math.round((100 + 400 * left) / 5) * 5;
+      H.guessed[from] = pts; H.gains[from] = pts; H.scores[from] = (H.scores[from] || 0) + pts;
+      H.scores[H.drawer] = (H.scores[H.drawer] || 0) + DRAW_PTS; H.gains[H.drawer] = (H.gains[H.drawer] || 0) + DRAW_PTS;
+      broadcast({ k: 'chat', turn: H.turn, name, ok: 1 });
+      pub(); return;
+    }
+    broadcast({ k: 'chat', turn: H.turn, name, text });
+    if (ng.length >= 3 && lev(ng, nw) === 1) deliver(from, { k: 'close', turn: H.turn, text });
+    return;
+  }
+  broadcast({ k: 'chat', name, text });
+}
+function hostLobby() { if (!H) return; Object.assign(H, { phase: 'lobby', g: null }); pub(); }
+setInterval(() => {
+  if (!H || !isHost()) return;
+  const now = Date.now();
+  if ((H.phase === 'pick' || H.phase === 'draw') && Net.players.length < 2) { endTurn(); return; }
+  if (H.phase === 'pick') {
+    if (!present(H.drawer)) endTurn();
+    else if (now > H.dl + 1000) beginDraw(H.choices[Math.floor(Math.random() * H.choices.length)]);
+  } else if (H.phase === 'draw') {
+    if (!present(H.drawer)) { endTurn(); return; }
+    if (H.hintAt.length && now >= H.hintAt[0]) {
+      H.hintAt.shift();
+      const un = letterIdx(H.word).filter(i => !H.rev.includes(i));
+      if (un.length > 1) { H.rev.push(un[Math.floor(Math.random() * un.length)]); pub(); }
+    }
+    const others = Net.players.filter(p => p.id !== H.drawer);
+    if (now > H.dl + 800 || (others.length && others.every(p => H.guessed[p.id]))) endTurn();
+  } else if (H.phase === 'reveal' && now > H.dl) nextTurn();
+}, 300);
+
+/* the drawer streams strokes two ways. Live ('dl'): the picture since the last normal send, over the fast paths only
+   (data channels about every 50 ms; the Worker relay about every 220 ms, which keeps it under the relay's 12 sends in 2 s),
+   never through the server and fine to lose. Normal ('d'): ordered and kept for everyone, sent when a stroke ends and about
+   once a second during a long one (every 250 ms when someone has no fast path). A live message names the normal one it
+   builds on (b), so a guesser only applies it on top of that */
+const LIVE_DC = 50, LIVE_WS = 220;
+setInterval(() => {
+  const st = C.st, B = G.board, now = Date.now();
+  if (!B || !st || st.phase !== 'draw' || st.drawer !== Net.me || G.turn !== st.turn || B.df === null) return;
+  const others = Net.players.some(p => p.id !== Net.me);
+  const slow = !others || G.miss !== 0;
+  if (!Net.busy && (!B.live || now - G.rt >= (slow ? 250 : 1000))) {
+    const n = B.df, o = B.ops.slice(n); if (B.live) o.push(B.live);
+    B.df = null; G.rt = now; G.ldv = B.dv;
+    netSend({ k: 'd', t: st.turn, n, q: ++G.sq, o: JSON.stringify(o).length > MAXD ? fitOps(o) : o });
+    return;
+  }
+  if (!others || B.dv === G.ldv || G.lbusy || now - G.lt < (G.wsOnly ? LIVE_WS : LIVE_DC) || (G.miss === G.np && now - G.lt < 2000)) return;
+  const n = B.df, o = B.ops.slice(n); if (B.live) o.push(B.live);
+  const d = { k: 'dl', t: st.turn, b: G.sq, l: ++G.lsq, n, o };
+  if (JSON.stringify(d).length > 12000) return;
+  G.ldv = B.dv; G.lt = now; G.lbusy = true;
+  Room.call('send', { code: Net.code, token: Net.token, data: d, fast: true }).then(r => {
+    G.lbusy = false; if (!r) return;
+    G.np = r.dc + r.ws + r.miss; G.miss = r.miss; G.wsOnly = r.ws > 0;
+  }, () => { G.lbusy = false; });
+}, 25);
+
+/* ================= screens ================= */
+function render() {
+  if (MODE !== 'online' || !Net.on) return;
+  const st = C.st;
+  if (!st || st.phase === 'lobby') return scrLobby();
+  if (st.phase === 'podium') return scrPodium();
+  scrGame();
+}
+function plRow(name, tags) {
+  const r = el('div', 'pl'); r.appendChild(el('div', 'nm', name));
+  tags.forEach(([t, a]) => r.appendChild(el('div', 'tag' + (a ? ' a' : ''), t)));
+  return r;
+}
+function segOf(opts, cur, enabled, fn) {
+  const s = el('div', 'seg');
+  opts.forEach(([k, l]) => { const x = el('button', cur === k ? 'on' : '', l); x.type = 'button'; x.disabled = !enabled; x.onclick = () => fn(k); s.appendChild(x); });
+  return s;
+}
+function scrLobby() {
+  Tm.dl = () => 0; G.board = null;
+  view('lobby:' + Net.code, m => {
+    hud([['Room', Net.code]]);
+    const g = el('div', 'lobby'), a = el('div', 'panel codebox'), b = el('div', 'panel');
+    const sets = el('div'), acts = el('div', 'acts'), cnt = el('div', 'lbl'), list = el('div', 'plist');
+    add(a, el('div', 'lbl', 'Room code'), el('div', 'code', Net.code), sets, acts);
+    add(b, cnt, list); add(g, a, b); m.appendChild(g);
+    const startB = btn('Start', '', () => hostStart()), leaveB = btn('Leave', 'ghost', () => netLeave());
+    let sig = null;
+    return () => {
+      const host = isHost(), s = C.st || {};
+      // every poll calls this: rebuild only when something shown changed, or a click can land on a button that was swapped out mid-press
+      const k = JSON.stringify([host, s.rounds, s.time, Net.hostId, Net.me, Net.players.map(p => [p.id, p.name])]);
+      if (k === sig) return; sig = k;
+      sets.innerHTML = '';
+      add(sets,
+        add(el('div', 'field'), el('div', 'lbl', 'Rounds'), segOf([2, 3, 4, 5, 6, 7, 8].map(n => [n, String(n)]), s.rounds || 3, host, k => { if (H) { H.rounds = k; pub(); } })),
+        add(el('div', 'field'), el('div', 'lbl', 'Seconds'), segOf(TIMES.map(n => [n, String(n)]), s.time || 80, host, k => { if (H) { H.time = k; pub(); } })));
+      acts.innerHTML = ''; if (host) { startB.disabled = Net.players.length < 2; acts.appendChild(startB); } acts.appendChild(leaveB);
+      cnt.textContent = 'Players ' + Net.players.length;
+      list.innerHTML = '';
+      Net.players.forEach(p => { const t = []; if (p.id === Net.hostId) t.push(['Host', 1]); if (p.id === Net.me) t.push(['You']); list.appendChild(plRow(p.name, t)); });
+    };
+  });
+}
+
+const G = { board: null, turn: null, ap: 0, sq: 0, ft: 0, al: 0, lsq: 0, pl: null, rt: 0, lt: 0, ldv: 0, lbusy: false, miss: null, np: -1, wsOnly: true };
+function maskEl(mask) {
+  const w = el('div', 'mask');
+  String(mask).split(' ').forEach(part => { const g = el('span', 'mw'); [...part].forEach(c => g.appendChild(el('i', c === '_' ? 'u' : '', c === '_' ? '' : c))); w.appendChild(g); });
+  return w;
+}
+function scrGame() {
+  const st = C.st;
+  view('game:' + Net.code + ':' + st.g, m => {
+    const gg = el('div', 'gg'), sb = el('div', 'panel sb'), mid = el('div', 'gc'), chat = el('div', 'panel chat');
+    const wb = el('div', 'wordbar'), bw = el('div', 'bwrap'), ov = el('div', 'ov');
+    add(mid, wb, bw); add(gg, sb, mid, chat); m.appendChild(gg);
+    const B = Board(bw, true); B.setEn(false); bw.appendChild(ov);
+    const tools = Tools(mid, B);
+    const log = el('div', 'log'), row = el('div', 'row'), ci = inp('', 'Guess', 60);
+    onEnter(ci, () => {
+      const t = ci.value.replace(/\s+/g, ' ').trim(); if (!t || !C.st) return; ci.value = '';
+      const s = C.st; if (s.phase === 'draw' && !(s.guessed || []).includes(Net.me) && s.drawer !== Net.me) C.guessTxt[s.turn] = t;
+      toHost({ k: 'g', turn: s.turn, text: t });
+    });
+    add(row, ci); add(chat, log, row);
+    Object.assign(G, { board: B, turn: null });
+    let hudKey = null, wbKey = null, ovKey = null, sbKey = null, chatN = 0;
+    return () => {
+      const s = C.st, me = Net.me, drawer = s.drawer === me, guessed = (s.guessed || []).includes(me);
+      const names = s.names || {}, dname = names[s.drawer] || '';
+      const hk = s.round + '/' + s.rounds;
+      if (hk !== hudKey) { hudKey = hk; hud([['Round', hk], ['Time', '', 'tmr']]); }
+      Tm.dl = () => C.deadline;
+      if (G.turn !== s.turn) {
+        G.turn = s.turn; B.set([]); B.df = null; G.ap = 0; G.sq = 0; G.al = 0; G.lsq = 0; G.pl = null;
+        Object.keys(C.pend).forEach(t => { if (t !== s.turn) delete C.pend[t]; });
+        feed();
+      }
+      const myWord = drawer && C.word && C.word.turn === s.turn ? C.word.word : null;
+      const canDraw = s.phase === 'draw' && !!myWord;
+      B.setEn(canDraw); tools.hidden = !canDraw;
+      bw.classList.toggle('mine', canDraw);
+      /* word bar */
+      let k2, build;
+      if (s.phase === 'draw' && myWord) { k2 = 'w:' + myWord; build = () => add(wb, el('div', 'lbl', 'Draw'), el('div', 'word', myWord)); }
+      else if (s.phase === 'draw' && guessed && C.guessTxt[s.turn]) { k2 = 'g:' + s.turn; build = () => add(wb, el('div', 'lbl ok', 'Guessed'), el('div', 'word', C.guessTxt[s.turn])); }
+      else if (s.phase === 'draw') { k2 = 'm:' + s.mask; build = () => add(wb, maskEl(s.mask), el('div', 'wlen', String(norm(s.mask.replace(/_/g, 'x')).length))); }
+      else { k2 = 'p:' + s.turn + dname; build = () => add(wb, el('div', 'lbl', 'Drawer'), el('div', 'word dim', dname)); }
+      if (k2 !== wbKey) { wbKey = k2; wb.innerHTML = ''; build(); }
+      /* overlay */
+      const ok = s.phase + ':' + s.turn + ':' + (C.choices && C.choices.turn) + ':' + drawer;
+      if (ok !== ovKey) {
+        ovKey = ok; ov.innerHTML = ''; ov.hidden = s.phase === 'draw';
+        if (s.phase === 'pick') {
+          if (drawer && C.choices && C.choices.turn === s.turn) {
+            const ch = el('div', 'choices');
+            C.choices.words.forEach((w, i) => ch.appendChild(btn(w, '', () => { ov.innerHTML = ''; toHost({ k: 'pick', turn: s.turn, i }); })));
+            add(ov, el('div', 'lbl', 'Pick a word'), ch);
+          } else add(ov, el('div', 'lbl', 'Choosing'), el('div', 'big', dname));
+        } else if (s.phase === 'reveal') {
+          const gl = el('div', 'gains'), gains = s.gains || {};
+          Object.keys(gains).sort((a, b) => gains[b] - gains[a]).forEach(id => add(gl, add(el('div', 'gr'), el('span', null, names[id] || ''), el('b', null, '+' + gains[id]))));
+          if (!Object.keys(gains).length) gl.appendChild(el('div', 'gr none', 'Nobody guessed it'));
+          add(ov, el('div', 'lbl', 'The word was'), el('div', 'big', s.word || ''), gl);
+        }
+      }
+      /* scoreboard */
+      const rows = Net.players.map(p => ({ id: p.id, name: p.name, pts: (s.scores || {})[p.id] || 0 })).sort((a, b) => b.pts - a.pts);
+      const sk = JSON.stringify(rows) + s.drawer + (s.guessed || []).join();
+      if (sk !== sbKey) {
+        sbKey = sk; sb.innerHTML = '';
+        rows.forEach((r, i) => {
+          const d = el('div', 'sr' + (r.id === me ? ' me' : '') + ((s.guessed || []).includes(r.id) ? ' ok' : ''));
+          const ic = el('div', 'ic'); ic.innerHTML = r.id === s.drawer ? SVG.pen : ((s.guessed || []).includes(r.id) ? SVG.ck : '');
+          add(d, el('div', 'rk', String(i + 1)), el('div', 'nm', r.name), ic, el('div', 'pt', String(r.pts)));
+          sb.appendChild(d);
+        });
+      }
+      /* chat */
+      const fresh = C.chat.filter(c => c.id > chatN);
+      if (fresh.length) {
+        const atEnd = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+        fresh.forEach(c => {
+          chatN = c.id; const d = el('div');
+          if (c.ok) { d.className = 'ok'; d.textContent = c.name + ' guessed the word'; }
+          else if (c.close) { d.className = 'cl'; d.textContent = c.text + ' is close'; }
+          else { if (c.priv) d.className = 'pv'; add(d, el('b', null, c.name + ' '), document.createTextNode(c.text)); }
+          log.appendChild(d);
+        });
+        while (log.children.length > 150) log.firstChild.remove();
+        if (atEnd || fresh.some(c => c.close)) log.scrollTop = log.scrollHeight;
+      }
+      ci.placeholder = drawer || guessed ? 'Chat' : 'Guess';
+    };
+  });
+}
+function scrPodium() {
+  const st = C.st; Tm.dl = () => 0; G.board = null;
+  view('podium:' + st.g, m => {
+    hud([['Round', st.rounds + '/' + st.rounds]]);
+    const names = st.names || {}, sc = st.scores || {};
+    const ranked = Object.keys(names).map(id => ({ id, name: names[id], pts: sc[id] || 0 })).sort((a, b) => b.pts - a.pts);
+    const pod = el('div', 'podium');
+    [1, 0, 2].forEach(i => {
+      const r = ranked[i]; if (!r) return;
+      const c = el('div', 'pc p' + (i + 1));
+      add(c, el('div', 'pn', r.name), el('div', 'pp', r.pts + ' pts'), add(el('div', 'pb'), el('div', 'prk', String(i + 1))));
+      pod.appendChild(c);
+    });
+    const rest = el('div', 'plist rest');
+    ranked.slice(3).forEach((r, i) => { const d = plRow(r.name, [[String(i + 4)]]); d.appendChild(el('div', 'pt', r.pts + ' pts')); rest.appendChild(d); });
+    const acts = el('div', 'acts center-acts');
+    if (isHost()) acts.appendChild(btn('New game', '', hostLobby));
+    acts.appendChild(btn('Leave', 'ghost', () => netLeave()));
+    add(m, el('div', 'lbl ptitle', 'Final scores'), pod, rest, acts);
+  });
+}
+
+function quitRoom() { if (Net.on) { Net.on = false; Room.call('leave', { code: Net.code, token: Net.token }).catch(() => {}); } }
+document.getElementById('brand').onclick = () => { quitRoom(); try { parent.postMessage({ type: 'games-menu' }, '*'); } catch (e) {} };
+window.addEventListener('pagehide', quitRoom);
+scrHome();
+</script>
+<script>
+/* GameMusic: Lander's synthesized music (Track 2, Holst's Mars and Mercury), engine and note data copied from lander.html */
+var GameMusic = (function () {
+  var ac = null, master = null, music = null, noiseBuf = null;
+  var songId = null, game = 'game', opts = {}, want = false, muted = false, touched = false, saved = null, btns = [];
+  function now() { return ac.currentTime; }
+  function makeNoise() {
+    var len = ac.sampleRate * 2, b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0);
+    for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    return b;
+  }
+  function noiseSrc() { var s = ac.createBufferSource(); s.buffer = noiseBuf; s.loop = true; return s; }
+  function gainNode(v) { var g = ac.createGain(); g.gain.value = v; return g; }
+  function filter(type, f, q) { var n = ac.createBiquadFilter(); n.type = type; n.frequency.value = f; if (q) n.Q.value = q; return n; }
+  var BPM = 124, BASE_STEP = 60 / BPM / 4, STEP = BASE_STEP, BAR = STEP * 16;
+  function midi(n) { return 440 * Math.pow(2, (n - 69) / 12); }
+  function nn(s) { var m = /^([A-G])(#|b)?(-?\d)$/.exec(s), b = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]]; return b + (m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0) + (+m[3] + 1) * 12; }
+  var CH = {};
+  function mel(str) { return str ? str.split(" ").map(function (t) { var p = t.split(":"); return [+p[0], nn(p[1]), +p[2]]; }) : []; }
+  function secP(name, bars, spb, qbpm, fill) {
+    var ev = {}, add = function (st, e) { var k = Math.floor(st + 1e-6); e.off = st - k; (ev[k] = ev[k] || []).push(e); };
+    fill(add, function (s) { return s.split(" ").map(nn); });
+    return { name: name, bars: bars, spb: spb, stepT: 60 / qbpm / 4, ev: ev };
+  }
+  function chordAt(add, st, inst, v, d, extra) { var e = { i: inst, v: v, d: d }; if (extra) for (var k in extra) e[k] = extra[k]; add(st, e); }
+  function notes(add, str, inst, o) {
+    o = o || {};
+    str.split(" ").forEach(function (t) {
+      if (!t) return;
+      var p = t.split(":"), e = { i: inst, n: nn(p[1]) + (o.tr || 0), d: +p[2] };
+      if (o.ex) for (var k in o.ex) e[k] = o.ex[k];
+      add((o.at || 0) + (+p[0]), e);
+    });
+  }
+  function phrase(add, str, o) {
+    o = o || {};
+    var ms = mel(str);
+    add((o.at || 0) + ms[0][0], { i: "soar", list: ms.map(function (m) { return [m[0] - ms[0][0], m[1] + (o.tr || 0), m[2]]; }), soft: !!o.soft });
+  }
+  var HOLST = {
+    mercury: function () {
+      function cell(add, s0, oct, vel) {
+        [["F", 0], ["Bb", 0], ["D", 1], ["E", 1], ["B", 0], ["G#", 0]].forEach(function (c, k) {
+          var n = nn(c[0] + (oct + c[1]));
+          add(s0 + k * 2, { i: "wood", n: n, d: 1.6, vel: k ? 0.7 : vel });
+          add(s0 + k * 2, { i: "strShort", n: n, d: 1.2, vel: 0.8 });
+        });
+      }
+      function harps(add, s0, oct) {
+        chordAt(add, s0, "harpC", [nn("Bb" + (oct - 1)), nn("D" + oct), nn("F" + oct)], 4, { vel: 0.8 });
+        chordAt(add, s0 + 6, "harpC", [nn("E" + oct), nn("G#" + oct), nn("B" + oct)], 4, { vel: 0.8 });
+        add(s0, { i: "pluck", n: nn("Bb1"), d: 4 }); add(s0 + 6, { i: "pluck", n: nn("E2"), d: 4 });
+      }
+      var m1 = secP("m1", 8, 12, 132, function (add) {
+        [2, 3, 4, 0, 4, 3, 2].forEach(function (oct, b) {
+          if (b === 3) notes(add, "0:A5:2 2:E5:2 4:C#5:2 6:E5:2", "wood", { at: 36, ex: { vel: 0.8 } });
+          else cell(add, b * 12, oct, 1);
+          harps(add, b * 12, b === 3 ? 4 : oct);
+        });
+        harps(add, 84, 4);
+        add(84, { i: "celesta", n: nn("F5"), d: 2 }); add(90, { i: "celesta", n: nn("E5"), d: 2 });
+        phrase(add, "94:A5:2");
+      });
+      var m2 = secP("m2", 7, 12, 132, function (add) {
+        phrase(add, "0:G5:2 8:G5:2 10:A5:2 12:G5:2 14:F5:2 16:E5:2 18:F5:2 20:G5:2 22:F5:2 24:E5:6 30:D5:6 36:G5:4 40:G5:2 42:A5:6 48:G5:2 50:F5:2 52:E5:2 54:F5:2 56:G5:2 58:F5:2 60:E5:4 64:C5:2 66:D5:6 72:G5:8");
+        for (var b = 0; b < 7; b++) {
+          var s0 = b * 12;
+          [0, 6].forEach(function (h) {
+            add(s0 + h, { i: "pluck", n: nn("G3"), d: 2, vel: 0.8 }); add(s0 + h + 2, { i: "pluck", n: nn("Bb3"), d: 2, vel: 0.7 });
+            add(s0 + h + 4, { i: "pluck", n: nn("D4"), d: 2, vel: 0.6 }); add(s0 + h + 4, { i: "pluck", n: nn("F4"), d: 2, vel: 0.6 });
+          });
+          if (b >= 3 && b <= 5) { add(s0, { i: "wood", n: nn("F4"), d: 11, vel: 0.35 }); add(s0, { i: "wood", n: nn("Bb4"), d: 11, vel: 0.35 }); }
+        }
+        add(0, { i: "pluck", n: nn("G2"), d: 6 }); add(36, { i: "pluck", n: nn("G2"), d: 6 }); add(72, { i: "pluck", n: nn("G2"), d: 6 });
+      });
+      var TA = "0:G5:4 4:G5:2 6:A5:6 12:G5:2 14:F5:2 16:E5:2 18:F5:2 20:G5:2 22:F5:2 24:E5:6 30:D5:6";
+      var TB = "36:G5:4 40:G5:2 42:A5:6 48:G5:2 50:F5:2 52:E5:2 54:F5:2 56:G5:2 58:F5:2 60:E5:4 64:C5:2 66:D5:6";
+      var TUNE = TA + " " + TB;
+      function hq(add, s0, lo, hi, vel) { [0, 3, 6, 9].forEach(function (q, k) { (k % 2 ? hi : lo).forEach(function (n) { add(s0 + q, { i: "pluck", n: n, d: 2, vel: vel || 0.6 }); }); }); }
+      function held(add, list, inst, vel) { list.forEach(function (c) { c[1].split(" ").map(nn).forEach(function (n) { add(c[0], { i: inst, n: n, d: c[2], vel: vel }); }); }); }
+      function timpC(add, s0, k) {
+        [["0:4 4:2 8:2 10:2"], ["0:2 2:2 4:2 6:4 10:2"], ["0:4 4:4 8:4"]][k % 3][0].split(" ").forEach(function (t) { var p = t.split(":"); add(s0 + +p[0], { i: "timp", n: nn("C3"), vel: 0.35 }); });
+      }
+      var N0 = function (s) { return s.split(" ").map(nn); };
+      var m3 = secP("oboe", 6, 12, 132, function (add) {
+        notes(add, TUNE, "wood", { ex: { vel: 0.85 } });
+        add(0, { i: "brassC", v: [nn("G4")], d: 48, vel: 0.3 });
+        for (var b = 0; b < 6; b++) hq(add, b * 12, b < 4 ? N0("G3 Bb3") : N0("F3 A3"), b < 4 ? N0("D4 F4") : N0("C4 F4"));
+      });
+      var m4 = secP("flute", 6, 12, 132, function (add) {
+        notes(add, TUNE, "wood", { ex: { vel: 0.85 } });
+        add(0, { i: "wood", n: nn("E4"), d: 72, vel: 0.3 });
+        var H = [["Eb4 G4", "Bb4 D5"], ["Eb4 G4", "Bb4 D5"], ["C#4 E4", "G4 Bb4"], ["A3 C#4", "E4 G4"], ["D4 F4", "Ab4 C5"], ["D4 F4", "Ab4 C5"]];
+        H.forEach(function (h, b) { hq(add, b * 12, N0(h[0]), N0(h[1])); });
+      });
+      var m5 = secP("celesta", 6, 12, 132, function (add) {
+        notes(add, TUNE, "celesta", { ex: { vel: 0.9 } });
+        ["F#3 D4 F4 A4", "F3 D4 E4 G4", "F3 D4 E4 G4", "F#3 D4 F4 A4", "F3 D4 E4 G4", "F3 D4 E4 G4"].forEach(function (c, b) { chordAt(add, b * 12, "strC", N0(c), 12, { vel: 0.35 }); });
+        for (var b = 0; b < 6; b++) hq(add, b * 12, N0("D4 F4"), b === 3 ? N0("Ab4 B4") : N0("Ab4 C5"), 0.5);
+      });
+      var m6 = secP("clarinet", 6, 12, 132, function (add) {
+        notes(add, TUNE, "wood", { tr: -12, ex: { vel: 0.9 } });
+        var C = ["B3 D#4 F#4", "B3 D#4 F#4", "Bb3 D4 F4", "C4 E4 G4", "Bb3 D4 F4", "D4 F4 A4"];
+        C.forEach(function (c, b) {
+          var v = N0(c);
+          chordAt(add, b * 12, "strC", [v[0] - 12, v[1] - 12], 12, { vel: 0.4 });
+          [0, 3, 6, 9].forEach(function (q, k) { [v[k % 2 ? 2 : 0] + 12, v[1] + 12].forEach(function (n) { add(b * 12 + q, { i: "wood", n: n, d: 1, vel: 0.3 }); }); });
+        });
+      });
+      var m7 = secP("figIV", 12, 12, 132, function (add) {
+        phrase(add, TUNE); phrase(add, TUNE, { at: 72 });
+        notes(add, TUNE, "cstr", { at: 72, tr: -12, ex: { vel: 0.6 } });
+        var C = ["F3 A3 B3 E4", "E3 A3 D4", "G3 B3 E4", "F3 A3 C4 G4", "G3 B3 D4 F4", "G3 C4 E4 A4",
+                 "F3 B3 D4 G4", "E3 A3 C4 F4", "F3 B3 D4 G4", "G3 C4 F4 A4", "B3 E4 G4 C5", "A3 D4 F#4 B4"];
+        C.forEach(function (c, b) { chordAt(add, b * 12, "brassC", N0(c), 12, { vel: 0.3 + b * 0.03 }); N0(c).forEach(function (n) { add(b * 12, { i: "wood", n: n, d: 12, vel: 0.25 + b * 0.02 }); }); });
+      });
+      function sweep(add, s0, ch, vel) { ch.forEach(function (n, k) { add(s0 + k * 0.5, { i: "pluck", n: n, d: 2, vel: vel || 0.7 }); }); }
+      var m8 = secP("tutti", 6, 12, 132, function (add) {
+        phrase(add, TUNE); notes(add, TUNE, "cstr", { tr: 12, ex: { vel: 0.55 } }); notes(add, TUNE, "wood", { ex: { vel: 0.6 } });
+        held(add, [[0, "Bb3 D4 F4 Bb4", 48], [48, "G3 Bb3 D4 G4", 24]], "str", 0.7);
+        add(0, { i: "deep", n: nn("Bb1"), d: 48, vel: 0.5 }); add(48, { i: "deep", n: nn("G1"), d: 24, vel: 0.5 });
+        add(0, { i: "str", n: nn("Bb2"), d: 48, vel: 0.8 }); add(48, { i: "str", n: nn("G2"), d: 24, vel: 0.8 });
+        for (var b = 0; b < 5; b++) sweep(add, b * 12, N0("Bb2 F3 Bb3 D4 F4 Bb4 D5 F5"));
+        chordAt(add, 60, "harpC", N0("G3 Bb3 D4 G4"), 4);
+      });
+      var m9 = secP("climax", 12, 12, 132, function (add) {
+        notes(add, TA, "brass", { ex: { vel: 0.7 } }); notes(add, TA, "wood", { ex: { vel: 0.7 } });
+        phrase(add, TB, { at: 0 }); notes(add, TB, "cstr", { tr: 12, ex: { vel: 0.6 } });
+        notes(add, TA, "hbrass", { at: 72, tr: -12 });
+        phrase(add, TB, { at: 72, soft: true });
+        ["0:C6:12 12:Bb5:12 24:Ab5:12", "72:C6:12 84:Bb5:12 96:Ab5:12"].forEach(function (s) { notes(add, s, "cstr", { ex: { vel: 0.8 } }); notes(add, s, "wood", { ex: { vel: 0.5 } }); });
+        add(0, { i: "crash" });
+        add(0, { i: "deep", n: nn("C1"), d: 144, vel: 0.6 }); add(0, { i: "str", n: nn("C2"), d: 144, vel: 0.9 }); add(0, { i: "lbrass", n: nn("C2"), d: 36 });
+        for (var q = 0; q < 48; q++) add(q, { i: "timp", n: nn("C2"), vel: 0.18 + (q % 6 ? 0 : 0.1) });
+        [0, 12, 48, 60].forEach(function (s) { sweep(add, s, N0("Ab2 Eb3 Ab3 C4 Eb4 Ab4 C5 Eb5"), 0.75); });
+        [36, 84].forEach(function (s) { chordAt(add, s, "harpC", N0("Ab3 C4 Eb4 Ab4"), 4); });
+        held(add, [[0, "Ab3 C4 Eb4", 36], [36, "Ab3 C4 Eb4 Ab4", 36], [72, "Ab3 C4 Eb4", 36]], "str", 0.55);
+        held(add, [[108, "E4 G4 C5", 12], [120, "E4 G4 Bb4", 12], [132, "Eb4 Ab4 C5", 12]], "wood", 0.4);
+      });
+      var m10 = secP("figV", 10, 12, 132, function (add) {
+        phrase(add, TA, { tr: -12 }); notes(add, TA, "str", { tr: -24, ex: { vel: 0.7 } }); notes(add, TA, "brass", { tr: -12, ex: { vel: 0.45 } });
+        notes(add, TB, "wood", { tr: -12, ex: { vel: 0.75 } }); phrase(add, TB, { tr: -12, soft: true });
+        notes(add, TA + " 36:E5:6 42:D5:6", "wood", { at: 72, tr: -12, ex: { vel: 0.8 } });
+        [[0, "Bb1", 24], [24, "G1", 12], [36, "Bb1", 12], [48, "G1", 24]].forEach(function (b) { add(b[0], { i: "str", n: nn(b[1]) + 12, d: b[2], vel: 0.8 }); add(b[0], { i: "deep", n: nn(b[1]), d: b[2], vel: 0.4 }); });
+        held(add, [[0, "D3 Ab3", 24], [24, "D3 F3", 12], [36, "D3 Ab3", 12], [48, "D3 F3", 24]], "wood", 0.4);
+        held(add, [[72, "C3 E3 G3", 24], [96, "Bb2 Eb3 G3", 12], [108, "C3 E3 G3", 12]], "str", 0.5);
+      });
+      var m11 = secP("pause", 4, 12, 80, function (add) {
+        add(0, { i: "wood", n: nn("G4"), d: 18, vel: 0.5 }); add(18, { i: "wood", n: nn("E4"), d: 6, vel: 0.45 });
+        held(add, [[0, "Bb1 Bb2", 24], [24, "Bb1 Bb2", 24]], "str", 0.6);
+        add(12, { i: "wood", n: nn("Bb3"), d: 2, vel: 0.5 }); add(14, { i: "wood", n: nn("D4"), d: 2, vel: 0.5 }); add(16, { i: "wood", n: nn("C#4"), d: 2, vel: 0.5 });
+        held(add, [[24, "E4 Bb3", 24]], "str", 0.45);
+      });
+      var m12 = secP("celestaRun", 9, 12, 132, function (add) {
+        "C5 D#5 G#5 A5 Bb5 C6 D6 Eb6".split(" ").forEach(function (n, k) { add(k * 1.5, { i: "celesta", n: nn(n), d: 1.5 }); });
+        notes(add, "12:E6:2 14:B5:2 16:G#5:2 18:F#6:2 20:A5:2 22:F#5:2 24:C#6:2 26:G#5:2 28:E5:2 30:D6:2 32:A#5:2 34:F#5:2 " +
+                   "36:Bb5:2 38:F5:2 40:D5:2 42:A5:2 44:Eb5:2 46:C5:2 48:G5:2 50:D5:2 52:Bb4:2 54:F5:2 56:C5:2 58:A4:2", "celesta");
+        notes(add, "12:E6:2 14:B5:2 16:G#5:2 18:F#6:2 20:A5:2 22:F#5:2 24:C#6:2 26:G#5:2 28:E5:2 30:D6:2 32:A#5:2 34:F#5:2", "wood", { ex: { vel: 0.35 } });
+        [[60, "F#4 B4 D#5"], [64, "G4 B4 E5"], [68, "A4 C#5 F#5"], [72, "C#4 E4 A4"], [76, "E4 G#4 C#5"], [80, "D#4 F#4 B4"], [84, "D4 F4 B4"], [88, "G4 B4 D5"], [92, "A4 C5 Eb5"]].forEach(function (c) { N0(c[1]).forEach(function (n) { add(c[0], { i: "celesta", n: n, d: 4, vel: 0.8 }); }); });
+        N0("Bb4 D5 F5").forEach(function (n) { add(96, { i: "celesta", n: n, d: 8, vel: 0.8 }); }); N0("A4 C5 F5").forEach(function (n) { add(104, { i: "celesta", n: n, d: 4, vel: 0.8 }); });
+        [36, 40, 44, 48, 52, 56].forEach(function (s, k) { chordAt(add, s, "harpC", N0(k % 3 === 1 ? "Bb3 D4 F4" : "F3 Bb3 D4"), 3, { vel: 0.6 }); });
+        notes(add, "84:F6:2 86:D6:2 88:Bb5:2 90:F6:2 92:D6:2 94:Bb5:2 96:Eb6:2 98:C6:2 100:A5:2 102:Eb6:2 104:C6:2 106:A5:2", "pluck", { ex: { vel: 0.5 } });
+      });
+      var m13 = secP("figVII", 13, 12, 132, function (add) {
+        var V = ("B3 C#4 D4 E4 F#4 G4 A4 B4 D5 C#5 F#4 A4 B4 C#5 D5 E5 F#5 G5 A5 B5 A5 G5 E5 F#5 G5 E5 F#5 G5 A5 F#5 " +
+                 "B4 C#5 F#5 E5 D5 C#5 D5 C#5 A4 B4 C#5 A4 A4 B4 C#5 A4 F#4 G4 C#5 D5 E5 F#5 G5 E5 F#5 G5 A5 E5 F#5 G5 " +
+                 "G5 A5 B5 C#6 D6 B5 D6 C#6 D6 B5 C#6 A5 A5").split(" ");
+        V.forEach(function (n, k) { add(k * 2, { i: "strShort", n: nn(n), d: 1.2, vel: 0.7 }); add(k * 2, { i: "strShort", n: nn(n) - 12, d: 1.2, vel: 0.5 }); });
+        add(0, { i: "pluck", n: nn("D2"), d: 2, vel: 0.6 });
+      });
+      var m14 = secP("soloF", 14, 12, 132, function (add) {
+        notes(add, "0:C#6:4 4:C#6:2 6:D6:6 12:C#6:2 14:B5:2 16:A#5:2 18:B5:2 20:C#6:2 22:B5:2 24:A#5:6 30:G#5:6", "wood", { ex: { vel: 0.7 } });
+        held(add, [[0, "G#4 B4", 36]], "wood", 0.3);
+        notes(add, "36:A4:2 38:Bb4:2 40:A4:2 42:Bb4:2 44:Ab4:2", "wood", { ex: { vel: 0.35 } });
+        phrase(add, TUNE, { at: 48, tr: 5, soft: true });
+        phrase(add, TA.split(" ").slice(0, 8).join(" "), { at: 120, tr: 5 }); notes(add, TA.split(" ").slice(0, 8).join(" "), "cstr", { at: 120, tr: 5, ex: { vel: 0.7 } });
+        notes(add, "144:A5:4 148:G5:1 149:F5:1 150:E5:1 151:D5:1 152:C5:1 153:B4:1 154:A4:1 155:G4:1", "cstr", { ex: { vel: 0.8 } });
+        held(add, [[48, "C4 E4 G4", 96]], "wood", 0.3);
+        for (var b = 0; b < 13; b++) timpC(add, b * 12, b);
+        held(add, [[156, "D4 A4", 12], [156, "Ab3", 12]], "str", 0.8); add(156, { i: "str", n: nn("B1"), d: 12, vel: 0.6 });
+      });
+      var m15 = secP("ending", 18, 12, 132, function (add) {
+        add(0, { i: "str", n: nn("B1"), d: 96, vel: 0.5 });
+        notes(add, "0:Bb6:2 2:F6:2 4:D6:2 6:A6:2 8:Eb6:2 10:C6:2 12:G6:2 14:D6:2 16:Bb5:2 18:F6:2 20:C6:2 22:A5:2 24:F6:2 26:C#6:2 28:A5:2 30:E6:2 32:B5:2 34:G#5:2 36:D#6:2 38:B5:2 40:G#5:2 42:C#6:2 44:G#5:2 46:E5:2", "celesta", { tr: -12, ex: { vel: 0.8 } });
+        [0, 4, 8, 12, 16, 20].forEach(function (s) { chordAt(add, s, "harpC", N0("Bb4 D5 F5"), 3, { vel: 0.4 }); });
+        [24, 28, 32, 36, 40, 44].forEach(function (s, k) { chordAt(add, s, "harpC", N0(k % 2 ? "E4 G#4 B4" : "G#4 B4 D#5"), 3, { vel: 0.4 }); });
+        notes(add, "48:Bb5:2 50:F5:2 52:D5:2 54:A5:2 56:Eb5:2 58:C5:2 60:G5:2 62:D5:2 64:Bb4:2 66:F5:2 68:C5:2 70:A4:2", "wood", { ex: { vel: 0.5 } });
+        add(72, { i: "str", n: nn("E6"), d: 144, vel: 0.35 });
+        N0("D5 G5 Bb5").forEach(function (n) { add(72, { i: "celesta", n: n, d: 6, vel: 0.7 }); }); N0("D5 F5 A5").forEach(function (n) { add(78, { i: "celesta", n: n, d: 6, vel: 0.7 }); });
+        N0("C#5 E5 A5").forEach(function (n) { add(84, { i: "celesta", n: n, d: 4, vel: 0.7 }); });
+        notes(add, "100:Bb4:2 102:A4:2 104:G4:2 108:E4:4", "str", { ex: { vel: 0.5 } });
+        notes(add, "100:G4:2 102:F4:2 104:D4:2 108:C#4:4", "str", { ex: { vel: 0.45 } });
+        notes(add, "100:D4:2 102:Bb3:2 104:G3:2 108:E3:4", "str", { ex: { vel: 0.45 } });
+        chordAt(add, 120, "harpC", N0("Bb3 D4 F4"), 4, { vel: 0.5 }); chordAt(add, 138, "harpC", N0("Bb3 D4 F4"), 4, { vel: 0.5 });
+        notes(add, "150:Bb2:2 152:Bb2:2 154:A2:2 156:E2:4", "pluck", { ex: { vel: 0.6 } });
+        add(156, { i: "deep", n: nn("E1"), d: 48, vel: 0.4 });
+        held(add, [[180, "B2 D#3 F#3", 24]], "wood", 0.35);
+        N0("E2 E3 B3 E4 G#4 B4 E5").forEach(function (n) { add(210, { i: "pluck", n: n, d: 2, vel: 0.6 }); });
+        N0("E4 G#4 B4 E5").forEach(function (n) { add(210, { i: "wood", n: n, d: 2, vel: 0.45 }); });
+        add(210, { i: "brassStabL", v: [nn("E4")], d: 1.5, vel: 0.4 });
+      });
+      return { intro: [], loop: [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15] };
+    },
+    mars: function () {
+      var R = [[0, 1.33], [1.333, 1.33], [2.667, 1.33], [4, 4], [8, 4], [12, 2], [14, 2], [16, 4]];
+      function ost(add, s0, vel, p) { var n = nn(p || "G2"); R.forEach(function (r) { add(s0 + r[0], { i: "pluck", n: n, d: r[1], tick: true, vel: vel }); }); add(s0, { i: "timp", n: n }); add(s0 + 16, { i: "timp", n: n, vel: 0.6 }); }
+      function theLine(add, at, full) {
+        var L = "0:G2:32 32:D3:8 40:Db3:28";
+        notes(add, L, "lbrass", { at: at });
+        notes(add, L, "deep", { at: at, tr: -12, ex: { vel: 0.45 } });
+        mel(L).forEach(function (m) { chordAt(add, at + m[0], "brassC", full ? [m[1] + 12, m[1] + 24] : [m[1] + 12], m[2], { vel: full ? 0.5 : 0.6 }); });
+        add(at + 40, { i: "str", n: nn("Bb2"), d: 28, vel: 0.6 }); add(at + 40, { i: "wood", n: nn("Db4"), d: 28, vel: 0.5 });
+      }
+      var ma1 = secP("ma1", 8, 20, 166, function (add, N) {
+        for (var b = 0; b < 8; b++) ost(add, b * 20, 0.8 + b * 0.03);
+        chordAt(add, 0, "strC", N("G2 D3 G3"), 40, { vel: 0.6 });
+        theLine(add, 40, false);
+        chordAt(add, 120, "strC", N("G2 D3 G3"), 40, { vel: 0.7 });
+      });
+      var ma2 = secP("ma2", 8, 20, 166, function (add, N) {
+        for (var b = 0; b < 8; b++) ost(add, b * 20, 1 + b * 0.04);
+        theLine(add, 0, true);
+        chordAt(add, 80, "strC", N("G2 D3 G3 D4"), 80, { vel: 0.9 });
+        add(80, { i: "deep", n: nn("G1"), d: 80, vel: 0.7 });
+        add(140, { i: "cymSwell", d: 20 });
+      });
+      var ma3 = secP("ma3", 6, 20, 166, function (add, N) {
+        var Db = N("Db4 F4 Ab4 Db5"), C = N("C2 C3");
+        for (var b = 0; b < 5; b++) {
+          var s0 = b * 20;
+          ost(add, s0, 1.2, "C2");
+          R.forEach(function (r, k) { if (b % 2 ? k >= 3 : k <= 3) { chordAt(add, s0 + r[0], "brassStabL", Db, r[1]); chordAt(add, s0 + r[0], "brassStabL", C, r[1], { vel: 1.1 }); } });
+          add(s0, { i: "deep", n: nn("C1"), d: 20 });
+          chordAt(add, s0, "strC", N("C2 C3"), 20, { vel: 1 });
+        }
+        add(0, { i: "crash" });
+        add(100, { i: "crash" });
+        add(100, { i: "lbrass", n: nn("C2"), d: 20 }); add(100, { i: "lbrass", n: nn("C3"), d: 20 });
+        chordAt(add, 100, "brassC", N("C3 C4"), 20, { vel: 0.8 });
+        add(100, { i: "deep", n: nn("C1"), d: 20 });
+        for (var q = 0; q < 16; q++) add(100 + q, { i: "timp", n: nn("C2"), vel: 0.25 + 0.02 * q });
+      });
+      var Nm = function (s) { return s.split(" ").map(nn); };
+      function hammer(add, s0, chord, vel) { R.forEach(function (r) { chordAt(add, s0 + r[0], "strC", chord, r[1] * 0.8, { vel: vel }); }); }
+      var GROAN = "0:Db3:6 6:C3:2 8:B2:6 14:C3:2 16:D3:6 22:Eb3:2 24:F3:6 30:G3:2 32:Ab3:6 38:G3:2";
+      function waver(add, at, s, inst, vel) { notes(add, s, inst, { at: at, ex: { vel: vel } }); }
+      var mb1 = secP("figII", 27, 20, 166, function (add, N) {
+        for (var b = 0; b < 21; b++) { ost(add, b * 20, b < 3 ? 1.1 : 0.9, "C2"); hammer(add, b * 20, N("C3 G3 C4"), b < 3 ? 0.8 : 0.55); }
+        add(0, { i: "crash" }); add(0, { i: "deep", n: nn("C1"), d: 60, vel: 0.6 });
+        chordAt(add, 0, "brassC", N("Db4 F4 Bb4 Db5"), 60, { vel: 0.8 }); chordAt(add, 0, "strC", N("Db5 F5 Bb5"), 60, { vel: 0.8 });
+        notes(add, GROAN, "lbrass", { at: 60 }); notes(add, GROAN, "lbrass", { at: 60, tr: 7 });
+        notes(add, GROAN, "lbrass", { at: 100 }); notes(add, GROAN, "brass", { at: 100, tr: 19, ex: { vel: 0.8 } });
+        mel(GROAN).forEach(function (m) { chordAt(add, 100 + m[0], "brassC", [m[1] + 12, m[1] + 15, m[1] + 19], m[2], { vel: 0.4 }); });
+        [140, 160, 180].forEach(function (at) {
+          var W = "0:G4:6 6:F#4:2 8:G4:6 14:F#4:2 16:F4:4";
+          notes(add, W, "brass", { at: at, ex: { vel: 0.8 } });
+          mel(W).forEach(function (m) { chordAt(add, at + m[0], "brassC", [m[1] - 12, m[1] - 8, m[1] - 5], m[2], { vel: 0.45 }); });
+        });
+        [200, 240].forEach(function (at, k) {
+          notes(add, "0:Db6:14 14:C6:16 30:B5:2", "cstr", { at: at, ex: { vel: 0.9 } }); notes(add, "0:Db6:14 14:C6:16 30:B5:2", "wood", { at: at, ex: { vel: 0.6 } });
+          notes(add, GROAN, "str", { at: at, tr: k ? 19 : 0, ex: { vel: 0.9 } }); notes(add, GROAN, k ? "wood" : "lbrass", { at: at, tr: k ? 19 : 0, ex: { vel: 0.7 } });
+        });
+        var WV = ["0:G5:6 6:F#5:2 8:G5:6 14:E5:2 16:F5:4", "0:A5:6 6:G#5:2 8:A5:6 14:F#5:2 16:G5:4", "0:Bb5:6 6:A5:2 8:Bb5:6 14:G#5:2 16:A5:4", "0:Bb5:4 4:A5:2 6:F5:6 12:Ab5:6 18:F5:2",
+                  "0:F#5:6 6:G5:2 8:Ab5:6 14:Ab5:2 16:Bb5:4", "0:Bb5:2 2:C6:4 6:Eb6:6 12:Bb5:2 14:Ab5:6", "0:G#5:6 6:A5:2 8:Bb5:6 14:Bb5:2 16:C6:4",
+                  "0:D5:2 2:E5:2 4:F5:6 10:F5:2 12:Bb5:6 18:A5:2", "0:A5:6 6:G#5:2 8:A5:2 10:B5:2 12:Bb5:6 18:A5:2", "0:A5:6 6:G#5:2 8:A5:2 10:B5:2 12:Bb5:6 18:A5:2",
+                  "0:A5:6 6:G#5:2 8:A5:2 10:B5:2 12:Bb5:6 18:A5:2", "0:Bb5:2 2:Bb5:2 4:Eb6:6 10:Bb5:2 12:Gb6:6 18:Bb5:2"];
+        WV.forEach(function (s, k) {
+          var at = 280 + k * 20;
+          waver(add, at, s, "cstr", 0.85); waver(add, at, s, "wood", 0.55);
+          mel(s).forEach(function (m) { chordAt(add, at + m[0], "brassC", [m[1] - 12, m[1] - 8, m[1] - 5], m[2], { vel: 0.35 }); });
+        });
+        [440, 460, 480].forEach(function (at) { add(at, { i: "cstr", n: nn("F#6"), d: 2, vel: 0.9 }); add(at + 12, { i: "cstr", n: nn("F#6"), d: 10, vel: 0.8 }); });
+        [[360, "G1"], [380, "G1"], [440, "Bb1"], [460, "Bb1"], [480, "Bb1"]].forEach(function (h) {
+          chordAt(add, h[0] + 12, "brassStabL", N("Bb3 Db4 F4"), 6, { vel: 1 }); add(h[0] + 12, { i: "lbrass", n: nn(h[1]) + 12, d: 8 });
+          chordAt(add, h[0] + 20, "brassStabL", N("C4 E4 A4"), 2, { vel: 1 }); add(h[0] + 20, { i: "timp", n: nn("C3") });
+        });
+        add(360, { i: "deep", n: nn("G1"), d: 60, vel: 0.6 }); for (var q = 0; q < 16; q++) add(400 + q, { i: "timp", n: nn("G2"), vel: 0.3 + q * 0.03 });
+        for (var b2 = 22; b2 < 26; b2++) { add((b2 - 1) * 20, { i: "str", n: nn("C2"), d: 12, vel: 0.9 }); add((b2 - 1) * 20 + 12, { i: "str", n: nn("Bb1"), d: 8, vel: 0.9 }); }
+        add(500, { i: "cymSwell", d: 20 });
+        add(520, { i: "crash" }); add(520, { i: "boom" }); chordAt(add, 520, "brassStabL", N("Bb2 Bb3 Db4 F4 Bb4"), 3, { vel: 1.2 }); add(520, { i: "deep", n: nn("Bb0"), d: 4 });
+        for (var c = 4; c < 20; c += 4) chordAt(add, 520 + c, "strC", N("Bb2 Eb4 G4 Bb4"), 3, { vel: 0.8 });
+      });
+      var mb2 = secP("figIV", 10, 20, 166, function (add, N) {
+        var CH = [["Bb2 Bb2 Bb2 Bb2 Eb3", "Db4 F4 Bb4"], ["Ab2 Ab2 Gb2 Ab2 Ab2", "C4 Eb4 Ab4"], ["B2 B2 B2 B2 B2", "D4 F#4 B4"], ["Bb2 Bb2 Bb2 Bb2 Eb3", "Db4 F4 Bb4"], ["Ab2 Ab2 Gb2 Ab2 Ab2", "C4 Eb4 Ab4"],
+                  ["B2 B2 B2 Bb2 B2", "D4 F#4 B4"], ["G2 G2 F#2 G2 G#2", "D4 G4 Bb4"], ["A2 A2 A2 A2 A2", "D4 F#4 A4"], ["A2 A2 A2 A2 A2", "D4 F#4 A4"], ["G#2 G#2 G#2 A2 A2", "E4 G#4 C#5"]];
+        CH.forEach(function (c, b) { N(c[0]).forEach(function (n, k) { add(b * 20 + k * 4, { i: "pluck", n: n, d: 3, vel: 0.9 }); chordAt(add, b * 20 + k * 4, "strC", N(c[1]), 3, { vel: 0.55 }); }); });
+        var T1 = "0:D4:4 4:D4:4 8:D4:4 12:D4:1.33 13.33:C#4:1.33 14.67:D4:1.33 16:D4:1.33 17.33:C4:1.33 18.67:D4:1.33";
+        var T2 = "20:F4:8 28:D4:3 31:D4:1 32:F4:4 36:D4:4 40:D4:14 54:D4:2";
+        [0, 60].forEach(function (at) { notes(add, T1 + " " + T2, "hbrass", { at: at }); notes(add, T1 + " " + T2, "brass", { at: at, tr: 12, ex: { vel: 0.5 } }); });
+        var TR = "0:B4:1.33 1.33:B4:1.33 2.67:B4:1.33 4:A4:1.33 5.33:B4:1.33 6.67:C5:1.33 8:D5:1.33 9.33:B4:1.33 10.67:G4:1.33 12:E4:8";
+        [40, 100].forEach(function (at) { notes(add, TR, "brass", { at: at, ex: { vel: 0.7 } }); notes(add, TR, "brass", { at: at, tr: -4, ex: { vel: 0.5 } }); });
+        "G4 A4 Bb4 C5 D5 Eb5 F5 F#5".split(" ").forEach(function (n, k) { add(132 + k * 0.5, { i: "strShort", n: nn(n) + 12, d: 0.6, vel: 0.8 }); add(132 + k * 0.5, { i: "wood", n: nn(n) + 12, d: 0.6, vel: 0.5 }); });
+        var TUNE = "140:F#5:4 144:F#5:4 148:F#5:4 152:F#5:1.33 153.33:E#5:1.33 154.67:F#5:1.33 156:F#5:1.33 157.33:E5:1.33 158.67:F#5:1.33 160:A5:8 168:F#5:3 171:F#5:1 172:A5:8 180:C#6:12 192:E6:4 196:C#6:4";
+        notes(add, TUNE, "cstr", { ex: { vel: 0.9 } }); notes(add, TUNE, "wood", { ex: { vel: 0.6 } }); notes(add, TUNE, "brass", { tr: -12, ex: { vel: 0.4 } });
+        add(140, { i: "timp", n: nn("A2") }); add(160, { i: "timp", n: nn("A2"), vel: 0.7 });
+      });
+      var mb3 = secP("fanfare", 7, 20, 166, function (add, N) {
+        for (var b = 0; b < 7; b++) { ost(add, b * 20, 0.9); R.forEach(function (r) { add(b * 20 + r[0], { i: "sn", vel: 0.3 }); }); hammer(add, b * 20, N("D4 G4"), 0.45); }
+        notes(add, "0:Bb3:4 4:Bb3:4 8:Bb3:4 12:Bb3:1.33 13.33:A3:1.33 14.67:Bb3:1.33 16:Bb3:1.33 17.33:A3:1.33 18.67:Bb3:1.33 20:Db4:8 28:Bb3:3 31:Bb3:1 32:Db4:4 36:Bb3:4", "hbrass");
+        ["40", "60", "80"].forEach(function (a) { notes(add, "0:G3:3 3:G3:1 4:Bb3:8 12:G3:3 15:G3:1 16:Bb3:4", "hbrass", { at: +a }); });
+        ["100", "120"].forEach(function (a) { notes(add, "0:A3:3 3:A3:1 4:C4:8 12:A3:3 15:A3:1 16:C4:4", "hbrass", { at: +a }); });
+        var TP = "20:G4:4 24:G4:4 28:G4:4 32:G4:1.33 33.33:F#4:1.33 34.67:G4:1.33 36:G4:1.33 37.33:F#4:1.33 38.67:G4:1.33 " +
+                 "40:Bb4:8 48:G4:3 51:G4:1 52:Bb4:4 56:G4:4 60:Bb4:8 68:G4:3 71:G4:1 72:Bb4:4 76:G4:4 80:B4:8 88:G4:3 91:G4:1 92:B4:4 96:G4:4 " +
+                 "100:C5:8 108:G4:3 111:G4:1 112:C5:4 116:G4:4 120:C5:8 128:G4:3 131:G4:1 132:C5:4 136:G4:4";
+        notes(add, TP, "brass", { ex: { vel: 0.85 } }); notes(add, TP, "brass", { tr: 12, ex: { vel: 0.35 } });
+        chordAt(add, 0, "brassC", N("D4 G4 Bb4"), 20, { vel: 0.5 });
+      });
+      var mb4 = secP("figX", 7, 20, 166, function (add, N) {
+        var WX = ["0:C#5:6 6:D5:2 8:Eb5:6 14:F5:2 16:F5:4", "0:F5:2 2:G5:2 4:Ab5:6 10:G5:2 12:F5:6 18:E5:2", "0:D#5:6 6:E5:2 8:F5:6 14:G5:2 16:G5:4",
+                  "0:G5:2 2:A5:2 4:Bb5:6 10:A5:2 12:G5:6 18:F5:2", "0:Ab5:6 6:Ab5:2 8:Bb5:6 14:Bb5:2 16:Cb6:4", "0:Bb5:6 6:Bb5:2 8:C6:6 14:B5:2 16:Db6:4", "0:Bb5:6 6:Ab5:2 8:Bb5:6 14:C6:2 16:Db6:4"];
+        WX.forEach(function (s, b) {
+          waver(add, b * 20, s, "cstr", 0.9); waver(add, b * 20, s, "wood", 0.6);
+          mel(s).forEach(function (m) { chordAt(add, b * 20 + m[0], "brassC", [m[1] - 12, m[1] - 8, m[1] - 5], m[2], { vel: 0.4 }); });
+          for (var q = 0; q < 20; q += 4) add(b * 20 + q, { i: "pluck", n: nn("G2"), d: 3, tick: true, vel: 0.8 });
+          if (b) { chordAt(add, b * 20 + 12, "brassStabL", N("Db4 F4 Ab4"), 6, { vel: 1 }); if (b < 6) chordAt(add, b * 20 + 20, "brassStabL", N("C4 E4 G4"), 2, { vel: 1 }); }
+        });
+        add(0, { i: "str", n: nn("G1"), d: 140, vel: 1 }); add(0, { i: "deep", n: nn("G1"), d: 140, vel: 0.5 });
+        for (var q2 = 0; q2 < 20; q2++) add(120 + q2, { i: "timp", n: nn("G2"), vel: 0.3 + q2 * 0.03 });
+        add(120, { i: "cymSwell", d: 20 });
+      });
+      var mb5 = secP("fiveTwo", 4, 20, 83, function (add, N) {
+        add(0, { i: "crash" }); add(0, { i: "boom" });
+        chordAt(add, 0, "brassC", N("Eb4 Gb4 Bb4 Eb5"), 48, { vel: 1 }); chordAt(add, 0, "strC", N("Eb4 Gb4 Bb4 Eb5 Gb5"), 48, { vel: 0.9 });
+        notes(add, "0:C2:48", "lbrass"); add(0, { i: "deep", n: nn("C1"), d: 60, vel: 0.7 });
+        for (var q = 0; q < 48; q++) add(q, { i: "timp", n: nn("C2"), vel: 0.25 });
+        chordAt(add, 48, "brassC", N("C#4 E4 G#4 C#5"), 12, { vel: 0.7 }); chordAt(add, 48, "strC", N("C#4 E4 G#4 C#5"), 12, { vel: 0.8 });
+        chordAt(add, 60, "brassC", N("Db4 Gb4 Bb4"), 20, { vel: 0.7 }); chordAt(add, 60, "strC", N("Db4 Gb4 Bb4 Db5"), 20, { vel: 0.7 });
+        notes(add, "60:C2:20", "lbrass");
+      });
+      var mb6 = secP("figXI", 5, 12, 250, function (add, N) {
+        var S = "A5 G#5 F#5 E5 D#5 E5 F#5 G#5 A5 B5 C6 B5".split(" ");
+        for (var b = 0; b < 5; b++) S.forEach(function (n, k) { add(b * 12 + k, { i: "strShort", n: nn(n) - (b % 2) * 12, d: 0.8, vel: 0.5 + b * 0.08 }); if (b > 1) add(b * 12 + k, { i: "wood", n: nn(n), d: 0.8, vel: 0.3 }); });
+        add(0, { i: "str", n: nn("G1"), d: 60, vel: 0.8 });
+        for (var q = 0; q < 60; q += 2) add(q, { i: "timp", n: nn("G2"), vel: 0.2 + q * 0.006 });
+        chordAt(add, 12, "brassC", N("C#4 E4 A4"), 48, { vel: 0.35 }); add(36, { i: "cymSwell", d: 24 });
+      });
+      return { intro: [], loop: [ma1, ma2, mb1, mb2, mb3, mb4, mb5, mb6, ma3] };
+    }
+  };
+  (function () {
+    var E = {
+      Dm: [38, "D4 F4 A4 D5"], Bb: [34, "D4 F4 Bb4 D5"], F: [41, "C4 F4 A4 C5"], C: [36, "C4 E4 G4 C5"], Gm: [43, "D4 G4 Bb4 D5"],
+      Asus: [33, "D4 E4 A4 D5"], A: [33, "C#4 E4 A4 C#5"], Csus: [36, "C4 F4 G4 C5"], FA: [45, "C4 F4 A4 C5"],
+      Em: [40, "E4 G4 B4 E5"], Cx: [36, "E4 G4 C5 E5"], G: [43, "D4 G4 B4 D5"], D: [38, "D4 F#4 A4 D5"], Esus: [40, "E4 A4 B4 E5"], EM: [40, "E4 G#4 B4 E5"]
+    };
+    Object.keys(E).forEach(function (k) { CH["t_" + k] = { b: E[k][0], v: E[k][1].split(" ").map(nn) }; });
+  })();
+  var EPIC2 = {
+    open: { bars: 4, lv: 0.75, ch: ["Dm", "Dm", "Bb", "Asus"], impact: [0], organ: [0, 1, 2, 3], choir: [0, 1, 2, 3], timp: [2, 3] },
+    build: { bars: 8, lv: 0.8, ch: ["Dm", "Bb", "F", "C", "Dm", "Bb", "Gm", "A"], organ: [0, 1, 2, 3, 4, 5, 6, 7], taikoA: [0, 1, 2, 3], taikoB: [4, 5, 6, 7],
+      spic: [2, 3, 4, 5, 6, 7], choirHits: [4, 5, 6, 7], roll: 7, rise: true },
+    climax: { bars: 8, lv: 1.15, ch: ["Dm", "Bb", "F", "C", "Gm", "Bb", "Csus", "A"], impact: [0, 4], organ: [0, 1, 2, 3, 4, 5, 6, 7], choir: [0, 1, 2, 3, 4, 5, 6, 7],
+      drive: true, spic: [0, 1, 2, 3, 4, 5, 6, 7], answers: [1, 3, 5],
+      mel: "0:D4:4 4:A4:4 8:D5:8 16:C5:6 22:Bb4:2 24:F4:8 32:F4:4 36:C5:4 40:F5:6 46:E5:2 48:D5:4 52:C5:4 56:G4:8 64:G4:4 68:D5:4 72:G5:8 80:F5:6 86:D5:2 88:Bb4:8 96:C5:4 100:F5:4 104:E5:8 112:D5:8 120:C#5:8",
+      counter: "0:A5:16 16:F5:16 32:A5:16 48:G5:16 64:Bb5:16 80:F5:16 96:G5:16 112:A5:16" },
+    breath: { bars: 4, lv: 0.55, ch: ["Bb", "FA", "Gm", "Asus"], organ: [0, 1, 2, 3], choir: [1, 2, 3], swell: 3 },
+    final: { bars: 8, lv: 1.25, ch: ["Em", "Cx", "G", "D", "Cx", "D", "Esus", "EM"], impact: [0, 4], organ: [0, 1, 2, 3, 4, 5, 6, 7], choir: [0, 1, 2, 3, 4, 5, 6, 7],
+      drive: true, spic: [0, 1, 2, 3, 4, 5, 6], answers: [1, 3, 5],
+      mel: "0:E4:4 4:B4:4 8:E5:8 16:D5:6 22:C5:2 24:G4:8 32:G4:4 36:D5:4 40:G5:6 46:F#5:2 48:E5:4 52:D5:4 56:A4:8 64:C5:4 68:G5:4 72:E5:8 80:F#5:6 86:E5:2 88:D5:8 96:A4:4 100:B4:4 104:E5:8 112:E5:16",
+      counter: "0:B5:16 16:G5:16 32:B5:16 48:A5:16 64:G5:16 80:A5:16 96:A5:16 112:G#5:16" }
+  };
+  function compileEpic2(sec) {
+    var ev = {}, add = function (step, e) { (ev[step] = ev[step] || []).push(e); }, lv = sec.lv;
+    var melodyOn = !!sec.mel;
+    for (var b = 0; b < sec.bars; b++) {
+      var c = CH["t_" + sec.ch[b]], s0 = b * 16, prev = b ? sec.ch[b - 1] : null, rise = sec.rise ? 0.7 + 0.45 * b / (sec.bars - 1) : 1;
+      if (sec.ch[b] !== prev) {
+        var len = 1; while (b + len < sec.bars && sec.ch[b + len] === sec.ch[b]) len++;
+        add(s0, { i: "esub", n: c.b - 12 >= 26 ? c.b - 12 : c.b, d: len * 16 });
+        if (sec.choir && sec.choir.indexOf(b) >= 0) add(s0, { i: "choirT", v: c.v, d: len * 16, vel: lv * (melodyOn ? 0.7 : 1) });
+      } else if (sec.choir && sec.choir.indexOf(b) >= 0 && sec.choir.indexOf(b - 1) < 0) add(s0, { i: "choirT", v: c.v, d: 16, vel: lv });
+      if (sec.organ && sec.organ.indexOf(b) >= 0) for (var a = 0; a < 16; a += 2) add(s0 + a, { i: "oarp", n: c.v[[0, 2, 3, 2][(a / 2) % 4]] + 12, d: 2, vel: (melodyOn ? 0.5 : 0.75) * rise * (a % 8 === 0 ? 1.2 : 1) });
+      if (sec.spic && sec.spic.indexOf(b) >= 0) for (var q = 0; q < 16; q++) add(s0 + q, { i: "spic", n: c.v[[0, 1, 2, 1][q % 4]], d: 1, vel: (q % 4 === 0 ? 1.3 : 0.8) * rise * (melodyOn ? 0.8 : 1) });
+      if (sec.impact && sec.impact.indexOf(b) >= 0) { add(s0, { i: "boom" }); add(s0, { i: "taiko", vel: 1.4 }); add(s0, { i: "crash" }); }
+      if (sec.timp && sec.timp.indexOf(b) >= 0) { add(s0, { i: "timp", n: c.b, vel: 0.9 }); add(s0 + 8, { i: "timp", n: c.b, vel: 0.6 }); }
+      if (sec.taikoA && sec.taikoA.indexOf(b) >= 0) "x...x...x..x.x..".split("").forEach(function (ch2, z) { if (ch2 === "x") add(s0 + z, { i: "taiko", vel: (z === 0 ? 1.1 : 0.75) * rise }); });
+      if (sec.taikoB && sec.taikoB.indexOf(b) >= 0) { for (var z = 0; z < 16; z += 2) add(s0 + z, { i: "taiko", vel: (z % 8 === 0 ? 1.2 : 0.8) * rise }); [6, 14].forEach(function (z) { add(s0 + z, { i: "tm", n: z, vel: 1.1 }); }); }
+      if (sec.choirHits && sec.choirHits.indexOf(b) >= 0) [0, 3, 6, 10].forEach(function (z) { add(s0 + z, { i: "choirHit", v: c.v, d: 2, vel: rise }); });
+      if (sec.roll === b) for (var r = 0; r < 16; r++) add(s0 + r, { i: "sn", vel: 0.3 + r * 0.06 });
+      if (sec.drive) {
+        for (var z2 = 0; z2 < 16; z2 += 2) add(s0 + z2, { i: "taiko", vel: z2 % 8 === 0 ? 1.1 : 0.7 });
+        [6, 14].forEach(function (z) { add(s0 + z, { i: "tm", n: z % 3, vel: 1.2 }); });
+        "x.xxx.xxx.xxx.xx".split("").forEach(function (ch2, z) { if (ch2 === "x") add(s0 + z, { i: "sn", vel: z % 4 === 0 ? 0.9 : 0.35 }); });
+      }
+      if (sec.answers && sec.answers.indexOf(b) >= 0) [12, 14].forEach(function (z) { add(s0 + z, { i: "brassStabL", v: c.v, d: 1.5, vel: 1.2 }); });
+      if (sec.swell === b) add(s0, { i: "cymSwell", d: 16 });
+    }
+    if (sec.mel) mel(sec.mel).forEach(function (m, k) { add(m[0], { i: "brassMel", n: m[1], d: m[2], vel: lv * (m[0] % 16 === 0 ? 1.2 : 1) }); });
+    if (sec.counter) mel(sec.counter).forEach(function (m) { add(m[0], { i: "cstr", n: m[1], d: m[2], vel: lv }); });
+    return ev;
+  }
+  var SONGS = {};
+  function songs(id) {
+    if (SONGS[id]) return;
+    var mkE = function (parts) { return parts.map(function (n) { return { name: n, bars: EPIC2[n].bars, spb: 16, stepT: BASE_STEP, ev: compileEpic2(EPIC2[n]) }; }); };
+    if (id === "epic") SONGS.epic = { intro: [], loop: mkE(["open", "build", "climax", "breath", "final"]) };
+    else SONGS[id] = HOLST[id]();
+  }
+  function secSteps(x) { return x.bars * (x.spb || 16); }
+  function eventsAt(song, p) {
+    var introSteps = song.intro.reduce(function (t, s) { return t + secSteps(s); }, 0), list = song.intro, q = p;
+    if (p >= introSteps) { list = song.loop; var loopSteps = song.loop.reduce(function (t, s) { return t + secSteps(s); }, 0); q = (p - introSteps) % loopSteps; }
+    for (var i = 0; i < list.length; i++) { var n = secSteps(list[i]); if (q < n) return { sec: list[i].name, ev: list[i].ev[q] || [], q: q, spb: list[i].spb || 16, stepT: list[i].stepT || BASE_STEP }; q -= n; }
+    return { sec: "", ev: [], q: 0, spb: 16, stepT: BASE_STEP };
+  }
+  var verb = null, dly = null;
+  function fx() {
+    if (verb) return;
+    verb = ac.createConvolver();
+    var len = Math.floor(ac.sampleRate * 2.2), ir = ac.createBuffer(2, len, ac.sampleRate);
+    for (var ch = 0; ch < 2; ch++) { var d = ir.getChannelData(ch); for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+    verb.buffer = ir; var vg = gainNode(0.32); verb.connect(vg); vg.connect(music);
+    dly = ac.createDelay(1); dly.delayTime.value = STEP * 3; var fb = gainNode(0.32), dl = filter("lowpass", 2200); dly.connect(dl); dl.connect(fb); fb.connect(dly); var dg = gainNode(0.5); dl.connect(dg); dg.connect(music);
+  }
+  function send(node, rv, dl) { if (rv) { var a = gainNode(rv); node.connect(a); a.connect(verb); } if (dl) { var b = gainNode(dl); node.connect(b); b.connect(dly); } }
+  function note(t, dur, f, type, peak, a, r, dest, cut, q, detune, rv, dl, fenv) {
+    var o = ac.createOscillator(), g = gainNode(0), end = t + Math.max(a + 0.01, dur);
+    o.type = type; o.frequency.value = f; if (detune) o.detune.value = detune;
+    var src = o;
+    if (cut) { var fl = filter("lowpass", cut, q || 0.8); if (fenv) { fl.frequency.setValueAtTime(cut * fenv, t); fl.frequency.exponentialRampToValueAtTime(cut, t + Math.min(0.3, dur)); } o.connect(fl); src = fl; }
+    src.connect(g); g.connect(dest); send(g, rv, dl);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a);
+    g.gain.setValueAtTime(peak, end); g.gain.exponentialRampToValueAtTime(0.0001, end + r);
+    o.start(t); o.stop(end + r + 0.05);
+    return end + r;
+  }
+  function hit(dest, t, type, f, peak, dur, rv) {
+    var s = noiseSrc(), fl = filter(type, f, 0.9), g = gainNode(0); s.connect(fl); fl.connect(g); g.connect(dest); send(g, rv, 0);
+    g.gain.setValueAtTime(peak, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.start(t, Math.random()); s.stop(t + dur + 0.02);
+  }
+  function thump(dest, t, f0, f1, peak, dur) {
+    var o = ac.createOscillator(), g = gainNode(0);
+    o.frequency.setValueAtTime(Math.min(f0, f1 * 1.6), t); o.frequency.setTargetAtTime(f1, t, 0.012);
+    o.connect(g); g.connect(dest);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+  function membrane(dest, t, f, peak, dur, noiseF) {
+    thump(dest, t, f * 1.2, f, peak, dur);
+    var o = ac.createOscillator(), g = gainNode(0); o.type = "triangle"; o.frequency.value = f * 1.5;
+    o.connect(g); g.connect(dest); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak * 0.25, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.5); o.start(t); o.stop(t + dur * 0.5 + 0.02);
+    hit(dest, t, "bandpass", noiseF || 900, peak * 0.35, 0.05);
+  }
+  var TOMS = [50, 45, 43, 38];
+  function play1(tr, t, e) {
+    var D = (e.d || 1) * STEP;
+    switch (e.i) {
+      case "sn": var sv = e.vel || 1; hit(tr.drums, t, "bandpass", 1900, 0.2 * sv, 0.15, 0.25); thump(tr.drums, t, 240, 185, 0.11 * sv, 0.09); break;
+      case "boom": thump(tr.drums, t, 70, 46, 0.7, 0.9); hit(tr.drums, t, "lowpass", 700, 0.3, 0.7, 0.5); break;
+      case "tm": membrane(tr.drums, t, midi(TOMS[(e.n || 0) % 4]), 0.26 * (e.vel || 1), 0.4, 700); break;
+      case "crash": hit(tr.drums, t, "highpass", 5000, 0.12, 1.8, 0.4); break;
+      case "soar": soar(tr, t, e); break;
+      case "wood": note(t, D, midi(e.n), "triangle", 0.042 * (e.vel || 1), 0.03, 0.25, tr.g, 3200, 0.8, 0, 0.25); note(t, D, midi(e.n) * 2, "sine", 0.006 * (e.vel || 1), 0.03, 0.2, tr.g); break;
+      case "pluck": note(t, Math.min(D, 0.3), midi(e.n), "triangle", (tr.name === "mars" ? 0.035 : 0.05) * (e.vel || 1), 0.003, 0.25, tr.g, 2000, 1, 0, 0.2); if (e.tick) hit(tr.g, t, "bandpass", 2600, 0.05 * (e.vel || 1), 0.03); break;
+      case "celesta": note(t, Math.min(D, 0.25), midi(e.n + 12), "sine", 0.022 * (e.vel || 1), 0.002, 0.6, tr.g, 0, 0, 0, 0.35, 0.2); note(t, 0.1, midi(e.n + 12) * 4, "sine", 0.004, 0.002, 0.3, tr.g); break;
+      case "str": [-7, 7].forEach(function (dt) { note(t, D, midi(e.n), "sawtooth", 0.014 * (e.vel || 1), 0.18, 0.6, tr.padBus, 2200, 0.5, dt, 0.3); }); break;
+      case "strShort": note(t, D, midi(e.n), "sawtooth", 0.012 * (e.vel || 1), 0.005, 0.08, tr.g, 2600, 0.6); break;
+      case "strC": e.v.forEach(function (n) { [-7, 7].forEach(function (dt) { note(t, D, midi(n), "sawtooth", 0.011 * (e.vel || 1), 0.25, 0.8, tr.padBus, 2000, 0.5, dt, 0.35); }); }); break;
+      case "brassC": e.v.forEach(function (n) { [-8, 8].forEach(function (dt) { note(t, D, midi(n), "sawtooth", 0.022 * (e.vel || 1), 0.4, 0.9, tr.g, 1300, 1, dt, 0.35, 0, 1.6); }); }); break;
+      case "brassStabL": e.v.forEach(function (n) { [-9, 9].forEach(function (dt) { note(t, D, midi(n), "sawtooth", 0.02 * (e.vel || 1), 0.008, 0.2, tr.g, 1100, 2, dt, 0.2, 0, 3); }); }); break;
+      case "harpC": e.v.forEach(function (n, k) { note(t + k * 0.035, Math.min(D, 0.5), midi(n), "triangle", 0.035 * (e.vel || 1), 0.002, 0.9, tr.g, 2600, 0.7, 0, 0.35); }); break;
+      case "choirT": e.v.concat([e.v[0] - 12]).forEach(function (n) { [650, 1080].forEach(function (fm) { var o = ac.createOscillator(), bp = filter("bandpass", fm, 5), g = gainNode(0), end = t + D, pk = 0.06 * (e.vel || 1);
+          o.type = "sawtooth"; o.frequency.value = midi(n); o.connect(bp); bp.connect(g); g.connect(tr.padBus); send(g, 0.5, 0);
+          g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(pk, t + 0.35); g.gain.setValueAtTime(pk, end); g.gain.exponentialRampToValueAtTime(0.0001, end + 1.2); o.start(t); o.stop(end + 1.3); }); }); break;
+      case "choirHit": e.v.forEach(function (n) { [650, 1080].forEach(function (fm) { var o = ac.createOscillator(), bp = filter("bandpass", fm, 5), g = gainNode(0), pk = 0.07 * (e.vel || 1);
+          o.type = "sawtooth"; o.frequency.value = midi(n); o.connect(bp); bp.connect(g); g.connect(tr.g); send(g, 0.4, 0);
+          g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(pk, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35); o.start(t); o.stop(t + 0.4); }); }); break;
+      case "spic": note(t, D * 0.6, midi(e.n), "sawtooth", 0.013 * (e.vel || 1), 0.004, 0.07, tr.g, 2400, 0.8, 0, 0.12); break;
+      case "brassMel": [[0, -8], [0, 8], [-12, -5], [-12, 5]].forEach(function (pr) { note(t, D, midi(e.n + pr[0]), "sawtooth", 0.03 * (e.vel || 1), 0.035, 0.45, tr.g, 1700, 1.3, pr[1], 0.35, 0, 2.2); }); break;
+      case "cstr": [-6, 6].forEach(function (dt) { note(t, D, midi(e.n), "sawtooth", 0.012 * (e.vel || 1), 0.3, 0.9, tr.padBus, 3000, 0.5, dt, 0.45); }); break;
+      case "deep": note(t, D, midi(e.n), "sine", 0.11 * (e.vel || 1), 0.02, 0.18, tr.pump); note(t, D, midi(e.n), "triangle", 0.03 * (e.vel || 1), 0.02, 0.15, tr.pump, 160, 0.7); break;
+      case "esub": note(t, D, midi(e.n), "sine", 0.15, 0.6, 1.4, tr.pump); break;
+      case "oarp": note(t, D, midi(e.n), "square", 0.011 * (e.vel || 1), 0.004, 0.18, tr.g, 1800, 1, 0, 0.35, 0.25); note(t, D, midi(e.n - 12), "sine", 0.012 * (e.vel || 1), 0.004, 0.2, tr.g); break;
+      case "timp": var tf = midi(e.n); while (tf < 73) tf *= 2; while (tf > 147) tf /= 2;
+        membrane(tr.drums, t, tf, 0.42 * (e.vel || 1), 1.3, 500); break;
+      case "taiko": var tv = e.vel || 1; thump(tr.drums, t, 85, 62, 0.5 * tv, 0.45); hit(tr.drums, t, "lowpass", 1100, 0.2 * tv, 0.12, 0.35); break;
+      case "cymSwell": var cs = noiseSrc(), cf = filter("highpass", 4500), cg = gainNode(0); cs.connect(cf); cf.connect(cg); cg.connect(tr.drums); send(cg, 0.5, 0);
+        cg.gain.setValueAtTime(0.0001, t); cg.gain.exponentialRampToValueAtTime(0.06, t + D); cg.gain.exponentialRampToValueAtTime(0.0001, t + D + 0.6); cs.start(t); cs.stop(t + D + 0.7); break;
+      case "lbrass": [-8, 8].forEach(function (dt) { note(t, D, midi(e.n), "sawtooth", 0.045, 0.5, 0.9, tr.g, 700, 1.2, dt, 0.4, 0, 1.8); }); break;
+      case "hbrass": [-8, 0, 8].forEach(function (dt) { note(t, D, midi(e.n), "sawtooth", 0.026, 0.12, 0.7, tr.g, 1500, 1.4, dt, 0.4, 0, 2.2); }); note(t, D, midi(e.n - 12), "sawtooth", 0.02, 0.15, 0.7, tr.g, 900, 1); break;
+      case "brass": [-9, 9].forEach(function (dt) { note(t, D, midi(e.n), "sawtooth", 0.03 * (e.vel || 1), 0.03, 0.25, tr.g, 1400, 2, dt, 0.25, 0, 2.5); }); break;
+    }
+  }
+  function soar(tr, t, e) {
+    var total = 0; e.list.forEach(function (m) { total = Math.max(total, (m[0] + m[2]) * STEP); });
+    var g = gainNode(0), lp = filter("lowpass", e.soft ? 1300 : 2400, 0.7), peak = e.soft ? 0.022 : 0.035, end = t + total;
+    lp.connect(g); g.connect(tr.g); send(g, 0.45, e.soft ? 0.25 : 0.15);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + 0.25);
+    g.gain.setValueAtTime(peak, end - 0.05); g.gain.exponentialRampToValueAtTime(0.0001, end + 1.2);
+    var vib = ac.createOscillator(), vg = gainNode(0); vib.frequency.value = 5.2; vib.connect(vg);
+    vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(4, t + 0.6);
+    [-1, 1].forEach(function (side) {
+      var o = ac.createOscillator(), pn = ac.createStereoPanner ? ac.createStereoPanner() : null;
+      o.type = e.soft ? "triangle" : "sawtooth"; o.detune.value = side * 7; vg.connect(o.detune);
+      e.list.forEach(function (m, k) {
+        var f = midi(m[1]), at = t + m[0] * STEP, leap = k && Math.abs(m[1] - e.list[k - 1][1]) >= 5;
+        if (e.glide && leap) o.frequency.setTargetAtTime(f, at, 0.025); else o.frequency.setValueAtTime(f, at);
+      });
+      if (pn) { pn.pan.value = side * 0.6; o.connect(pn); pn.connect(lp); } else o.connect(lp);
+      o.start(t); o.stop(end + 1.3);
+    });
+    vib.start(t); vib.stop(end + 1.3);
+  }
+  var tracks = {}, seq = null, LOG = null;
+  var SECTION_MIX = { "epic:breath": { oarp: 1.35, choirT: 0.55 } };
+  var DRUM_LV = { home: 0.7, epic: 0.6, flight: 0.6, mercury: 0.35, mars: 0.4, jupiter: 0.5, saturn: 0.5, uranus: 0.5, neptune: 0.5, venus: 0.5 };
+  function mkTrack(name, level) {
+    var g = gainNode(0), pump = gainNode(1), padBus = filter("lowpass", 4000, 0.3);
+    padBus.connect(pump); pump.connect(g); g.connect(music);
+    var dist = ac.createWaveShaper(), curve = new Float32Array(256);
+    for (var ci = 0; ci < 256; ci++) { var xx = ci / 128 - 1; curve[ci] = Math.tanh(xx * 3); }
+    dist.curve = curve; dist.connect(pump);
+    var drums = gainNode(DRUM_LV[name] || 0.5); drums.connect(g);
+    tracks[name] = { name: name, g: g, pump: pump, padBus: padBus, dist: dist, drums: drums, level: level, on: false, step: 0, nextT: 0, stopAt: 0, bright: 1, song: SONGS[name] };
+    return tracks[name];
+  }
+  function schedule() {
+    if (!ac) return;
+    Object.keys(tracks).forEach(function (name) {
+      var tr = tracks[name];
+      if (!tr.on) return;
+      if (tr.stopAt && now() > tr.stopAt) { tr.on = false; return; }
+      while (tr.nextT < now() + 0.25) {
+        var at = eventsAt(tr.song, tr.step);
+        STEP = at.stepT;
+        var mixFix = SECTION_MIX[name + ":" + at.sec];
+        at.ev.forEach(function (e) {
+          var t = tr.nextT + (e.off || 0) * STEP;
+          if (mixFix && mixFix[e.i]) { var c2 = {}; for (var kk in e) c2[kk] = e[kk]; c2.vel = (e.vel || 1) * mixFix[e.i]; e = c2; }
+          play1(tr, t, e); if (LOG) LOG.push([name, tr.step, at.sec, e.i, e.n || "", +t.toFixed(3), +((e.d || 1) * STEP).toFixed(3)]); });
+        tr.step++; tr.nextT += at.stepT;
+      }
+      STEP = BASE_STEP;
+    });
+  }
+  var LEVEL = { epic: 0.48, mercury: 1.5, mars: 1.15 };
+  function build() {
+    noiseBuf = makeNoise();
+    var comp = ac.createDynamicsCompressor();
+    master = gainNode(muted ? 0 : 0.55);
+    master.connect(comp); comp.connect(ac.destination);
+    music = gainNode(1.6); music.connect(master);
+  }
+  function unlock() {
+    if (!ac) {
+      try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return false; }
+      build();
+    }
+    if (ac.state === 'suspended' && !document.hidden && !muted) ac.resume();
+    return true;
+  }
+  function start() {
+    if (!ac || !songId || !want || muted) return;
+    songs(songId); fx();
+    var tr = tracks[songId] || mkTrack(songId, LEVEL[songId] || 1), fade = Math.max(2.5, BASE_STEP * 8);
+    if (tr.on && !tr.stopAt) return;
+    var t0 = now() + 0.06;
+    if (!tr.on) { tr.on = true; tr.step = 0; tr.nextT = t0; }
+    tr.stopAt = 0;
+    tr.g.gain.cancelScheduledValues(now()); tr.g.gain.setValueAtTime(tr.g.gain.value, now());
+    tr.g.gain.setValueAtTime(tr.g.gain.value, t0); tr.g.gain.linearRampToValueAtTime(tr.level, t0 + fade);
+    if (!seq) seq = setInterval(schedule, 50);
+  }
+  function halt() {
+    var tr = ac && tracks[songId];
+    if (!tr || !tr.on || tr.stopAt) return;
+    tr.g.gain.cancelScheduledValues(now()); tr.g.gain.setValueAtTime(tr.g.gain.value, now());
+    tr.g.gain.linearRampToValueAtTime(0.0001, now() + 0.8);
+    tr.stopAt = now() + 0.9;
+  }
+  function typing(t) { return t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || '')); }
+  function gesture(e) {
+    if (e.type === 'keydown' && ((e.key || '').toLowerCase() === 'h' || e.metaKey || e.ctrlKey || e.altKey)) return;
+    if (muted) return;
+    if (unlock()) start();
+  }
+  ['pointerdown', 'keydown', 'touchstart'].forEach(function (t) { document.addEventListener(t, gesture, true); });
+  document.addEventListener('visibilitychange', function () {
+    if (!ac) return;
+    if (document.hidden) ac.suspend(); else if (!muted) ac.resume();
+  });
+  window.addEventListener('pagehide', function () { if (ac) ac.suspend(); });
+  var ICON_ON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+  var ICON_OFF = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M3 3l18 18"/></svg>';
+  function paint() {
+    btns.forEach(function (b) {
+      b.innerHTML = muted ? ICON_OFF : ICON_ON;
+      b.setAttribute('aria-pressed', muted ? 'true' : 'false');
+      b.setAttribute('aria-label', muted ? 'Music off' : 'Music on');
+      b.title = muted ? 'Music off' : 'Music on';
+      b.classList.toggle('muted', muted);
+    });
+  }
+  function lsKey() { return 'gamemusic.' + game + '.muted'; }
+  function bridgeSave() {
+    if (opts.bridge === false) return;
+    var o = saved && typeof saved === 'object' ? saved : {};
+    o.music = { muted: muted }; saved = o;
+    try { if (parent && parent !== window) parent.postMessage({ type: 'game-save', game: game, data: JSON.stringify(o) }, '*'); } catch (e) {}
+  }
+  function bridgeLoad() {
+    if (opts.bridge === false) return;
+    try { if (!parent || parent === window) return; } catch (e) { return; }
+    var reqId = 'gm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    function onMsg(e) {
+      var m = e.data;
+      if (!m || m.type !== 'game-load-res' || m.reqId !== reqId) return;
+      window.removeEventListener('message', onMsg);
+      var d = null;
+      try { d = typeof m.data === 'string' && m.data ? JSON.parse(m.data) : null; } catch (err) { d = null; }
+      if (!d || typeof d !== 'object') return;
+      saved = d;
+      if (!touched && d.music && typeof d.music.muted === 'boolean') setMuted(d.music.muted, true);
+    }
+    window.addEventListener('message', onMsg);
+    if (window.SXR) SXR.hold(reqId); try { parent.postMessage({ type: 'game-load', game: game, reqId: reqId }, '*'); } catch (e) {}
+    setTimeout(function () { window.removeEventListener('message', onMsg); }, 15000);
+  }
+  /* silent: apply a saved value without saving it again */
+  function setMuted(m, silent) {
+    m = !!m;
+    var changed = m !== muted;
+    muted = m;
+    if (!silent) {
+      touched = true;
+      try { window.localStorage.setItem(lsKey(), m ? '1' : '0'); } catch (e) {}
+      bridgeSave();
+      if (opts.onChange) try { opts.onChange(m); } catch (e) {}
+    }
+    paint();
+    if (!changed) return;
+    if (m) {
+      if (ac) { ramp(master.gain, 0, 0.15); var a = ac; setTimeout(function () { if (muted && a.state === 'running') a.suspend(); }, 600); }
+    } else if (!silent || ac) {
+      if (unlock()) { ramp(master.gain, 0.55, 0.15); start(); }
+    }
+  }
+  function ramp(p, v, t) { p.cancelScheduledValues(now()); p.setTargetAtTime(v, now(), t); }
+  function init(id, o) {
+    songId = id; opts = o || {}; game = opts.game || 'game';
+    var v = null;
+    try { v = window.localStorage.getItem(lsKey()); } catch (e) { v = null; }
+    if (v === '1' || v === '0') muted = v === '1';
+    if (opts.button) bind(opts.button);
+    if (opts.key) document.addEventListener('keydown', function (e) {
+      if ((e.key === 'm' || e.key === 'M') && !e.metaKey && !e.ctrlKey && !e.altKey && !typing(e.target)) setMuted(!muted);
+    });
+    bridgeLoad();
+    paint();
+  }
+  function bind(b) {
+    if (typeof b === 'string') b = document.getElementById(b);
+    if (!b) return;
+    btns.push(b);
+    b.addEventListener('click', function () {
+      if (opts.pop) { b.classList.remove(opts.pop); void b.offsetWidth; b.classList.add(opts.pop); }
+      setMuted(!muted);
+    });
+    paint();
+  }
+  return {
+    init: init, bind: bind,
+    play: function () { want = true; if (ac && ac.state !== 'closed') { unlock(); start(); } },
+    stop: function () { want = false; halt(); },
+    setMuted: setMuted, isMuted: function () { return muted; },
+    state: function () { return { ctx: ac ? ac.state : 'none', song: songId, playing: !!(ac && tracks[songId] && tracks[songId].on && !tracks[songId].stopAt), step: ac && tracks[songId] ? tracks[songId].step : 0, muted: muted }; }
+  };
+})();
+GameMusic.init('epic', { game: 'guessbuild', button: 'bMusic', key: true }); GameMusic.play();
+</script>
+</body>
+</html>

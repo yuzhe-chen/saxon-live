@@ -1,0 +1,1783 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><!--sx-ob--><style>html,body{overscroll-behavior:none}*{overscroll-behavior-x:none}[data-ob]{overscroll-behavior-y:none!important}</style><script>/* game-ready: the planner keeps its loading screen over this game until the saved data it asked for has arrived and been
+   applied. Each save request holds it (SXR.hold); once nothing is held after the page has parsed, the game posts game-ready */
+(function () {
+  if (window.SXR) return;
+  var n = 0, armed = false, sent = false, keys = {};
+  function go() { if (sent || !armed || n > 0) return; sent = true; try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'game-ready', game: 'capitalist' }, '*'); } catch (e) {} }
+  function hold(key) {
+    if (sent) return function () {};
+    n++; var done = false, t;
+    function rel() { if (done) return; done = true; clearTimeout(t); if (key != null && keys[key] === rel) delete keys[key]; n--; setTimeout(go, 0); }
+    if (key != null) keys[key] = rel;
+    t = setTimeout(rel, 16000);
+    return rel;
+  }
+  /* registered before the game's own listeners: the release runs after they have applied the reply */
+  window.addEventListener('message', function (e) { var m = e.data; if (m && m.type === 'game-load-res' && keys[m.reqId]) keys[m.reqId](); });
+  window.SXR = { hold: hold };
+  function arm() { setTimeout(function () { armed = true; go(); }, 0); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arm); else arm();
+})();
+</script><script>/* no bounce and no scroll chaining: a box that really overflows stops dead at its ends */(function(){function ob(e){for(var el=e.target;el&&el.nodeType===1;el=el.parentElement){var o=getComputedStyle(el).overflowY;if(o!=="auto"&&o!=="scroll")continue;var on=el.scrollHeight>el.clientHeight+2;if(on!==el.hasAttribute("data-ob")){if(on)el.setAttribute("data-ob","");else el.removeAttribute("data-ob");}}}["pointerover","wheel","touchstart"].forEach(function(t){addEventListener(t,ob,{capture:true,passive:true});});})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<title>tycoon simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<script>(function(){var R=document.documentElement;function s(){var t=null;try{t=parent.document.documentElement.getAttribute('data-theme')}catch(e){}
+var d=t?t==='dark':!!(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);R.setAttribute('data-theme',d?'dark':'light')}
+s();try{new MutationObserver(s).observe(parent.document.documentElement,{attributes:true,attributeFilter:['data-theme']})}catch(e){}})();</script>
+<style>
+  :root {
+    --green: #58cc02; --green-dark: #58a700; --green-hi: #61e002; --green-wash: #d7ffb8;
+    --blue: #4b9af3; --blue-dark: #3c81db; --blue-hi: #63a8f6; --blue-wash: #e6f1ff; --blue-line: #a4ceff;
+    --red: #ff4b4b; --red-dark: #ea2b2b;
+    --gold: #ffc800; --gold-dark: #e5a400; --gold-hi: #ffd43a; --gold-ink: #cd7900;
+    --purple: #ce82ff; --purple-dark: #a568cc;
+    --bg: #fff; --panel: #fff; --panel-soft: #f7f7f7; --line: #e5e5e5; --line-hi: #d0d0d0;
+    --text: #4b4b4b; --text-dim: #777; --text-faint: #afafaf; --money: #58a700;
+    --display: 'Fredoka', 'Nunito', system-ui, sans-serif;
+    --sans: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --scrim: rgba(255, 255, 255, .86);
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #131f24; --panel: #131f24; --panel-soft: #202f36; --line: #37464f; --line-hi: #52656d;
+    --text: #f1f7fb; --text-dim: #8799a3; --text-faint: #6f8691; --money: #79d634;
+    --blue-wash: #1c3150; --blue-line: #3c81db; --green-wash: #1c3a12; --gold-ink: #ffc800;
+    --scrim: rgba(19, 31, 36, .9);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+  *:focus, *:focus-visible { outline: none; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--sans); font-weight: 700;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-font-smoothing: antialiased; }
+  button { font-family: inherit; color: inherit; padding: 0; margin: 0; border: 0; background: none; cursor: pointer; display: block; }
+
+  /* shared button skins: blue = can buy, grey = can't yet */
+  .bo, .bg { position: relative; border-radius: 12px; border: 2px solid var(--blue-dark); border-bottom-width: 4px; background: var(--blue); color: #fff; }
+  .bg { border-color: var(--line-hi); background: var(--line); color: var(--text-dim); }
+  @media (hover: hover) { .bo:not(.bg):hover { background: var(--blue-hi); } }
+  .bo:not(.bg):active { transform: translateY(2px); border-bottom-width: 2px; }
+
+  /* ---------- stage: 1280x720 ---------- */
+  #stage { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; background: var(--bg); }
+  #side { position: absolute; left: 0; top: 0; width: 240px; height: 720px; border-right: 2px solid var(--line); }
+  #cap { position: absolute; left: 16px; top: 18px; width: 206px; height: 196px; cursor: pointer; border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 16px;
+    background: var(--panel); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+  #cap svg { width: 104px; height: 104px; }
+  #cap span { font: 700 22px/1 var(--display); letter-spacing: -0.02em; color: var(--text); }
+  @media (hover: hover) { #cap:hover { background: var(--panel-soft); } }
+  #cap:active { transform: translateY(2px); border-bottom-width: 2px; }
+  #side .rail { display: none; }
+  .nav { position: absolute; left: 16px; width: 206px; height: 56px; }
+  .nav[data-p="unlocks"] { top: 238px; }
+  .nav[data-p="upgrades"] { top: 304px; }
+  .nav[data-p="managers"] { top: 370px; }
+  .nav[data-p="investors"] { top: 436px; }
+  .nav .pp { position: absolute; inset: 0; border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 12px; background: var(--bg); }
+  .nav .kn { display: none; position: absolute; right: 14px; top: 50%; width: 12px; height: 12px; margin-top: -8px; border-radius: 50%; background: var(--red); z-index: 1; }
+  .nav.new .kn { display: block; }
+  .nav .lbl { position: absolute; inset: 0 0 4px; display: flex; align-items: center; justify-content: center;
+    font: 800 15px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); white-space: nowrap; }
+  .nav.on .pp { border-color: var(--blue-line); background: var(--blue-wash); }
+  .nav.on .lbl { color: var(--blue); }
+  .nav:active .pp { top: 2px; border-bottom-width: 2px; }
+  .nav:active .lbl, .nav:active .kn { transform: translateY(2px); }
+  @media (hover: hover) { .nav:not(.on):hover .pp { background: var(--panel-soft); } }
+  .shop { position: absolute; left: 16px; top: 638px; width: 206px; height: 60px; border-radius: 12px; border: 2px solid var(--gold-dark); border-bottom-width: 4px; background: var(--gold);
+    display: flex; align-items: center; justify-content: center; gap: 10px; color: #fff; }
+  .shop svg { width: 40px; height: 40px; flex: none; }
+  .shop i { font: 800 16px/1 var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; color: #fff; }
+  @media (hover: hover) { .shop:hover { background: var(--gold-hi); } }
+  .shop:active { transform: translateY(2px); border-bottom-width: 2px; }
+
+  /* ---------- top ---------- */
+  #play { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; pointer-events: none; }
+  #play .card, #play #top > * { pointer-events: auto; }
+  #top { position: absolute; left: 0; top: 0; width: 1280px; height: 0; }
+  #money { position: absolute; left: 290px; top: 22px; white-space: nowrap; }
+  #cash { display: flex; align-items: baseline; height: 64px; color: var(--text); }
+  #cash .v { font: 700 56px/64px var(--display); letter-spacing: -0.02em; }
+  #cash .u { margin-left: 14px; font: 800 26px/1 var(--sans); text-transform: uppercase; letter-spacing: .04em; color: var(--text-dim); }
+  #cash .u { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  #rate { display: none; }
+  #tst { position: absolute; left: 860px; top: 40px; height: 26px; padding: 0 10px; border-radius: 8px; font: 800 13px/26px var(--sans); letter-spacing: .08em; color: #fff;
+    background: var(--red); pointer-events: none; }
+  #tst[hidden] { display: none; }
+  .tag { position: absolute; left: 1110px; top: 22px; width: 150px; height: 62px; border-radius: 14px; border: 2px solid var(--blue-dark); border-bottom-width: 4px; background: var(--blue);
+    display: flex; align-items: center; justify-content: center; gap: 10px; color: #fff; }
+  .tag .tb { font: 800 14px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: #fff; opacity: .85; }
+  .tag .tq { font: 700 30px/1 var(--display); letter-spacing: -0.02em; color: #fff; }
+  @media (hover: hover) { .tag:hover { background: var(--blue-hi); } }
+  .tag:active { transform: translateY(2px); border-bottom-width: 2px; }
+  .best { position: absolute; left: 944px; top: 22px; width: 154px; height: 62px; border-radius: 14px; border: 2px solid var(--line); border-bottom-width: 4px; background: var(--bg); }
+  .best .lb { position: absolute; left: 10px; top: 0; bottom: 0; width: auto; height: auto; display: flex; align-items: center; border: 0; border-radius: 0; background: none;
+    font: 800 13px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--blue-dark); }
+  .best .bc { position: absolute; left: 50px; right: 6px; top: 4px; height: 46px; }
+  .best .bi { position: absolute; left: 0; top: 3px; width: 40px; height: 40px; border-radius: 10px; background-color: var(--panel-soft); background-size: 34px 34px; background-position: center; background-repeat: no-repeat; }
+  .best .bp { display: none; }
+  .best b { position: absolute; left: 44px; right: 0; top: 0; text-align: center; font: 800 18px/46px var(--sans); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (hover: hover) { .best:not(.no):hover { background: var(--panel-soft); } }
+  .best:not(.no):active { transform: translateY(2px); border-bottom-width: 2px; }
+  .best.no { cursor: default; }
+  .best.no .lb { color: var(--text-faint); }
+  .best.no .bi { opacity: .5; }
+  .best.no b { color: var(--text-faint); }
+  .best.none { display: none; }
+  .mus { display: none; }
+
+  /* ---------- businesses ---------- */
+  #grid { position: absolute; left: 0; top: 0; }
+  .card { position: absolute; width: 396px; height: 110px; }
+  .card.flash .hit .gf, .card.flash .hit .st { animation: flash .7s ease-out; }
+  @keyframes flash { 0% { background: var(--gold); } 100% { background: var(--blue); } }
+  .ic { position: absolute; left: 0; top: 0; width: 100px; height: 106px; cursor: pointer; touch-action: manipulation; }
+  .ic .ring { position: absolute; left: 4px; top: 0; width: 92px; height: 92px; border-radius: 20px; overflow: hidden; border: 2px solid var(--line); border-bottom-width: 4px; background: var(--panel-soft); }
+  .ic .bd { position: absolute; left: 9px; top: 8px; width: 70px; height: 70px; background-size: 100% 100%; }
+  .ic .cn { position: absolute; left: 22px; top: 76px; width: 56px; height: 30px; border-radius: 15px; text-align: center; background: var(--blue); border-bottom: 3px solid var(--blue-dark);
+    font: 800 16px/27px var(--sans); color: #fff; white-space: nowrap; overflow: hidden; }
+  .ic.pop .ring { animation: pop .28s cubic-bezier(0.34, 1.9, 0.6, 1); }
+  @keyframes pop { 0% { transform: scale(.9); } 100% { transform: scale(1); } }
+  .hit { position: absolute; left: 108px; top: 0; width: 286px; height: 48px; cursor: pointer; touch-action: manipulation; border-radius: 14px; overflow: hidden;
+    background: var(--panel-soft); border: 2px solid var(--line); border-bottom-width: 4px; }
+  .hit .gf { position: absolute; inset: 0; background: var(--blue); clip-path: inset(0 100% 0 0); }
+  .hit .st { position: absolute; inset: 0; background: var(--blue); display: none; }
+  .hit.fast .st { display: block; }
+  .hit.fast .gf { display: none; }
+  .hit .tx { position: absolute; left: 10px; right: 10px; top: 0; bottom: 0; display: flex; flex-direction: row; align-items: baseline; justify-content: center; gap: 8px; padding-top: 6px; color: var(--text); white-space: nowrap; overflow: hidden; }
+  .hit .tx .a { font: 700 26px/1 var(--display); letter-spacing: -0.02em; }
+  .hit .tx .b { font: 800 13px/1 var(--sans); text-transform: uppercase; letter-spacing: .04em; }
+  .hit .tx .a { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .hit.ps .tx .a { font: 800 17px/1 var(--sans); letter-spacing: 0; }
+  .hit.ps .tx { padding-top: 0; align-items: center; }
+  .hit.ps .tx .b { display: none; }
+  .buy { position: absolute; left: 108px; top: 54px; width: 184px; height: 52px; }
+  .buy.no { cursor: default; }
+  .buy .lb { position: absolute; left: 12px; top: 6px; font: 800 13px/16px var(--sans); letter-spacing: .06em; text-transform: uppercase; }
+  .buy .qt { position: absolute; left: 12px; top: 23px; font: 700 17px/18px var(--display); white-space: nowrap; }
+  .buy .c { position: absolute; right: 12px; top: 5px; text-align: right; white-space: nowrap; }
+  .buy .c .a { display: block; font: 700 21px/24px var(--display); letter-spacing: -0.02em; }
+  .buy .c .b { display: block; font: 800 11px/13px var(--sans); letter-spacing: .04em; text-transform: uppercase; opacity: .9; }
+  .buy.one .c { top: 11px; }
+  .tm { position: absolute; left: 298px; top: 54px; width: 96px; height: 52px; display: flex; align-items: center; justify-content: center; padding-bottom: 2px;
+    border-radius: 12px; border: 2px solid var(--line); border-bottom-width: 4px; background: var(--bg); font: 800 16px/1 var(--sans); letter-spacing: .02em; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .card .lock { display: none; position: absolute; left: 108px; top: 0; width: 286px; height: 106px; text-align: center; padding-bottom: 2px; }
+  .card .lock .n { display: block; font: 700 25px/1.1 var(--display); letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 10px; }
+  .card .lock .c { display: block; margin-top: 4px; font: 800 18px/1 var(--sans); }
+  .card .lock.no { cursor: default; }
+  .card.locked .hit, .card.locked .buy, .card.locked .tm { display: none; }
+  .card.locked .lock { display: block; }
+  .card.locked .ic { cursor: default; }
+  .card.locked .ic .bd { opacity: .35; filter: grayscale(1); }
+  .card.locked .ic .cn { display: none; }
+
+  .fl { position: absolute; z-index: 20; pointer-events: none; font: 700 24px/1 var(--display); color: var(--money); white-space: nowrap;
+    animation: fl .9s ease-out forwards; }
+  @keyframes fl { 0% { opacity: 0; transform: translate(-50%, 4px); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -38px); } }
+
+  /* ---------- panels ---------- */
+  #panel { position: absolute; left: 258px; right: 16px; top: 16px; bottom: 16px; z-index: 8; display: none; flex-direction: column; border-radius: 16px;
+    background: var(--panel); border: 2px solid var(--line); border-bottom-width: 4px; color: var(--text); overflow: hidden; }
+  #panel.show { display: flex; }
+  #stage.pan #top { visibility: hidden; }
+  #stage.pan .fl { display: none; }
+  #ph { flex: none; position: relative; height: 76px; display: flex; align-items: center; justify-content: center; padding: 0 70px; }
+  .ribbon { margin: 0; font: 700 30px/1.1 var(--display); letter-spacing: -0.02em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #pclose { position: absolute; right: 16px; top: 14px; width: 46px; height: 46px; border-radius: 12px; border: 2px solid var(--line); border-bottom-width: 4px; background: var(--bg); }
+  #pclose span { display: none; }
+  #pclose svg { position: absolute; left: 12px; top: 10px; width: 18px; height: 18px; fill: none; stroke: var(--text-faint); stroke-width: 3.5; stroke-linecap: round; }
+  @media (hover: hover) { #pclose:hover { background: var(--panel-soft); } }
+  #pclose:active { transform: translateY(2px); border-bottom-width: 2px; }
+  #pb { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 24px 22px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+  #pb::-webkit-scrollbar { width: 10px; }
+  #pb::-webkit-scrollbar-thumb { background: var(--line); border-radius: 5px; }
+  .paper { position: relative; border-bottom: 2px solid var(--line); }
+  .list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 36px; }
+  .row { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; column-gap: 14px; padding: 12px 2px; min-height: 90px; }
+  .ri { display: block; position: relative; width: 64px; height: 64px; border-radius: 16px; overflow: hidden; background: var(--panel-soft); border: 2px solid var(--line); }
+  .ri i { position: absolute; left: 7px; top: 7px; width: 46px; height: 46px; background-size: 100% 100%; }
+  .ri.sv svg { position: absolute; left: 7px; top: 7px; width: 46px; height: 46px; }
+  .row .tx { min-width: 0; align-self: center; }
+  .row .t1 { font: 800 18px/23px var(--sans); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .t2 { font: 700 15px/20px var(--sans); color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .t3 { font: 800 16px/21px var(--sans); color: var(--money); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .t3.ang { color: var(--gold-ink); }
+  .row .ct { font: 800 16px/1 var(--sans); color: var(--text-dim); white-space: nowrap; align-self: center; }
+  .row.done { opacity: .55; }
+  .pbuy { height: 46px; min-width: 92px; padding: 0 16px 0; font: 800 14px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+  .pbuy.bg { cursor: default; }
+  .pbuy.alt { cursor: pointer; border-color: var(--line); background: var(--bg); color: var(--blue); }
+  @media (hover: hover) { .pbuy.alt:hover { background: var(--panel-soft); } }
+  .pbuy.alt:active { transform: translateY(2px); border-bottom-width: 2px; }
+  .pbuy.ang:not(.bg) { border-color: var(--gold-dark); background: var(--gold); }
+  @media (hover: hover) { .pbuy.ang:not(.bg):hover { background: var(--gold-hi); } }
+  .meter { height: 14px; margin-top: 7px; position: relative; overflow: hidden; border-radius: 7px; background: var(--line); }
+  .meter i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 7px; background: var(--gold); }
+  .ainv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 36px; margin-bottom: 6px; }
+  .ainv .st { padding: 14px 2px; min-width: 0; }
+  .ainv .k { display: block; font: 800 13px/18px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ainv b { display: block; margin-top: 4px; font: 700 28px/34px var(--display); letter-spacing: -0.02em; color: var(--gold-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ainv b.g { color: var(--money); }
+  .ainv b.d { color: var(--text); }
+  .ainv .rs { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 14px 2px; }
+  .ainv .rs .k { margin: 0; font: 800 15px/1.2 var(--sans); letter-spacing: 0; text-transform: none; color: var(--text-dim); white-space: normal; }
+  .ainv .rs .sp { flex: 1; }
+  .sub { margin: 22px 2px 6px; font: 700 22px/1.1 var(--display); letter-spacing: -0.02em; color: var(--text); }
+  .sub.brand { margin: 0 0 8px; font-size: 26px; text-align: center; color: var(--blue); }
+  .empty { padding: 30px 0; font: 800 17px/1.3 var(--sans); color: var(--text-dim); text-align: center; }
+
+  /* ---------- away ---------- */
+  #shade { position: fixed; inset: 0; z-index: 5900; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+  #shade.show { opacity: 1; pointer-events: auto; }
+  #away { position: fixed; left: 0; right: 0; top: 0; bottom: 0; margin: auto; height: max-content; z-index: 6000; transform: translateY(16px); opacity: 0; pointer-events: none; text-align: center;
+    width: 380px; max-width: calc(100vw - 32px); padding: 22px 24px 24px; border-radius: 16px; background: var(--panel); border: 2px solid var(--line); border-bottom-width: 4px;
+    color: var(--text); transition: opacity 0.3s ease, transform 0.3s ease; }
+  #away.show { opacity: 1; transform: none; pointer-events: auto; }
+  #away .ribbon { margin: 0 auto 8px; white-space: normal; }
+  #away .k { font: 700 17px/1.3 var(--sans); color: var(--text-dim); }
+  #away b { display: block; margin: 10px 0 18px; font: 700 40px/1.1 var(--display); letter-spacing: -0.02em; color: var(--money); word-break: break-word; }
+  #away .pbuy { width: 100%; height: 54px; font-size: 16px; }
+
+  /* ---------- narrow: single column ---------- */
+  body.narrow #stage { width: auto; height: auto; right: 0; bottom: 0; }
+  body.narrow #side { position: fixed; left: 0; right: 0; top: auto; bottom: 0; width: auto; height: 68px; z-index: 9; display: flex; align-items: center; gap: 6px; padding: 0 8px 2px;
+    background: var(--bg); border-right: 0; border-top: 2px solid var(--line); }
+  body.narrow #cap, body.narrow #side .rail { display: none; }
+  body.narrow .nav { position: relative; left: auto !important; top: auto !important; width: auto !important; height: 48px; flex: 1; min-width: 0; }
+  body.narrow .nav .pp { border-radius: 10px; }
+  body.narrow .nav .lbl { left: 2px; right: 2px; font-size: 11px; letter-spacing: .02em; overflow: hidden; text-overflow: ellipsis; display: block; line-height: 44px; text-align: center; }
+  body.narrow .nav .kn { right: 3px; top: 5px; margin: 0; width: 9px; height: 9px; }
+  body.narrow .shop { position: relative; left: auto; top: auto; flex: none; width: 52px; height: 48px; border-radius: 10px; }
+  body.narrow .shop svg { width: 32px; height: 32px; }
+  body.narrow .shop i { display: none; }
+  body.narrow #play { pointer-events: auto; position: absolute; left: 0; right: 0; top: 0; bottom: 68px; width: auto; height: auto; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+  body.narrow #top { position: sticky; top: 0; z-index: 4; width: auto; height: 76px; background: var(--bg); border-bottom: 2px solid var(--line); }
+  body.narrow #money { left: 14px; top: 8px; right: 124px; overflow: hidden; }
+  body.narrow #tst { left: auto; right: 12px; top: 58px; height: 14px; padding: 0 5px; font-size: 9px; line-height: 14px; letter-spacing: .06em; border-radius: 4px; z-index: 5; }
+  body.narrow #cash { height: 40px; }
+  body.narrow #cash .v { font-size: 34px; line-height: 40px; }
+  body.narrow #cash .u { margin-left: 8px; font-size: 15px; }
+  body.narrow #rate { display: block; font: 700 13px/1.1 var(--sans); color: var(--text-dim); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.narrow .tag { left: auto; right: 12px; top: 10px; width: 104px; height: 52px; gap: 8px; border-radius: 12px; }
+  body.narrow .tag .tb { font-size: 12px; }
+  body.narrow .tag .tq { font-size: 24px; }
+  body.narrow .best { display: none; }
+  body.narrow #grid { position: relative; padding: 12px 0 14px; zoom: var(--gz, 1); }
+  body.narrow .card { position: relative; left: auto !important; top: auto !important; margin: 0 auto 8px; }
+  body.narrow #panel { position: fixed; left: 0; right: 0; top: 0; bottom: 68px; border: 0; border-radius: 0; }
+  body.narrow #ph { height: 64px; padding: 0 60px; }
+  body.narrow .ribbon { font-size: 24px; }
+  body.narrow #pclose { right: 10px; top: 10px; width: 42px; height: 42px; }
+  body.narrow #pclose svg { left: 10px; top: 9px; }
+  body.narrow #pb { padding: 0 12px 16px; }
+  body.narrow .list { grid-template-columns: 1fr; gap: 0; }
+  body.narrow .row { grid-template-columns: 52px 1fr auto; column-gap: 10px; min-height: 76px; padding: 10px 2px; }
+  body.narrow .ri { width: 52px; height: 52px; border-radius: 14px; }
+  body.narrow .ri i, body.narrow .ri.sv svg { left: 6px; top: 6px; width: 36px; height: 36px; }
+  body.narrow .row .t1 { font-size: 16px; line-height: 20px; }
+  body.narrow .row .t2 { font-size: 13px; line-height: 18px; }
+  body.narrow .row .t3 { font-size: 14px; line-height: 18px; }
+  body.narrow .row .ct { font-size: 14px; }
+  body.narrow .pbuy { min-width: 70px; height: 42px; font-size: 13px; padding: 0 12px; }
+  body.narrow .ainv { grid-template-columns: 1fr 1fr; gap: 0 20px; }
+  body.narrow .ainv .st { padding: 10px 2px; }
+  body.narrow .ainv .st:nth-child(3):nth-last-child(2), body.narrow .ainv .st:nth-child(3):last-child, body.narrow .ainv .st:nth-child(9):nth-last-child(2) { grid-column: 1 / -1; }
+  body.narrow .ainv b { font-size: 22px; line-height: 28px; }
+  @media (max-width: 360px) { body.narrow .nav .lbl { font-size: 10px; letter-spacing: 0; } body.narrow .shop { width: 44px; } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <aside id="side">
+    <div id="cap" title="Swag &amp; Stats"><svg id="capArt" viewBox="0 0 100 100"></svg><span>Swag &amp; Stats</span></div>
+    <div class="rail"><i style="top:14px"></i><i style="top:102px"></i><i style="top:189px"></i></div>
+    <button class="nav" type="button" data-p="unlocks"><span class="pp"></span><i class="kn"></i><span class="lbl">Unlocks</span></button>
+    <button class="nav" type="button" data-p="upgrades"><span class="pp"></span><i class="kn"></i><span class="lbl">Upgrades</span></button>
+    <button class="nav" type="button" data-p="managers"><span class="pp"></span><i class="kn"></i><span class="lbl">Managers</span></button>
+    <button class="nav" type="button" data-p="investors"><span class="pp"></span><i class="kn"></i><span class="lbl">Investors</span></button>
+    <button class="shop" id="shop" type="button" data-p="shop"><svg id="shopArt" viewBox="0 0 100 100"></svg><i>Shop</i></button>
+  </aside>
+  <section id="play">
+    <div id="top">
+      <div id="money"><b id="cash"></b><span id="rate"></span></div>
+      <span id="tst" hidden>TEST</span>
+      <button id="bMusic" class="mus" type="button"></button>
+      <button id="best" class="best none" type="button"><span class="lb bo">Buy</span><span class="bc"><span class="bi"></span><span class="bp"></span><b></b></span></button>
+      <button id="mult" class="tag" type="button"><span class="tb">Buy</span><span class="tq"></span></button>
+    </div>
+    <div id="grid"></div>
+  </section>
+  <section id="panel">
+    <div id="ph"><h2 id="ptitle" class="ribbon"></h2><button id="pclose" type="button" title="Close"><span></span><svg viewBox="0 0 24 24"><path d="M5 5l14 14"/><path d="M19 5L5 19"/></svg></button></div>
+    <div id="pb"></div>
+  </section>
+</div>
+<div id="shade"></div>
+<div id="away">
+  <h2 class="ribbon">Welcome back</h2>
+  <div class="k" id="awayT"></div>
+  <b id="awayV"></b>
+  <button id="awayOk" class="pbuy bo" type="button">Collect</button>
+</div>
+<script>
+/* flat object drawings for the businesses, set as CSS variables (--s-disc0 to --s-disc9) and reused by the panels */
+var ART = (function () {
+  var NS = 'http:' + '/' + '/www.w3.org/2000/svg';
+  function ring(cx, cy, R, r) {
+    return 'M' + (cx - R) + ' ' + cy + 'a' + R + ' ' + R + ' 0 1 0 ' + 2 * R + ' 0a' + R + ' ' + R + ' 0 1 0 ' + -2 * R + ' 0Z' +
+      'M' + (cx - r) + ' ' + cy + 'a' + r + ' ' + r + ' 0 1 0 ' + 2 * r + ' 0a' + r + ' ' + r + ' 0 1 0 ' + -2 * r + ' 0Z';
+  }
+  var D = [
+    /* 0 lemonade stand: a lemon */
+    '<g transform="rotate(-24 50 54)"><ellipse cx="14" cy="54" rx="7" ry="6" fill="#e5a400"/><ellipse cx="86" cy="54" rx="7" ry="6" fill="#e5a400"/>' +
+      '<ellipse cx="50" cy="54" rx="36" ry="27" fill="#e5a400"/><ellipse cx="47" cy="50" rx="33" ry="23" fill="#ffc800"/>' +
+      '<rect x="27" y="37" width="22" height="7" rx="3.5" fill="#fff" fill-opacity=".6"/></g>' +
+      '<path d="M50 26q12-17 32-12q-9 17-32 12z" fill="#58cc02"/><path d="M50 26q18-1 32-12q-9 17-32 12z" fill="#58a700"/>',
+    /* 1 newspaper delivery: a folded newspaper */
+    '<g transform="rotate(-8 50 52)"><rect x="14" y="22" width="72" height="62" rx="7" fill="#d0d0d0"/><rect x="14" y="18" width="72" height="60" rx="7" fill="#fff"/>' +
+      '<rect x="14" y="18" width="72" height="16" rx="7" fill="#1cb0f6"/><rect x="14" y="27" width="72" height="7" fill="#1cb0f6"/>' +
+      '<rect x="22" y="42" width="26" height="5" rx="2.5" fill="#afafaf"/><rect x="22" y="52" width="26" height="5" rx="2.5" fill="#afafaf"/><rect x="22" y="62" width="18" height="5" rx="2.5" fill="#afafaf"/>' +
+      '<rect x="54" y="42" width="24" height="25" rx="4" fill="#ffc800"/><rect x="54" y="58" width="24" height="9" rx="3" fill="#e5a400"/></g>',
+    /* 2 car wash: a car and soap bubbles */
+    '<circle cx="20" cy="24" r="8" fill="#84d8ff"/><circle cx="34" cy="13" r="5" fill="#84d8ff"/><circle cx="82" cy="22" r="6" fill="#84d8ff"/><circle cx="18" cy="21" r="2.5" fill="#fff"/><circle cx="80" cy="20" r="2" fill="#fff"/>' +
+      '<path d="M27 52l8-17q2-5 8-5h16q6 0 8 5l8 17z" fill="#1899d6"/><path d="M36 50l6-13q1-2 3-2h5v15z" fill="#ddf4ff"/><path d="M54 50v-15h4q2 0 3 2l6 13z" fill="#ddf4ff"/>' +
+      '<rect x="10" y="50" width="80" height="24" rx="10" fill="#1899d6"/><rect x="10" y="48" width="80" height="18" rx="9" fill="#1cb0f6"/>' +
+      '<rect x="12" y="54" width="10" height="6" rx="3" fill="#ffc800"/><rect x="80" y="54" width="8" height="6" rx="3" fill="#ff4b4b"/>' +
+      '<circle cx="30" cy="74" r="11" fill="#4b4b4b"/><circle cx="30" cy="74" r="4.5" fill="#d0d0d0"/><circle cx="70" cy="74" r="11" fill="#4b4b4b"/><circle cx="70" cy="74" r="4.5" fill="#d0d0d0"/>',
+    /* 3 pizza delivery: a slice */
+    '<path d="M16 30h68l-34 60z" fill="#ffc800"/><path d="M76 30h8l-34 60l1.5-9z" fill="#e5a400"/>' +
+      '<circle cx="39" cy="44" r="7" fill="#ff4b4b"/><circle cx="61" cy="47" r="6" fill="#ff4b4b"/><circle cx="50" cy="66" r="5.5" fill="#ff4b4b"/>' +
+      '<rect x="10" y="18" width="80" height="16" rx="8" fill="#cd7900"/><rect x="10" y="16" width="80" height="12" rx="6" fill="#ff9600"/>',
+    /* 4 donut shop: a frosted donut */
+    '<path d="' + ring(50, 56, 37, 11) + '" fill="#cd7900" fill-rule="evenodd"/><path d="' + ring(50, 51, 37, 11) + '" fill="#ffb54d" fill-rule="evenodd"/>' +
+      '<path d="' + ring(50, 49, 31, 14) + '" fill="#ff86d0" fill-rule="evenodd"/>' +
+      '<rect x="30" y="30" width="9" height="4" rx="2" fill="#1cb0f6" transform="rotate(-30 34 32)"/><rect x="60" y="28" width="9" height="4" rx="2" fill="#ffc800" transform="rotate(25 64 30)"/>' +
+      '<rect x="68" y="42" width="9" height="4" rx="2" fill="#58cc02" transform="rotate(-50 72 44)"/><rect x="24" y="44" width="9" height="4" rx="2" fill="#fff" transform="rotate(40 28 46)"/>' +
+      '<rect x="46" y="25" width="9" height="4" rx="2" fill="#58cc02" transform="rotate(10 50 27)"/>',
+    /* 5 shrimp boat: a fishing boat */
+    '<rect x="66" y="12" width="5" height="46" rx="2" fill="#777"/><path d="M71 14l18 7l-18 7z" fill="#ffc800"/>' +
+      '<rect x="28" y="32" width="34" height="26" rx="5" fill="#e5e5e5"/><rect x="28" y="32" width="34" height="20" rx="5" fill="#fff"/>' +
+      '<rect x="33" y="38" width="10" height="9" rx="2.5" fill="#1cb0f6"/><rect x="48" y="38" width="10" height="9" rx="2.5" fill="#1cb0f6"/>' +
+      '<path d="M8 56h84l-10 24q-2 4-6 4H24q-4 0-6-4z" fill="#ea2b2b"/><path d="M8 56h84l-4 10H12z" fill="#ff4b4b"/>' +
+      '<path d="M4 88q8-7 16 0t16 0t16 0t16 0t16 0t16 0v6H4z" fill="#1cb0f6"/>',
+    /* 6 hockey team: a stick and a puck */
+    '<path d="M64 8l11 5l-30 64l-11-5z" fill="#cd7900"/><path d="M70 10.7l5 2.3l-30 64l-5-2.3z" fill="#a85f00"/><path d="M64 8l11 5l-4 9l-11-5z" fill="#4b4b4b"/>' +
+      '<path d="M34 72l11 5l-4 9q-2 4-6 4H14q-5 0-5-5v-3q0-5 5-5h18z" fill="#1cb0f6"/><path d="M9 85q0 5 5 5h21q4 0 6-4l2-4H9z" fill="#1899d6"/>' +
+      '<ellipse cx="74" cy="82" rx="15" ry="6" fill="#4b4b4b"/><rect x="59" y="76" width="30" height="6" fill="#4b4b4b"/><ellipse cx="74" cy="76" rx="15" ry="6" fill="#777"/>',
+    /* 7 movie studio: a clapperboard */
+    '<rect x="14" y="42" width="72" height="44" rx="7" fill="#a568cc"/><rect x="14" y="42" width="72" height="37" rx="7" fill="#ce82ff"/>' +
+      '<rect x="22" y="56" width="30" height="5" rx="2.5" fill="#fff" fill-opacity=".75"/><rect x="22" y="66" width="20" height="5" rx="2.5" fill="#fff" fill-opacity=".75"/>' +
+      '<rect x="14" y="36" width="72" height="10" rx="3" fill="#fff"/><path d="M24 36h9l-5 10h-9zM44 36h9l-5 10h-9zM64 36h9l-5 10h-9z" fill="#4b4b4b"/>' +
+      '<g transform="rotate(-14 16 32)"><rect x="14" y="20" width="72" height="11" rx="3" fill="#fff"/><path d="M24 20h9l-5 11h-9zM44 20h9l-5 11h-9zM64 20h9l-5 11h-9z" fill="#4b4b4b"/></g>',
+    /* 8 bank: a building with columns */
+    '<rect x="8" y="78" width="84" height="12" rx="4" fill="#e5a400"/><rect x="14" y="72" width="72" height="9" rx="3" fill="#ffc800"/>' +
+      '<rect x="20" y="40" width="11" height="32" fill="#d0d0d0"/><rect x="20" y="40" width="7" height="32" fill="#fff"/><rect x="38" y="40" width="11" height="32" fill="#d0d0d0"/><rect x="38" y="40" width="7" height="32" fill="#fff"/>' +
+      '<rect x="56" y="40" width="11" height="32" fill="#d0d0d0"/><rect x="56" y="40" width="7" height="32" fill="#fff"/><rect x="74" y="40" width="11" height="32" fill="#d0d0d0"/><rect x="74" y="40" width="7" height="32" fill="#fff"/>' +
+      '<rect x="10" y="34" width="80" height="8" rx="3" fill="#e5a400"/><path d="M50 10l42 24H8z" fill="#ffc800"/><circle cx="50" cy="25" r="6" fill="#fff"/>',
+    /* 9 oil company: a drop over an oil drum */
+    '<rect x="24" y="42" width="52" height="48" rx="8" fill="#1899d6"/><rect x="24" y="42" width="38" height="48" rx="8" fill="#1cb0f6"/>' +
+      '<rect x="22" y="52" width="56" height="6" rx="3" fill="#1899d6"/><rect x="22" y="74" width="56" height="6" rx="3" fill="#1899d6"/><rect x="36" y="45" width="10" height="4" rx="2" fill="#ddf4ff"/>' +
+      '<path d="M50 4q14 16 14 24a14 14 0 0 1-28 0q0-8 14-24z" fill="#4b4b4b"/><path d="M50 4q14 16 14 24a14 14 0 0 1-14 14z" fill="#3c3c3c"/><ellipse cx="44" cy="28" rx="3" ry="5" fill="#fff" fill-opacity=".55"/>'
+  ];
+  /* -1 all businesses: a gold star; -2 angel investors: a halo over wings */
+  var STAR = '<path d="M50 8l12 25l27 3l-20 19l6 27l-25-14l-25 14l6-27l-20-19l27-3z" fill="#ffc800"/><path d="M50 8l12 25l27 3l-20 19l6 27l-25-14z" fill="#e5a400"/>';
+  var ANGEL = '<ellipse cx="50" cy="20" rx="20" ry="7" fill="none" stroke="#e5a400" stroke-width="7"/><ellipse cx="50" cy="18" rx="20" ry="7" fill="none" stroke="#ffc800" stroke-width="5"/>' +
+    '<path d="M46 52q-18-20-38-14q2 26 22 32q-10 4-16 2q12 14 32-2z" fill="#e5e5e5"/><path d="M46 52q-18-16-36-12q4 20 20 26q10 2 16-14z" fill="#fff"/>' +
+    '<path d="M54 52q18-20 38-14q-2 26-22 32q10 4 16 2q-12 14-32-2z" fill="#e5e5e5"/><path d="M54 52q18-16 36-12q-4 20-20 26q-10 2-16-14z" fill="#fff"/>' +
+    '<circle cx="50" cy="56" r="9" fill="#ffc800"/><circle cx="50" cy="54" r="6" fill="#ffe066"/>';
+  var TROPHY = '<rect x="30" y="80" width="40" height="10" rx="4" fill="#e5a400"/><rect x="44" y="60" width="12" height="22" fill="#e5a400"/>' +
+    '<path d="M22 22h-8q0 22 20 26" fill="none" stroke="#e5a400" stroke-width="7" stroke-linecap="round"/><path d="M78 22h8q0 22-20 26" fill="none" stroke="#e5a400" stroke-width="7" stroke-linecap="round"/>' +
+    '<path d="M24 12h52v22q0 28-26 28q-26 0-26-28z" fill="#e5a400"/><path d="M24 12h40v22q0 26-20 28q-20-4-20-28z" fill="#ffc800"/><rect x="32" y="18" width="7" height="20" rx="3.5" fill="#fff" fill-opacity=".6"/>';
+  var BARS = '<path d="M14 62h30l-4 16H10z" fill="#ffefb0"/><path d="M18 50h22l4 12H14z" fill="#fff"/><path d="M56 62h30l4 16H52z" fill="#ffefb0"/><path d="M60 50h22l4 12H56z" fill="#fff"/>' +
+    '<path d="M34 34h30l4 16H32z" fill="#ffefb0"/><path d="M38 22h22l4 12H34z" fill="#fff"/>';
+  function svg(body) { return '<svg xmlns="' + NS + '" viewBox="0 0 100 100">' + body + '</svg>'; }
+  function url(body) { return 'url("data:image/svg+xml,' + encodeURIComponent(svg(body)) + '")'; }
+  var r = document.documentElement.style;
+  for (var i = 0; i < D.length; i++) r.setProperty('--s-disc' + i, url(D[i]));
+  return { star: STAR, angel: ANGEL, trophy: TROPHY, bars: BARS, svg: svg };
+})();
+</script>
+<script>
+var DATA={"unl":[[[25,"Easy Squeezy","s",2,0],[50,"Thirst Quencher","s",2,0],[100,"Lemon Lord","s",2,0],[200,"Citrus Emperor","s",2,0],[300,"The Zestiest","s",2,0],[400,"Lemontopia","s",2,0],[500,"Acceptable!","p",4,0],[600,"Lemon Based Economy","p",4,0],[700,"Lemon Religion","p",4,0],[800,"Lemondammerung","p",4,0],[900,"LemoNirvana","p",4,0],[1000,"Operating Lemon VIII","p",5,0],[1100,"Lemogeddon","p",4,0],[1200,"Lemonarok","p",4,0],[1300,"Citrus Of The 7 Suns","p",4,0],[1400,"Lemonokereti","p",4,0],[1500,"The 2nd Squeezing","p",4,0],[1600,"Lemonlightenment","p",4,0],[1700,"The Lemonhead","p",4,0],[1800,"Lemons All The Way","p",4,0],[1900,"End Of Thirst","p",4,0],[2000,"IMPOSSIBREW","p",5,0],[2250,"Aromatherapy","p",2,0],[2500,"iLemon Launch","p",2,0],[2750,"Vitamin Sea","p",2,0],[3000,"Green Lemons","p",5,0],[3250,"Rind-alot","p",2,0],[3500,"Seed Money","p",2,0],[3750,"Case of the Lemondays","p",2,0],[4000,"Scurvy Savior","p",5,0],[4250,"Lemon Batteries","p",2,0],[4500,"Free Tequila","p",2,0],[4750,"Beverage of Champions","p",2,0],[5000,"Drink Up","p",5,0],[5250,"Not a Problemon","p",3,0],[5500,"Deficitrus","p",3,0],[5750,"Long Live the Lemonarch","p",3,0],[6000,"Shining Emblemon","p",5,0],[6250,"The Lemonolith","p",3,0],[6500,"Lemonocle","p",3,0],[6750,"Very A-peeling","p",3,0],[7000,"King SoLemon / Seedless Wonder","p",15,0],[7250,"Lifts Stains","p",3,0],[7500,"Lemonopoly","p",3,0],[7777,"Lucky Lemons","p",3,0],[8000,"Lemonstrous Heights","p",3,0],[8200,"You're Lemongst Friends","p",3,0],[8400,"Lemonotony","p",3,0],[8600,"Metaxylemonic Research","p",3,0],[8800,"Parabolemon Equations","p",3,0],[9000,"Precious...","p",3,0],[9100,"Once More To The Juicer","p",3,0],[9200,"Main Squeeze","p",3,0],[9300,"Endless Demand","p",3,0],[9400,"Luck Be A Lemon","p",3,0],[9500,"The Lemoning","p",3,0],[9600,"Lemonlemonlemonlemonlemon","p",3,0],[9700,"Lemonocolor Reality","p",3,0],[9800,"Lemoney","p",3,0],[9999,"The Penultimate Moment","p",1.9999,0],[10000,"Life's Manager","p",5,0]],[[25,"Extra Extra!","s",2,1],[50,"Read All About It","s",2,1],[100,"Daily Deliveries","s",2,1],[125,"Lemonade Ads","p",2,0],[150,"Car Wash Ads","p",2,2],[175,"Pizza Ads","p",2,3],[200,"Digital Digest","s",2,1],[225,"Donut Ads","p",2,4],[250,"Lemonade Coupons","p",3,0],[275,"Car Wash Coupons","p",3,2],[300,"Telepathic News","s",2,1],[325,"Pizza Coupons","p",3,3],[350,"Donut Coupons","p",3,4],[375,"Lemon Scented","p",4,0],[400,"News FROM THE FUTURE","s",2,1],[425,"New Car Scented","p",4,2],[450,"Pizza Scented","p",4,3],[475,"Donut Scented","p",4,4],[500,"Subliminal Shrimp","p",11,5],[525,"Lemonade Samples","p",5,0],[550,"Soap Samples","p",5,2],[575,"Pizza Samples","p",5,3],[600,"Such Hockey","p",11,6],[625,"Donut Samples","p",5,4],[650,"Lemon Sudoku","p",6,0],[675,"Car Word Search","p",6,2],[700,"Mandatory Viewing","p",11,7],[725,"Pizza Crossword","p",6,3],[750,"Donut Horoscope","p",6,4],[775,"Lemon Propaganda","p",3,0],[800,"Newspeak Stocks","p",11,8],[825,"Car Wash Propaganda","p",7,2],[850,"Pizza Propaganda","p",7,3],[875,"Donut Propaganda","p",7,4],[900,"READ BUY GAS OBEY","p",11,9],[925,"Shrimp Reminder","p",7,5],[950,"Origami Puck","p",7,6],[975,"Spoiler Free World","p",7,7],[1000,"Media Rebirth","p",7777777,1],[1025,"Pre-Approved Applications","p",7,8],[1050,"Oil Coup-on","p",7,9],[1075,"Page 3 Ads","p",8,2],[1100,"Edible Ads","p",8,3],[1125,"Honey Glazed Ads","p",8,4],[1150,"Cocktail Sauced Ads","p",8,5],[1175,"Beer Soaked Ads","p",8,6],[1200,"Talkie Ads","p",8,7],[1225,"Ads On Money","p",8,8],[1250,"Oily Ads","p",8,9],[1300,"Internet Integration","p",7777,1],[1350,"Lemon Bribes","p",9,0],[1400,"Car Wash Bribes","p",9,2],[1450,"Pizza Bribes","p",9,3],[1500,"Donut Bribes","p",9,4],[1550,"Shrimp Bribes","p",9,5],[1600,"Hockey Bribes","p",9,6],[1650,"Movie Bribes","p",9,7],[1700,"Money Bribes","p",9,8],[1750,"Gas Bribes","p",9,9],[1800,"Eat Shrimp Or Else","p",10,5],[1850,"Watch Hockey Or Pay","p",10,6],[1900,"Go To Movies or Perish","p",10,7],[1950,"Bank With Us Forever","p",10,8],[2000,"Printer Ink Discount","p",7777,1],[2100,"Car Wash Applications","p",15,2],[2200,"Pizza Poetry","p",15,3],[2300,"Donutopia","p",15,4],[2400,"Paper Pirate Hats","p",15,5],[2500,"New Gnu Knews News","p",777,1],[2600,"Embedded Movies","p",15,7],[2700,"Top 10 Bank List","p",15,8],[2800,"Hilarious Oil Ads","p",15,9],[2900,"Pulitzer Lemon Article","p",15,0],[3000,"Recursion","p",777,1],[3100,"24 Hour Car News","p",20,2],[3200,"Insightful Commentary","p",20,6],[3300,"Bank Shaped Pages","p",20,8],[3400,"Click Baits","p",20,9],[3500,"That Old Chestnut","p",777,1],[3600,"Puck Scandal","p",25,6],[3700,"Adorable Newsies","p",25,7],[3800,"Panic Driven Headlines","p",25,8],[3900,"Laminated Ads","p",25,9],[4000,"Do You Remember...","p",30,1],[4100,"...So Long Ago...","p",30,0],[4200,"...When Newspapers...","p",30,2],[4300,"...Were Worthless?","p",30,3],[4400,"Those Days Are Long Past...","p",30,4],[4500,"...And Though It Is Strange...","p",30,5],[4600,"...I'm Sure You'd Agree...","p",30,6],[4700,"...Newspapers Proved Themselves...","p",30,7],[4800,"...And It Was Shrimp Boats...","p",30,8],[4900,"...That Sucked All Along.","p",30,9],[5000,"x50","p",50,1],[5100,"x50 Again","p",50,1],[5200,"x50 Yet Again","p",50,1],[5300,"x50 For Good Measure","p",50,1],[5400,"The Rest Is Silence","p",50,1]],[[25,"Working At The Carwash","s",2,2],[50,"Wash And Wax","s",2,2],[100,"Supreme Service","s",2,2],[200,"Diamond Sealed","s",2,2],[300,"Infinite Clean","s",2,2],[400,"Artificially Intelligent Suds","s",2,2],[500,"Grey Goo Detergent","p",2,2],[600,"Downloadable Wash","p",2,2],[700,"Stronger Than Dirt","p",2,2],[800,"Free Car With Purchase","p",2,2],[900,"When You Wash Upon A Star","p",2,2],[1000,"On Every Corner","p",3,2],[1100,"Planet Saturation","p",2,2],[1200,"Horses Too","p",2,2],[1300,"Home Installations","p",2,2],[1400,"Car Mounted Washers","p",2,2],[1500,"Bubbles!","p",2,2],[1600,"Are You Reading These?","p",2,2],[1700,"Self Washing Cars","p",2,2],[1800,"Temporal Pre-Wash","p",2,2],[1900,"Wax On Wax Off","p",2,2],[2000,"Everything Is Clean","p",5,2],[2100,"Free Gold Plating","p",3,2],[2200,"Rim Shiners","p",3,2],[2300,"Cash Launder-ing","p",3,2],[2400,"Hamster Powered","p",3,2],[2500,"Self Service","p",3,2],[2600,"The Bogdan Effect","p",3,2],[2700,"Malamine Foam!","p",3,2],[2800,"No Bug Guts","p",3,2],[2900,"Garden Hose Discount","p",3,2],[3000,"Probably Too Many","p",3,2],[3100,"The Car-tel","p",3,2],[3200,"SCRUB","p",3,2],[3300,"Supplies!","p",3,2],[3400,"George Wash-ington Sale","p",3,2],[3500,"Nearly Done","p",3,2],[3600,"Car Wash Washers","p",3,2],[3700,"Car Wash Washer Washers","p",3,2],[3800,"Dance Parties","p",3,2],[3900,"Carpool Discounts","p",3,2],[4000,"Convertible Friendly","p",5,2],[4100,"Scrub Harder","p",3,2],[4200,"Shares Are Up","p",3,2],[4300,"Clean Capitalism","p",3,2],[4400,"Demand Continues","p",3,2],[4500,"The Freshest","p",3,2],[4600,"Lean, Mean, Clean","p",3,2],[4700,"7 Second Suds","p",3,2],[4800,"But Wait There's More","p",3,2],[4900,"Really? More?","p",3,2],[5000,"All The Suds","p",5,2],[5250,"Probably Overkill","p",3,2],[5500,"Pristine","p",3,2]],[[25,"30 Min or Less","s",2,3],[50,"Fancy Toppings","s",2,3],[100,"Gourmet Crust","s",2,3],[200,"Free Cheese Bread","s",2,3],[300,"Home Rehydrator","s",2,3],[400,"Intravenous Cheese","s",2,3],[500,"Everlasting Pepperoni","p",2,3],[600,"Pizza Stuffed Pizza","p",2,3],[700,"Calzone Breakthrough","p",2,3],[800,"Self Microwaving","p",2,3],[900,"One With Everything","p",2,3],[1000,"It Smells Like Pizza","p",3,3],[1100,"That’s Amore","p",2,3],[1200,"Over 1 Decillion Served","p",2,3],[1300,"Wibbly Wobbly Deliveries","p",2,3],[1400,"Deep Dish Discovery","p",2,3],[1500,"Pizza Cluster Bombs","p",2,3],[1600,"Pizza Putt!","p",2,3],[1700,"New Cheese Sources","p",2,3],[1800,"Pizza Roll Call Centers","p",2,3],[1900,"Unobtanium Crust","p",2,3],[2000,"The Pie In The Sky","p",5,3],[2100,"Pizza Saline Dip","p",3,3],[2200,"Pizza Squared","p",3,3],[2300,"Chow-abunga","p",3,3],[2400,"Counts As Vegetable","p",3,3],[2500,"More Like Pizza-What","p",3,3],[2600,"Cold Pizza","p",3,3],[2700,"Chain of Chains","p",3,3],[2800,"Pizza Holiday Declared","p",3,3],[2900,"Pizza Planescape","p",3,3],[3000,"I Am Pizza","p",3,3],[3100,"Entangled Two For 1","p",3,3],[3200,"Hand Tossed Employees","p",3,3],[3300,"Romantic Dinner","p",3,3],[3400,"Vegan Options","p",3,3],[3500,"Cake Flavored Pizza","p",3,3],[3600,"Pizza Flavored Cake","p",3,3],[3700,"Witty Achievement Text","p",3,3],[3800,"Deliver Us","p",5,3],[3900,"Free Wings","p",3,3],[4000,"Unlimited Toppings","p",5,3],[4100,"Causality Crust","p",3,3],[4200,"Stand And Deliver","p",3,3],[4300,"It IS Delivery","p",3,3],[4400,"Pizzanity","p",3,3],[4500,"By The Slice","p",3,3],[4600,"Large Hadron Crust-ollider","p",3,3],[4700,"Cold","p",3,3],[4800,"Origami Boxes","p",3,3],[4900,"Free Croutons","p",3,3],[5000,"Fancy Napkins","p",5,3],[5250,"Always Room","p",3,3],[5500,"Hamburgers, Anyone?","p",3,3],[5750,"Thus Spoke Pizzarathustra","p",3,3]],[[25,"Lots of Dough","s",2,4],[50,"Extra Sprinkles","s",2,4],[100,"Deep Fried","s",2,4],[200,"Donut Filled Donuts","s",2,4],[300,"Doughnut Shaped Universe","s",2,4],[400,"Unified Donut Theory","s",2,4],[500,"Final Donut","p",2,4],[600,"Donut Flavored Coffee","p",2,4],[700,"Golden Glaze","p",2,4],[800,"Guaranteed Minimal Donuts","p",2,4],[900,"Roll Up The Outer Rim","p",2,4],[1000,"Wireless Donuts","p",3,4],[1100,"Got Donuts?","p",2,4],[1200,"Long John Long Johns","p",2,4],[1300,"Reality DonuTV","p",2,4],[1400,"Donut Addiction Hotlines","p",2,4],[1500,"Donuts Safe Houses","p",2,4],[1600,"Regenerating Donuts","p",2,4],[1700,"Heat Seaking Pastries","p",2,4],[1800,"Submit","p",2,4],[1900,"The Donutrix","p",2,4],[2000,"Then Who Was Donut?","p",5,4],[2100,"Pumpkin Flavored","p",3,4],[2200,"Strangely Popular","p",3,4],[2300,"Self Dunking","p",3,4],[2400,"Double Rainbow Sprinkles!","p",3,4],[2500,"Edible Receipts","p",3,4],[2600,"Dough-Cubes","p",3,4],[2700,"Fifth Dimension Frosting","p",3,4],[2800,"The Adar Standard","p",3,4],[2900,"Donut Don’t it?","p",3,4],[3000,"Temperance Solvent","p",3,4],[3100,"Build Your Own","p",3,4],[3200,"Cream Cheese Based","p",3,4],[3300,"Gone Viral?","p",3,4],[3400,"Chicken Options","p",3,4],[3500,"0 Calories","p",3,4],[3600,"Donut Booths","p",3,4],[3700,"Liquid Donuts","p",3,4],[3800,"Sassy Chefs","p",3,4],[3900,"Everyone Knows Your Name","p",3,4],[4000,"Cookies Too","p",3,4],[4100,"Gold Leaf Sprinkles","p",3,4],[4200,"The Only Food Group","p",3,4],[4300,"Innuendonut","p",3,4],[4400,"Tae Kwon Donut","p",3,4],[4500,"5th Dimension Donuts","p",3,4],[4750,"Creme Filled Filled","p",3,4],[5000,"Basically Sugar","p",3,4],[5250,"Gluten Free Water","p",3,4],[5500,"Vacuum Sealed","p",3,4],[5750,"Hasty Pastry","p",3,4],[6000,"6000 Is A Lot","p",3,4],[6250,"Philosophiae Donutus Principia","p",3,4]],[[25,"Wanna Buy A Shrimp Boat?","s",2,5],[50,"Surf and Turf","s",2,5],[100,"Gumbo King","s",2,5],[200,"Gigantic Shrimp","s",2,5],[300,"Galactic Fleet","s",2,5],[400,"Celestial Shrimp","s",2,5],[500,"Cosmic Grill","p",2,5],[600,"Black Hole Trolling","p",2,5],[700,"The Shrimpularity","p",2,5],[800,"All You Can Eat","p",2,5],[900,"Shrimpocalypse","p",2,5],[1000,"Shellfish Selfish","p",3,5],[1100,"Prawns Are Good Too","p",2,5],[1200,"Begun The Shrimp Wars Have","p",2,5],[1300,"Gumbo’s Rebellion","p",2,5],[1400,"King in The North Sea","p",2,5],[1500,"Crustacean Uprising","p",2,5],[1600,"Nuclear Shish Kabobs","p",2,5],[1700,"The Blackwater BBQ","p",2,5],[1800,"Battle of The Bilge","p",2,5],[1900,"Lobster Betrayal!","p",2,5],[2000,"The Red Wetting","p",5,5],[2100,"Butter","p",3,5],[2200,"The Spice Flows","p",3,5],[2300,"Mermaid-Safe Nets","p",3,5],[2400,"Room On The Barbie","p",3,5],[2500,"All In The De-tails","p",3,5],[2600,"Miniature Jumbo Shrimp","p",3,5],[2700,"Darling It’s Better","p",3,5],[2800,"A Nice Chianti","p",3,5],[2900,"Shrimpulse","p",3,5],[3000,"Hungry?","p",3,5],[3250,"Shrimp-Based Fashions","p",5,5],[3500,"Shrimpshrimpshrimpshrimp","p",5,5],[3750,"Never Gets Old","p",3,5],[4000,"A Complete Breakfast","p",5,5],[4250,"What Is Even Happening","p",3,5],[4500,"No","p",5,5],[4750,"Stroke!","p",3,5],[5000,"Off The Port Bow","p",5,5],[5250,"Just Keep Shrimping","p",3,5],[5500,"Snap To It","p",3,5],[5750,"Butter Prices Soar","p",3,5],[6000,"The Meaning Of Garlic","p",5,5],[6250,"From Heck's Heart...","p",3,5],[6500,"...I Skewer Thee!","p",5,5]],[[25,"Underdogs","s",2,6],[50,"Division Champs","s",2,6],[100,"All Stars","s",2,6],[200,"Hall of Fame","s",2,6],[300,"The Great Ones","s",2,6],[400,"Dream Team","s",2,6],[500,"Perfect Puck","p",2,6],[600,"Robot Players","p",2,6],[700,"Intergalactic League","p",2,6],[800,"Yeah. More Hockey.","p",2,6],[900,"Sudden Death","p",2,6],[1000,"Leagues Of Leagues","p",3,6],[1100,"Daily Game 7","p",2,6],[1200,"Player Cloning Factories","p",2,6],[1300,"Explosive Pucks","p",2,6],[1400,"The Refs ARE Blind","p",2,6],[1500,"Rocket Skates","p",2,6],[1600,"Release The Lions!","p",2,6],[1700,"Release The Robo-Lions!!","p",2,6],[1800,"Play For Food","p",2,6],[1900,"The Hungry Games","p",2,6],[2000,"Almost As Big As Football","p",5,6],[2100,"Competent Refs","s",2,6],[2200,"Extra Loud Sirens","p",3,6],[2300,"Either Orr","s",2,6],[2400,"Super Bash Bros.","p",3,6],[2500,"Puck Injections","s",2,6],[2600,"Artificial Ice","p",3,6],[2700,"Knucklepuck","s",2,6],[2800,"Cutting Edge Effect","p",3,6],[2900,"Flying W","p",3,6],[3000,"Everyone’s Crosby","p",3,6],[3250,"Miracle On Ice","p",3,6],[3500,"Honorary Canadian","p",3,6],[3750,"Helmet Shortages","p",3,6],[4000,"Puck Is A 4 Letter Word","p",5,6],[4250,"Face On Face Off","p",3,6],[4500,"Game On!","p",3,6],[4750,"Double Decker Rinks","p",3,6],[5000,"Game On And On And On","p",7,6],[5250,"Boom Boom Clap","p",3,6],[5500,"Fight Night","p",3,6],[5750,"Icing On The Cake","p",3,6],[6000,"Do The Wave","p",7,6],[6250,"Slap Shotgun","p",3,6],[6500,"Be The Puck","p",3,6],[6750,"A Sea Of Jerseys","p",3,6],[7000,"Hockey Is Pretty Cool","p",7,6]],[[25,"Lights!","s",2,7],[50,"Camera!","s",2,7],[100,"Action!","s",2,7],[200,"Blockbuster!","s",2,7],[300,"Statuette Sweeper!","s",2,7],[400,"Library Of Congress","s",2,7],[500,"Cultural Masterpiece","p",2,7],[600,"Cult Following","p",2,7],[700,"Holodeck Tech","p",2,7],[800,"Dream-To-Screen Implants","p",2,7],[900,"Rosebud...","p",2,7],[1000,"Wizard Vampire Decalogy","p",3,7],[1100,"The Cinema Constant","p",2,7],[1200,"$0.99 Admission","p",2,7],[1300,"Crossover Cornucopia","p",2,7],[1400,"Inconsiderate Patron Muted","p",2,7],[1500,"Wake Up...","p",2,7],[1600,"This Game Has You...","p",2,7],[1700,"But It’s No Game...","p",2,7],[1800,"It’s A SPACE STATION!","p",2,7],[1900,"Free Popcorn!","p",2,7],[2000,"Pax Hollywooda","p",5,7],[2100,"Eye-Max","s",2,7],[2200,"Glasses Free 4D","p",2,7],[2300,"98 Hour Award Show","s",2,7],[2400,"Feature Length Trailer","p",2,7],[2500,"Privacy Domes","s",2,7],[2600,"Director’s Cutlass","p",2,7],[2700,"Bad Movie Executions","s",2,7],[2800,"Critical Hit!","p",2,7],[2900,"Choose Your Own Ending","p",2,7],[3000,"Nothing Sucks","p",2,7],[3250,"Physical Props","s",2,7],[3500,"Kibrick Clones","p",2,7],[3750,"Make-A-Movie Booths","p",2,7],[4000,"Under Budget","p",2,7],[4250,"Film Renaissance","p",3,7],[4500,"Here’s Looking At You","p",3,7],[4750,"It Was The Sled","p",3,7],[5000,"Show Me The Money","p",5,7],[5250,"Daisy... Daisy...","p",3,7],[5500,"Greenlit","p",3,7],[5750,"104% Rating","p",3,7],[6000,"Skyward Thumbs","p",9,7],[6250,"Triple Triple Triple Threat","p",3,7],[6500,"Max-I-Max-Ium","p",3,7],[6750,"Toast","p",3,7],[7000,"Tinsel Megapolis","p",9,7],[7250,"Industry Jargon","p",3,7],[7500,"Alan Smithee Award","p",3,7],[7750,"That's Show Biz","p",3,7]],[[25,"A Capital Idea","s",2,8],[50,"Not-So-Petty Cash","s",2,8],[100,"Too Big To Fail","s",2,8],[200,"Galactic Reserve","s",2,8],[300,"All The Moneys","s",2,8],[400,"Bourgeois Banks","s",2,8],[500,"It Prints Money","p",2,8],[600,"Ritual Residuals","p",2,8],[700,"Money Trees","p",2,8],[800,"Recession Proof","p",2,8],[900,"Open On Weekends","p",2,8],[1000,"Monetary Overlord","p",3,8],[1100,"Your Face On Money","p",2,8],[1200,"No Interest Loans","p",2,8],[1300,"Taxes Make Sense","p",2,8],[1400,"Bank Teller House Calls","p",2,8],[1500,"Loveably Snarky ATMs","p",2,8],[1600,"Unlimited Overdraft","p",2,8],[1700,"More Like FAIR Miles","p",2,8],[1800,"Please Sign Here","p",2,8],[1900,"Mega Buck Research","p",2,8],[2000,"Multiverse Bank Est.","p",5,8],[2250,"Indestructible Bank Bills","s",2,8],[2500,"Fat Cat Scratch Post","s",2,8],[2750,"Hack Proof Accounts","s",2,8],[3000,"1st National Piggy Bank","s",2,8],[3250,"Recuse Rescue","s",2,8],[3500,"Conflict of Win-terest","s",2,8],[3750,"Now Accepting Blood","s",2,8],[4000,"Truly The Bank Of Banks","s",2,8],[4250,"Mo' Money","p",3,8],[4500,"Mad Money","p",3,8],[4750,"Cash-ual Fridays","p",3,8],[5000,"Rothschild","p",5,8],[5250,"#1 Banker Mug","p",5,8],[5500,"Smooth Operator","p",3,8],[5750,"Gold Backed","p",3,8],[6000,"Cash. Must. Flow.","p",5,8],[6250,"Branches In Branches","p",3,8],[6500,"Vest Investments","p",3,8],[6750,"More Roman Columns","p",3,8],[7000,"Money Is Valuable","p",5,8],[7250,"Legal Tender Embrace","p",3,8],[7500,"Crash-Proof","p",3,8],[7750,"Magnificence","p",3,8],[8000,"Bank Right","p",5,8],[8250,"Ascend The Ivory Tower","p",3,8],[8500,"The Offest Shore","p",3,8]],[[25,"Slick Enterprise","s",2,9],[50,"Black Gold","s",2,9],[100,"There Will Be Oil","s",2,9],[200,"Crude Empire","s",2,9],[300,"Oil Nebula","s",2,9],[400,"Carbon Universe","s",2,9],[500,"Planck Petrol","p",2,9],[600,"5th Dimension-Oil","p",2,9],[700,"Oil String Theory","p",2,9],[800,"Dark Matter Derricks","p",2,9],[900,"Observable Oiliverse","p",2,9],[1000,"Excessive","p",3,9],[1100,"Total Carbon Mastery","p",2,9],[1200,"Reverse Engineered Dinos","p",2,9],[1300,"Drill, Baby, Drill!","p",2,9],[1400,"Renewable Oil Wells","p",2,9],[1500,"Derricks With Googly Eyes","p",2,9],[1600,"Robotic Barrels","p",2,9],[1700,"Reasonable Gas Prices","p",2,9],[1800,"Free Oil-Based Education","p",2,9],[1900,"Crude Is Still King","p",2,9],[2000,"It’s Oily...","p",5,9],[2250,"Crudementary","s",2,9],[2500,"Win Or Diesel","s",2,9],[2750,"LFM WD40 ASAP","s",2,9],[3000,"Mole-Friendly Derricks","s",2,9],[3250,"Gas Diesel Hybrids","s",2,9],[3500,"Lay Pipe","s",2,9],[3750,"Catchy Slogan","s",2,9],[4000,"Peaked?","s",2,9],[4250,"That Constant T-oil","s",2,9],[4500,"Hey, Why Not?","s",2,9],[4750,"Thrill Drilling","s",2,9],[5000,"Oil","s",2,9],[5250,"Obsessed Much?","p",3,9],[5500,"Get ALL The Oil!","p",3,9],[5750,"Derrick Every 5 Feet","p",3,9],[6000,"That's Oil Folks!","p",5,9],[6250,"Oil Is Love","p",3,9],[6500,"The P-Oil-ice","p",3,9],[6750,"Move To Beverly","p",3,9],[7000,"Black","p",7,9],[7250,"New Deposits","p",3,9],[7500,"Hot And Fresh","p",3,9],[7750,"Carbonous","p",3,9],[8000,"Oi Yoi yOil!","p",3,9],[8250,"Frack!","p",3,9],[8500,"Apolitical Market","p",3,9],[8750,"Fries With That?","p",3,9],[9000,"Terra Infirma","p",7,9],[9250,"Licence To Drill","p",3,9],[9500,"It Never Ends","p",3,9],[9750,"Pipe Dream","p",3,9]]],"allu":[[25,"Mogul","s",2],[50,"Oligarch","s",2],[100,"Tycoon","s",2],[200,"Adam Smith Award","s",2],[300,"Universal Capitalist","s",2],[400,"Theoretical Economist","s",2],[500,"The One True Investor","p",2],[600,"Game Of Loans","p",2],[666,"That Can’t Be Good","p",2],[700,"Black Ink Inc","p",2],[777,"Lucky 777s","p",2],[800,"Lord Of Lobbyists","p",2],[900,"Midas","p",2],[1000,"Literally Can’t Even","p",2],[1100,"Psyche!","p",2],[1111,"There Can Only Be Ones","p",2],[1200,"The Hang Of It","p",2],[1300,"Invisible Hand High Five","p",2],[1400,"Captain Capitalism","p",2],[1500,"$ Shaped Pool","p",2],[1600,"You’re The Boss","p",2],[1700,"Perspective Annihilation","p",2],[1800,"New Frontier Capitalism","p",2],[1900,"It’s Never Enough","p",2],[2000,"Nice Round Numbers","p",2],[2100,"Frequent Updates","p",2],[2200,"Punctual Launches","p",2],[2222,"2222","p",2],[2300,"Audience Rapport","p",2],[2400,"A Top Hat Is You","p",2],[2500,"A True AdVenture Capitalist","p",2],[2600,"Good Gracious","p",2],[2700,"Gold Pressed Latinum","p",2],[2800,"FASTER!","p",2],[2900,"A Noteworthy Day","p",2],[3000,"Adam Smith Is Proud","p",2],[3100,"Keep Climbing","p",2],[3200,"Upward Trend","p",2],[3300,"Boom","p",2],[3333,"3333","p",2],[3400,"Magical Pixels","p",2],[3500,"The Roaring 3500s","p",2],[3600,"Take What You Can","p",2],[3700,"Where's The Roof On This?","p",2],[3800,"Symphon-Economics","p",2],[3900,"Pecunia Vincit Omnia","p",2],[4000,"The Legend Continues","p",2],[4100,"Who Writes These Things?","p",2],[4200,"Humongous Numbers","p",2],[4300,"Penny Pincher","p",2],[4400,"Glorious","p",2],[4500,"Always I Will Believe In You","p",2],[4600,"And Make Believe In You","p",2],[4700,"And Live In Harmony","p",2],[4800,"Battery Eater","p",2],[4900,"Never Give Up","p",2],[5000,"Achievement","p",2]],"cash":[["Little Umbrellas",0,250000,3],["Funny Pages",1,500000,3],["Drive Through Wash",2,1000000,3],["Robot Cars",3,5000000,3],["Pre-packaged Pastries",4,10000000,3],["Shrimp Satellite",5,25000000,3],["Team Jet",6,500000000,3],["3D Cameras",7,10000000000,3],["Gold Plated Vaults",8,50000000000,3],["Spill Proof Tankers",9,250000000000,3],["Monopoly",-1,1000000000000,3],["Novelty Straws",0,20000000000000,3],["Sports Pages",1,50000000000000,3],["Automatic Vacuums",2,100000000000000,3],["Online Ordering",3,500000000000000,3],["Donut Holes",4,1000000000000000.0,3],["Shrimp Magnets",5,2000000000000000.0,3],["Energy Drink Sponsors",6,5000000000000000.0,3],["Green Screens",7,7000000000000000.0,3],["Free Fancy Pens",8,1e+16,3],["Eco-safe Pipeline",9,2e+16,3],["Monopsony",-1,5e+16,3],["Holy Moola",-2,1e+17,1],["Imported Ice Cubes",0,2e+18,3],["Business Pages",1,5e+18,3],["Microfiber Sponges",2,7e+18,3],["Drone Delivery",3,1e+19,3],["Bacon Sprinkles",4,2e+19,3],["Carbon Nanotube Nets",5,3.5e+19,3],["GPS Puck Tracker",6,5e+19,3],["Smell-O-Vision",7,7.5e+19,3],["Credit Card Implants",8,1e+20,3],["Hyperloop Pumps",9,2e+20,3],["Illuminati",-1,5e+20,3],["Immaculate Consumption",-2,1e+21,1],["Combustible Lemons",0,2.5e+22,3],["Gossip Pages",1,5e+22,3],["Blue Sky Brand Wax",2,1e+23,3],["Caviar Stuffed Crust",3,2e+23,3],["Free Coffee",4,3e+23,3],["3D Printed Shrimp",5,4e+23,3],["Lord Stanley's Cup",6,5e+23,3],["James Camera",7,6e+23,3],["Dogecoin",8,7e+23,3],["Biodiesel Derricks",9,8e+23,3],["Profit Prophet",-1,9e+23,3],["Eternal Revenue Service",-2,9.999999999999999e+24,2],["Gold Plated Lemons",0,1e+27,7],["Celebrity Delivery",1,5e+27,7],["Bikini Babes",2,2.5000000000000002e+28,7],["Dessert Pizzas",3,1.0000000000000001e+29,7],["Intravenous Java",4,2.5e+29,7],["Alcubierre Drives",5,5e+29,7],["Holy Hockey Sticks",6,1e+30,7],["Rebooted Sequels",7,5e+30,7],["Giant Novelty Cheques",8,2.5e+31,7],["Solar Powered Derricks",9,5e+31,7],["Super PAC Man",-1,1e+42,7],["Low Orbit Delivery",1,5e+42,3],["Beef Cake Buffers",2,2.5e+43,3],["Recyclable Pizza",3,5e+43,3],["Donut Bosons",4,1e+44,3],["All you Can Eat",5,2.5000000000000002e+44,3],["Oculus Pucks",6,5.0000000000000004e+44,3],["Temporal Retcon",7,1e+45,3],["Friendly Staff",8,5e+45,3],["Self Aware Wells",9,1e+46,3],["Self Picking Lemons",0,2.4999999999999996e+46,3],["Trust Buster Buster",-1,9.999999999999998e+46,3],["Bias Detector",1,2.4999999999999997e+47,3],["New Car Odorants",2,4.9999999999999994e+47,3],["Pizzaception",3,7.5e+47,3],["Graham's Donut",4,1e+48,3],["Shrimp Is Life",5,5.0000000000000004e+48,3],["Teeth Replacements",6,1.5e+49,3],["Post-Credit Neuralizer",7,5e+49,3],["No Service Charges",8,1e+50,3],["Zombie Proof Rigs",9,2.5e+50,3],["Unlimited Refills",0,5e+50,3],["Smiles Are Free",-1,1e+51,7],["Heavenly Tax Shelter",-1,1e+54,5],["Employ Humanity",-1,1e+60,7],["Old Timey Charm",1,1e+61,3],["Matchbox Adapter",2,9.999999999999999e+61,3],["Moxie Injections",-1,1e+66,9],["Deep Dish 9",3,1e+67,3],["Mug-Friendly Dippers",4,1e+68,3],["Immortality Research",-1,1e+72,11],["Talk Like A Pirate",5,1e+73,3],["Kicking Soundtrack",6,1e+74,3],["Your Body Is Ready",-1,1e+75,13],["Crass Pandering",7,9.999999999999999e+75,3],["Golden Money Clip",8,1e+77,3],["A Towel",-1,1e+78,15],["Air Fresheners",9,1e+79,3],["Lemon Hope",0,1e+80,3],["LOTS of Sticky Notes",-1,1e+84,3],["Pi Charts",-1,3e+87,3.1415926],["Faux News",1,1e+90,3],["Free Bobblehead",2,4.9999999999999995e+90,3],["Superfood Status",3,2.4999999999999997e+91,3],["King Horton",4,4.9999999999999995e+91,3],["Deadliest Catcher",5,9.999999999999999e+91,3],["Shiny Pucks",6,2.4999999999999998e+92,3],["Kitten Ushers",7,4.9999999999999996e+92,3],["+1% Interest",8,1e+93,3],["Asteroid Drillers",9,5e+93,3],["Mass Thirst-eria",0,1e+94,3],["Golden Parachute",-1,5e+95,2],["Black Tuesday Deals",1,2e+96,2],["Crash Memorial Sale",2,1.1e+97,2],["Patriotic Pizza",3,6.6e+97,2],["Open Holidays",4,2.3e+98,2],["Sheesh-kabobs",5,4e+98,2],["Capped Salaries",6,7.000000000000001e+98,2],["Pleasing Distractions",7,4e+99,2],["Googol",-1,1e+100,3],["2 Googols",-1,2e+100,6],["Bailouts For Everyone",8,2.9e+100,2],["Pumping Freedom",9,1.45e+101,2],["'Merica Flavored",0,3e+101,2],["Recession Progression",-1,5e+101,2],["Capitaltastic",-1,1e+102,5],["Car Wash Focus",2,5e+102,3],["Enable Employees",2,1.5e+104,3],["Diversify Brand",2,4e+104,3],["Pizza Focus",3,9e+104,3],["Adorable Mascot",3,6e+105,3],["Free Bread Sticks",3,1.4999999999999998e+106,3],["Donut Focus",4,5.999999999999999e+106,2],["Soylent Frosting",4,1.85e+107,3],["Hand Made",4,4.9999999999999995e+107,3],["Stock Tips",-1,5.999999999999999e+107,3],["Shrimp Focus",5,7.5e+107,2],["Tiny Top Hats",5,5e+108,3],["Shrimp Shaped Boats",5,4.5000000000000004e+109,3],["Hockey Focus",6,1.2500000000000001e+110,3],["Cloud Based Goalies",6,3e+110,3],["Friendly Commissioner",6,9e+110,3],["Cigar Shaped Mansion",-1,1e+111,3],["Movie Focus",7,5e+111,2],["Catered Lunches",7,7e+112,3],["More Sparkles",7,2.5e+113,3],["Bank Focus",8,5e+113,3],["Booth Banks",8,9e+113,3],["More Evil",8,3e+114,3],["Oil Focus",9,1.5e+115,3],["All The Lobbyists",9,7.5e+115,3],["Climate Sch-limate",9,4e+116,3],["Disposable Veyrons",-1,4.5e+116,3],["Lemon Focus",0,5e+116,3],["Hybrid Lemons",0,7.5e+116,3],["Money In The Stand",0,1e+117,3],["Newspaper Focus",1,2e+117,3],["Self Advertising",1,2.0000000000000002e+118,3],["Free Puppies",1,1.5e+119,3],["The Capital Capital",-1,3.5e+119,5],["Make It Storm",-1,5e+119,3],["Printed On Money",1,7e+119,3],["Conflict Free Suds",2,9.500000000000001e+119,3],["Anti-Terrorism Toppings",3,4e+120,3],["Freedom Infused",4,9e+120,3],["Shrimply Amazing",5,2.4e+121,3],["Elocution Lessons",6,1.1099999999999999e+122,3],["Drama Llamas",7,2.2199999999999998e+122,3],["You Can Bank On It",8,3.33e+122,3],["Oil/Oil Hybrid",9,4.4399999999999996e+122,3],["Frosted Glasses",0,5.55e+122,3],["A Sinister Proposal",-1,6.66e+122,6.66],["Frankly Ridiculous",-1,1e+123,3],["Self-Fetching",1,3e+123,3],["Mr. Sheen",2,6e+123,3],["It's Not Delivery",3,1.2e+124,3],["Mmmmm... Sprinkles",4,2.4e+124,3],["The Shrimp Must Flow",5,4.8e+124,3],["Heated Seats",6,9.6e+124,3],["Movie-ception",7,1.92e+125,3],["Fat Cat Scratch Post",8,3.84e+125,3],["Sparkly Derricks",9,7.68e+125,3],["Haunted Trees",0,1e+126,3],["Cross Promotions",-1,1e+127,5],["Car Sweaters",2,2e+129,3],["Free Candy",8,5e+129,3],["Shakers",3,1.3e+130,3],["Complementary Pretzels",9,2.9e+130,3],["Mineral Infused",0,7.1e+130,3],["Action Figures",6,1.77e+131,3],["Public Access Publishing",1,2.5e+131,3],["Pre-Screen Ads",7,3.1e+131,3],["Holiday Specials",4,5.55e+131,3],["Inspiring Documentary",5,7.36e+131,3],["Lax Regulations",-1,9e+131,2],["Slow News Day",1,5e+132,2],["Sluggish Sales",2,9.5e+133,2],["10 for 1 Sale",3,2.13e+134,2],["Sprinkle Fatigue",4,4e+134,2],["Antihistamine Cocktails",5,9.85e+134,2],["Ratings Slippage",6,8e+135,2],["Anti-Piracy Measures",7,2.9e+136,2],["Credit Union Smear Ads",8,2.22e+137,2],["Raise Prices",9,5e+137,2],["Suppress Iced Tea",0,9e+137,2],["Restructuring",-1,5e+138,3],["Price Reduction",1,1.36e+140,3],["Sign Spinners",2,7.000000000000001e+140,3],["Buzzing Signs",3,9.25e+140,3],["Couch Cushions Check",-1,3e+141,3],["Tax Free Tuesdays",4,2.1e+142,3],["Pollock Substitu(t)e",5,5.5e+142,3],["Kids Watch Free",6,1.11e+143,3],["Cheap Night",7,2.23e+143,3],["ReOrg",8,3.93e+143,3],["Think Tanks",9,6e+143,3],["Artificial Sugar",0,7.99e+143,3],["Market Recovery",-1,2e+144,3],["Newspaper Ads",1,3.0000000000000002e+144,3],["Germaphobic Public",2,6.0000000000000005e+144,3],["Secret Ingredients",3,9.000000000000001e+144,3],["Mildly Addictive",4,2.1000000000000002e+145,3],["Fad Diet",5,4.4e+145,3],["Collectible Players",6,8.9e+145,3],["Effective DRM",7,1.29e+146,3],["Staff Parties",8,1.8000000000000001e+146,3],["Rollin' Coal Kits",9,2.1e+146,3],["3 Star Stands",0,3e+146,3],["'e' Business",-1,4.5e+146,2.71828],["Inflate Demand",5,5e+147,5],["Life Saving Instructions",1,3e+148,5],["Lifetime Guarantees",2,1.8e+149,5],["Tax Free Savings",8,9e+149,5],["Reading Club",3,5e+150,5],["Gas Additives",9,2e+151,5],["Vending Machines",4,8e+151,5],["Only Moisture Source",0,2.4e+152,5],["Hypnotic Jumbotrons",6,7.2e+152,5],["More Superheros",7,2.1e+154,5],["Four Score",-1,5e+155,4.444444444],["Shrimp Consultants",5,7.77e+155,2],["Yes Men",1,8.88e+155,2],["Rainbow Suds",2,9.99e+155,2],["Tinted Windows",8,2e+156,2],["Cloth Napkins",3,4e+156,2],["Pay At The Pump",9,8e+156,2],["Mood Lighting",4,1.6e+157,2],["Fresh Paint",0,3.2e+157,2],["24 Hour Channel",6,6.4e+157,2],["Self Serve Butter",7,1.28e+158,2],["Oh say, can you 'c'?",-1,5.14e+158,2.99792458],["Sustainable Methods",5,1e+159,3],["Biodegradable Pages",1,9.999999999999999e+159,3],["Scan to Pay",2,2.4999999999999998e+160,3],["Wheelchair Ramps",8,4.9999999999999996e+160,3],["Clean Bathrooms",3,7.499999999999999e+160,3],["Smog Recycling",9,9.999999999999999e+160,3],["Memberships",4,1.4999999999999998e+161,3],["Themed Idle Game",0,1.9999999999999998e+161,3],["Vuvuzelas",6,2.9999999999999996e+161,3],["Partisan Documentaries",7,3.9999999999999997e+161,3],["Optimize Prime",-1,9e+161,2.35711],["The Great Movie Upgrade",7,1e+162,24],["Abacus Upgrades",-1,2.5e+164,2],["The Huge Newspaper Upgrade",1,5e+164,22],["Reinvest Profits",-1,7.5e+164,2],["The Big Car Wash Upgrade",2,1e+165,20],["Placate Investors",-1,2.5e+167,2],["The Fat Bank Upgrade",8,5e+167,18],["Market Buzz",-1,7.5e+167,2],["The Giant Shrimp Upgrade",5,1e+168,16],["Break the Piggy Bank",-1,2.5e+170,2],["The Massive Hockey Upgrade",6,5e+170,14],["Bed Mattress Savings",-1,7.499999999999999e+170,2],["The Vast Oil Upgrade",9,1e+171,12],["Wad Patent",-1,2.4999999999999996e+173,2],["The Mega Lemon Upgrade",0,4.999999999999999e+173,10],["Cornu Copiae",-1,7.5e+173,2],["The X Large Pizza Upgrade",3,1e+174,8],["Faboulus Fiat",-1,2.5000000000000003e+176,2],["The Jumbo Donut Upgrade",4,5.0000000000000006e+176,4],["Positive Thinking Upgrade",-1,1e+177,1.8],["The Final Countdown?",-1,5e+183,9.87654321],["Cana-dough Exchange",-1,5e+189,5],["Diamond Teeth",-1,2.7e+193,3],["Discontinue Pennies",-1,1.3e+196,4],["T-Shirts For All",-1,2e+198,5],["Wandering Magicians",0,1e+201,3],["Neato Bike Fleet",1,1.4e+202,3],["Double Ply Napkins",3,1.98e+203,3],["Swivel Chair",4,3.2200000000000004e+203,3],["Skate Sharpeners",6,8.88e+203,3],["Weather Proof Cameras",7,1.9e+205,3],["Tea for protestors",9,1.99e+206,3],["Condensation Supplements",0,2.33e+206,3],["More Ads",1,4.21e+206,3],["A Skyler",2,6.07e+206,3],["GPS Tracked",3,7.77e+206,3],["Gravy Filled",4,9.1e+206,3],["The",-2,1e+207,2.1],["Superflous Motors",5,2e+207,3],["Animated Shorts",7,4.5e+208,3],["Free Calendars",8,2e+209,3],["Chocolate Money",-1,6.0000000000000004e+209,5],["End",-2,1e+213,1.5],["Refrigerated Straws",0,1e+214,11],["Aerodynamic Field",1,1e+214,11],["Can Transform",2,1e+214,11],["Aerodynamic Crust",3,1e+214,11],["Crispy Protocols",4,1e+214,11],["Blended With Ice",5,1e+214,11],["Simpsons Did It",6,1e+214,11],["More Musicals",7,1e+214,11],["Scratch N Sniff Notes",8,1e+214,11],["Stress Balls",9,1e+214,11],["Lemon Scientists",0,1.5e+215,3],["Crowd Sourced",1,1.66e+215,3],["Soapier Soap",2,1.93e+215,3],["Show Pony Pepperoni",3,4.0999999999999996e+215,3],["Radical New Slogan",4,6.78e+215,3],["Responsibly Sourced",5,9e+215,3],["Times",-2,1e+216,1],["Skull Helmets",6,1.2e+217,3],["Call In Cumberbatch",7,6.7e+217,3],["Sassy Clerks",8,1.23e+218,3],["Brand Makeover",9,3.21e+218,3],["Cross The Stream-ables",-1,5.55e+218,5],["Rind Recycling",0,8e+218,3],["Bamboo-based Paper",1,8e+218,3],["Scifi Sound Effects",2,8e+218,3],["Anti-Pizza Roof Sealant",3,9e+218,3],["Are",-2,1e+219,2],["Still More Glaze",4,3e+219,3],["Sailing Lessons",5,4e+219,3],["Extra Slippery Ice",6,5e+219,3],["Soft Lighting",7,6e+219,3],["Cartoonish Vaults",8,2.9999999999999997e+221,3],["Operation Oil-E",9,4.21e+221,3],["Lemon Based Cleanse",0,5.9999999999999995e+221,3],["Controversial Headline",1,7.89e+221,3],["Quick Queues",2,8.45e+221,3],["Asbestos Free",3,2e+222,3],["10,000 Folds",4,5e+222,3],["Harpoons",5,1.4e+223,3],["Robot Refs",6,5.4e+223,3],["Pretension Dampeners",7,1.08e+224,3],["Evil Busniess Cards",8,2.19e+224,3],["Helpful Wise Old Guy",9,4.68e+224,3],["Mini Lemons",0,1e+228,7],["Newsworthy Articles",1,1e+228,7],["Cafe Expansions",2,1e+228,7],["Self-Delivering Boxes",3,1e+228,7],["Ancient Forbidden Recipe",4,1e+228,7],["Mini Jumbo Shrimp",5,1e+228,7],["Better Pads",6,1e+228,7],["Scheduled Bathroom Breaks",7,1e+228,7],["A Website",8,1e+228,7],["Stunt Drivers",9,1e+228,7],["Reinvest Dividends",-1,9.999999999999999e+229,5],["Colorful Glasses",0,3e+231,3],["Cholesterol Free Paper",1,8e+231,3],["Meteor Proofing",2,6.9e+232,3],["Earth",-1,1e+233,2],["Ghost-repellant",3,1.8800000000000002e+233,3],["Diplomatic Immunity",4,2.39e+233,3],["Flood Insurance",5,4.1100000000000004e+233,3],["Free College Tuition",6,7.0000000000000005e+233,3],["Coup-Resistant Coating",7,9.120000000000001e+233,3],["Slot Machine ATMs",8,1.2e+235,3],["Mega Filters",9,2.4e+235,3],["Genetic Improvements",0,6.3e+235,3],["Discover New Markets",1,1.99e+236,3],["Send Mud Assassins",2,3.98e+236,3],["Hunger Provoking Gas",3,5.66e+236,3],["Bacon-Based Super Glaze",4,7.0000000000000005e+236,3],["Salt Water Engines",5,8e+236,3],["Fan Piggy Backs",6,9e+236,3],["The Final Frontier",-1,9.999999999999999e+237,4],["Kaiju Chickflicks",7,1.2e+238,3],["Receipts",8,2.5e+238,3],["Really Big Jerry Cans",9,5e+238,3],["More Colors",0,1e+240,2],["Homing Technology",1,5e+240,2],["Awe-inspiring Eyebrows",2,9e+240,2],["These Are the Outcomes",-1,1e+241,3],["Quintuple Meat",3,2.1e+241,2],["Donutrition Research",4,4.5e+241,2],["Pirate-y Accents",5,8.9e+241,2],["Free Punches",6,1.53e+242,2],["More ZomRomComs",7,2.99e+242,2],["Awesome New Stationary",8,5.77e+242,2],["Tycoon-y Executive Suits",9,8.13e+242,2],["Self-Squeezing GMO",0,2e+243,2],["Of The System",-1,1e+244,6],["Slam Poems",1,2.2000000000000003e+244,2],["Petting Zoos",2,4.4000000000000006e+244,2],["Exotic Moon Ingredients",3,6.600000000000001e+244,2],["Smaller Portions",4,8.800000000000001e+244,2],["Adorable Steam Whistles",5,1.11e+245,2],["Butt Guards",6,2.22e+245,2],["Super Nice Gofers",7,3.3300000000000004e+245,2],["Ample Parking",8,4.44e+245,2],["Oil Resistant Monocles",9,5.550000000000001e+245,2],["They Call Capitalism",-1,1.0000000000000001e+247,4],["And It's Neverending Pursuit",-1,1e+250,7],["One Workforce. One Uniform.",-1,1e+252,5],["To Profit At Any Cost",-1,1.0000000000000001e+253,2],["Gum Applications",0,1.0000000000000001e+253,3],["Anti-News Papers",1,1.0000000000000001e+253,3],["Manicures While You Wait",2,1.0000000000000001e+253,3],["Triangle Pizza Discovery",3,1.0000000000000001e+253,3],["Gluten Free Coffee",4,1.0000000000000001e+253,3],["Gentler Methods",5,1.0000000000000001e+253,3],["Stirring Simultaneous Debates",6,1.0000000000000001e+253,3],["Kale-Based Soft Drinks",7,1.0000000000000001e+253,3],["Snooty Glasses",8,1.0000000000000001e+253,3],["Spin Department",9,1.0000000000000001e+253,3],["Bold Health Claims",0,5.0000000000000003e+253,9],["Paper Mache Packs",1,7.5e+253,9],["Catchy Background Music",2,1.2500000000000002e+254,9],["Pizza Singularity",3,6.25e+254,9],["One Stop Shops",4,2.9999999999999998e+255,9],["To Destroy New Worlds",-1,1e+256,6],["Bacon/Shrimp Synthesis",5,1.5e+256,9],["More Jackets For Dawn",6,7.5e+256,9],["DDL vs RDJ: The Movie",7,3.75e+257,9],["Slide-N-Slip Parks",9,8e+257,9],["Mood Lighting",8,1e+258,9],["Actual Fortune Cookies",-1,2.5000000000000002e+258,2],["Spray-Based Delivery",0,6.400000000000001e+258,3],["Extinct Life",-1,1.0000000000000001e+259,5],["Ultra Thin Editions",1,1.22e+259,3],["Nonjudgemental Scrubbers",2,2.33e+260,3],["9th Dimensional Crusts",3,3.9900000000000005e+260,3],["Chicken Rings",4,7.66e+260,3],["Anti-Iceberg Artilery",5,1e+261,3],["And Enslave Civilization",-1,1e+262,5],["Cavier Popcorn",6,1.8999999999999998e+262,3],["Hilarious Advertisements",7,9.8e+262,3],["Laser Defense Systems",8,2.5999999999999996e+263,3],["Cray-Cray Crates",9,5.439999999999999e+263,3],["Lemon Implants",0,7e+263,3],["Reprinting Classic Editions",1,1e+264,3],["To Boldly Grow",-1,1e+265,3],["Limited Edition Buckets",2,4.5e+265,3],["Pizza-Based Drone Tech",3,6.9e+265,3],["Really Big Sandwiches",4,8.9e+265,3],["Sea Shanty Record Album",5,1.89e+266,3],["Hocky-Talkies",6,2.89e+266,3],["Isotope-Free Butter",7,4.4800000000000004e+266,3],["Potted Flowers",8,9e+266,3],["Anti-Residue Everything",9,5e+267,3],["(To No End)",-1,1e+268,7],["Deregulation",-1,1e+270,5],["Squeeze Out Competition",0,1e+273,7],["Copyright 'News'",1,2e+273,7],["Patent 'Washing'",2,3e+273,7],["Brand 'Pizza'",3,6e+273,7],["Monopolize Sugar",4,2.5e+274,7],["Impose Sanctions",5,2e+275,7],["Secure Broadcasting Rights",6,6e+275,7],["Condemn Pirates",7,9.99e+275,7],["As No System",-1,1e+277,4],["Print All Currency",8,1.5000000000000001e+277,7],["Trademark Oil",9,3.0000000000000002e+277,7],["Has Ever Grown",-1,1e+280,5],["Before",-1,1e+283,7.77],["Write News Personally",1,1e+285,13],["Wash Cars Personally",2,1e+285,13],["Deliver Pizza Personally",3,1e+285,13],["Makes Donuts Personally",4,1e+285,13],["Catch Shrimp Personally",5,1e+285,13],["Play Hockey Personally",6,1e+285,13],["Direct Movies Personally",7,1e+285,13],["Count Money Personally",8,1e+285,13],["Drill Oil Personally",9,1e+285,13],["Live Rich",-1,1e+286,7.77],["And Profit!",-1,1e+288,77.77]],"ang":[["Angel Sacrifice",-1,10000,"m",3],["Angelic Mutiny",-2,100000,"a",2],["Newspaper Swap",1,25000000,"u",10],["Car Wash Swap",2,25000000,"u",10],["Pizza Swap",3,25000000,"u",10],["Donut Swap",4,25000000,"u",10],["Angelic Rebellion",-2,100000000,"a",2],["Newspaper  Surge",1,250000000,"u",50],["Car Wash  Surge",2,250000000,"u",50],["Pizza Surge",3,250000000,"u",50],["Donut Surge",4,250000000,"u",50],["Angelic Selection",-1,1000000000,"m",5],["Newspaper Merger",1,25000000000,"u",50],["Car Wash Merger",2,25000000000,"u",50],["Pizza Merger",3,25000000000,"u",50],["Donut Merger",4,25000000000,"u",50],["Divine Intervention",-1,100000000000,"m",9],["Rapture Contingent",-1,1000000000000,"m",11],["Newspaperion Ultrus",1,250000000000000,"m",3],["Washicus Maximus",2,750000000000000,"m",3],["Pizzeria Primus",3,2000000000000000.0,"m",3],["Ultimus Donuticus",4,5000000000000000.0,"m",3],["Shrimpus Glorious",5,1e+16,"m",3],["Puckus Alotus",6,2.5e+16,"m",3],["Cinemaxima Spiritus",7,7.5e+16,"m",3],["Fundorium Sanctum",8,2e+17,"m",3],["Oil Vincit Omnia",9,4e+17,"m",3],["Lemonus Supremus",0,1e+18,"m",3],["Buy Earth",-1,1e+21,"m",15],["Newspaper Takeover",1,1e+22,"u",75],["Car Wash Takeover",2,1e+22,"u",75],["Pizza Takeover",3,1e+22,"u",75],["Donut Takeover",4,1e+22,"u",75],["Shrimp Takeover",5,1e+22,"u",75],["Newspaper Assimilation",1,1e+23,"u",75],["Car Wash Assimilation",2,1e+23,"u",75],["Pizza Assimilation",3,1e+23,"u",75],["Donut Assimilation",4,1e+23,"u",75],["Shrimp Assimilation",5,1e+23,"u",75],["First Amen-dment",1,1e+31,"u",100],["Unrefusable Offer",2,1e+32,"u",100],["Paradise Lost And Found",-2,1e+33,"a",10],["Black Friday the 13th",-1,1e+34,"m",15],["Divine Write Off",-1,1e+36,"m",3],["In Brightest Day...",-1,9.999999999999999e+39,"m",5],["In Darkest Night...",-1,1e+42,"m",5],["The Good News",1,2e+42,"u",50],["Synergize Suds",2,9.999999999999998e+46,"m",4],["Feta Beta-Testing",3,1.9999999999999997e+47,"m",6],["Pumpkin Spice",4,6.9999999999999995e+47,"m",3],["Cocktail Parties",5,2e+48,"m",3],["Free Jerseys",6,2.5e+49,"m",3],["In-Universe Continuity",7,5e+50,"m",3],["Dolla Bills Ya'll",8,2e+52,"m",3],["Anti-Solar Research",9,8e+52,"m",3],["Divine Squeeze",0,1.5e+53,"m",3],["Perfumed Pages",1,3e+53,"m",3],["Hark!",-2,5e+53,"a",10],["Fold Into Hats",1,1e+54,"m",3],["Free Breakfast",2,4e+54,"m",3],["Little Nero's",3,9.000000000000001e+54,"m",3],["Donut Isotopes",4,2.5e+55,"m",3],["Son Of A Shrimp",5,7.5e+55,"m",3],["Quack!",6,1.7700000000000002e+56,"m",3],["Rotten Potatoes",7,3e+56,"m",3],["Money Bin Life Guards",8,5e+56,"m",3],["Texas Tea",9,8e+56,"m",3],["Lemonster",0,1e+57,"m",3],["Recycling Boom",1,3e+61,"u",30],["Redundant Facilities",2,3e+61,"u",30],["No Competitors",3,3e+61,"u",30],["Donut Boutiques",4,3e+61,"u",30],["Hokey Honky Hockey",6,3e+61,"u",30],["Sacred Trust Fund",-1,9.999999999999999e+61,"m",5],["Effective Marketing",1,2e+63,"m",3],["Car Dirty-ers",2,2e+63,"m",3],["Guaranteed Horse Free",3,2e+63,"m",3],["Cartoon Endorsements",4,2e+63,"m",3],["Government Subsidy",5,2e+63,"m",3],["Union Busting",6,2e+63,"m",3],["Hire Viewers",7,2e+63,"m",3],["Sue Everything",8,2e+63,"m",3],["Accident Free Week",9,2e+63,"m",3],["Fund Favorable Studies",0,2e+63,"m",3],["Hallelujah!",-1,1.0000000000000001e+65,"m",7],["Heavenly News",1,1e+66,"m",3],["Discounts For Investors",2,4e+66,"m",3],["Ascended Pizza",3,1.2999999999999999e+67,"m",3],["Holy Donut Holes",4,2e+67,"m",3],["Shrimp Saints",5,2.8999999999999996e+67,"m",3],["Angelic Refs",6,3.7999999999999996e+67,"m",3],["Angel Best Boys",7,5.1999999999999995e+67,"m",3],["Seraph Saturdays",8,6.699999999999999e+67,"m",3],["The Cleansing Fires",9,7.2e+67,"m",3],["Thirsty Cherubs",0,9.599999999999999e+67,"m",3],["It Is Done",1,1.2499999999999999e+68,"u",50],["Profit-dence",-1,7.769999999999999e+68,"m",7.777777],["Emergency Reserves",1,5e+69,"u",10],["Bite The Cost",2,5e+69,"u",10],["A Little Further",3,5e+69,"u",10],["Desperate Measures",4,5e+69,"u",10],["Impulse Buy",5,5e+69,"u",10],["Seize Every Inch",6,5e+69,"u",10],["Small Opportunity",7,5e+69,"u",10],["Off Shore Refuge",8,5e+69,"u",10],["Shell Corporations",9,5e+69,"u",10],["Expensive",0,5e+69,"u",10],["Manufacture The News",1,1e+72,"m",3],["Freak Dust Storms",2,5e+72,"m",3],["Famine Zone Delivery",3,2.2e+73,"m",3],["Heritage Appeal",4,4.4e+73,"m",3],["Onboard Orchestra",5,1.11e+74,"m",3],["Pay Per View",6,2.22e+74,"m",3],["Enough Parking Spots",7,3.3299999999999997e+74,"m",3],["Catapults",8,4.44e+74,"m",3],["Large Hadron Pumps",9,5.55e+74,"m",3],["Oktoberlemon",0,6.659999999999999e+74,"m",3],["Propped Up",2,2.5e+76,"u",25],["Aunty Idol",1,2.5e+76,"u",25],["Pizza Clicker",3,2.5e+76,"u",25],["Donut Box",4,2.5e+76,"u",25],["Clicker Shrimps",5,2.5e+76,"u",25],["Dark Hockey",6,2.5e+76,"u",25],["Farley's Angels",7,2.5e+76,"u",25],["Aggressive Negotiation",8,2.5e+76,"u",25],["Worth It?",9,2.5e+76,"u",25],["Lemon Scented Angels",0,2.5e+76,"u",25],["Loyal Readers",1,1.1e+79,"m",3],["Mud Enthusiasts",2,2.7e+79,"m",3],["Gamers",3,4.3e+79,"m",3],["Police Officers",4,8.7e+79,"m",3],["Voracious Tourists",5,1.9e+80,"m",3],["Canadian Angels",6,3.21e+80,"m",3],["Movie Buffs",7,4.95e+80,"m",3],["Up And Coming Capitalists",8,6e+80,"m",3],["Off Roaders",9,7.25e+80,"m",3],["Thirsty Neighbors",0,8.98e+80,"m",3],["Proverbs",-1,3.0000000000000004e+84,"m",13.11],["Pile Of Haloes",-1,1.3e+88,"m",5],["Last Lunch Special",-1,3e+90,"m",3],["Holy Guacamole",-1,1.3000000000000001e+94,"m",4],["Low Sinterest Rates",-1,2.4e+97,"m",5],["Newspaper Dealing",1,1e+102,"u",25],["Car Wash Dealing",2,1e+102,"u",25],["Pizza Dealing",3,1e+102,"u",25],["Donut Dealing",4,1e+102,"u",25],["Shrimp Dealing",5,1e+102,"u",25],["Hockey Dealing",6,1e+102,"u",25],["Movie Dealing",7,1e+102,"u",25],["Bank Dealing",8,1e+102,"u",25],["Oil Dealing",9,1e+102,"u",25],["Lemon Dealing",0,1e+102,"u",25],["Ultra Mega Death Holiness",-1,3.33e+110,"m",3],["Angel-Sourced Ingredients",1,1e+114,"m",3],["Blessed Fuzzy Dice",2,2e+115,"m",3],["Holy Moly Guacamole",3,5e+115,"m",3],["Heavenly Sprinkles",4,1e+116,"m",3],["Tridents",5,2e+116,"m",3],["Turn Water Into Teeth",6,3e+116,"m",3],["Answered Movie Prayers",7,4e+116,"m",3],["Security Guardians",8,5e+116,"m",3],["Peppy Laborforce",9,7.5e+116,"m",3],["Awe-Inspiring Toasts",0,2e+117,"m",3],["Newspaper Transaction",1,1e+129,"u",25],["Car Wash Transaction",2,1e+129,"u",25],["Pizza Transaction",3,1e+129,"u",25],["Donut Transaction",4,1e+129,"u",25],["Shrimp Transaction",5,1e+129,"u",25],["Hockey Transaction",6,1e+129,"u",25],["Movie Transaction",7,1e+129,"u",25],["Bank Transaction",8,1e+129,"u",25],["Oil Transaction",9,1e+129,"u",25],["Lemon Transaction",0,1e+129,"u",25],["Venerated Bike Baskets",1,1e+138,"m",3],["Venerated Hoses",2,1e+138,"m",3],["Venerated Pizza Savers",3,1e+138,"m",3],["Venerated Novelty Mugs",4,1e+138,"m",3],["Venerated Rain Caps",5,1e+138,"m",3],["Venerated Hockey Tape",6,1e+138,"m",3],["Venerated Clackers",7,1e+138,"m",3],["Forever And Ever",-1,2e+138,"m",19],["Let There Be Clean",2,2e+138,"u",25],["Let There Be Cocktails",5,2e+138,"u",25],["Let There Be Games",6,2e+138,"u",25],["Let There Be Cashflow",8,2e+138,"u",25],["Let There Be Feasts",3,2e+138,"u",25],["Let There Be Lemons",0,2e+138,"u",25],["Let There Be Stories",1,3e+138,"u",25],["Let There Be Pastries",4,3e+138,"u",25],["Let There Be Classics",7,3e+138,"u",25],["Let There Be Blood",9,4e+138,"u",25]]};
+(function () {
+  'use strict';
+  var BIZ = [
+    { n: 'Lemonade Stand', c: 4 / 1.07, k: 1.07, t: 0.6, r: 1, m: 'Cabe Johnson', mc: 1000 },
+    { n: 'Newspaper Delivery', c: 60, k: 1.15, t: 3, r: 60, m: 'Perry Black', mc: 15000 },
+    { n: 'Car Wash', c: 720, k: 1.14, t: 6, r: 540, m: 'W.W. Heisenbird', mc: 100000 },
+    { n: 'Pizza Delivery', c: 8640, k: 1.13, t: 12, r: 4320, m: 'Mama Sean', mc: 500000 },
+    { n: 'Donut Shop', c: 103680, k: 1.12, t: 24, r: 51840, m: 'Jim Thorton', mc: 1200000 },
+    { n: 'Shrimp Boat', c: 1244160, k: 1.11, t: 96, r: 622080, m: 'Forest Trump', mc: 10000000 },
+    { n: 'Hockey Team', c: 14929920, k: 1.10, t: 384, r: 7464960, m: 'Dawn Cheri', mc: 111111111 },
+    { n: 'Movie Studio', c: 179159040, k: 1.09, t: 1536, r: 89579520, m: 'Stefani Speilburger', mc: 555555555 },
+    { n: 'Bank', c: 2149908480, k: 1.08, t: 6144, r: 1074954240, m: 'The Dark Lord', mc: 10000000000 },
+    { n: 'Oil Company', c: 25798901760, k: 1.07, t: 36864, r: 29668737024, m: 'Derrick Plainview', mc: 100000000000 }
+  ];
+  var NB = BIZ.length, UNL = DATA.unl, ALLU = DATA.allu, CASH = DATA.cash, ANG = DATA.ang;
+
+  /* ---------- art: flat object drawings (see ART above) ---------- */
+  /* business icons are the --s-disc variables set by ART */
+  function art(i) { return '<span class="ri"><i style="background-image:var(--s-disc' + i + ')"></i></span>'; }
+  function svgDisc(inner) { return '<span class="ri sv"><svg viewBox="0 0 100 100">' + inner + '</svg></span>'; }
+  var ANGEL_IN = ART.angel, STAR_IN = ART.star;
+  document.getElementById('capArt').innerHTML = ART.trophy;
+  document.getElementById('shopArt').innerHTML = ART.bars;
+
+  /* ---------- number names ---------- */
+  var NAMES = ['', 'thousand', 'million', 'billion', 'trillion', 'quadrillion', 'quintillion', 'sextillion', 'septillion', 'octillion', 'nonillion'];
+  (function () {
+    var U = ['', 'un', 'duo', 'tre', 'quattuor', 'quin', 'sex', 'septen', 'octo', 'novem'];
+    var T = ['dec', 'vigint', 'trigint', 'quadragint', 'quinquagint', 'sexagint', 'septuagint', 'octogint', 'nonagint'];
+    for (var t = 0; t < T.length; t++) for (var u = 0; u < U.length; u++) NAMES.push((u === 3 && t === 1 ? 'tres' : U[u]) + T[t] + 'illion');
+    NAMES.push('centillion', 'uncentillion');
+  })();
+  function grp(x) { return Math.floor(Math.log10(x) / 3 + 1e-9); }
+  function fmtN(x) {
+    if (!isFinite(x)) return 'Infinity';
+    if (x < 0) return '-' + fmtN(-x);
+    if (x < 1e6) return x.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    var g = grp(x), v = x / Math.pow(10, g * 3);
+    if (v >= 999.9995) { g++; v = x / Math.pow(10, g * 3); }
+    return v.toFixed(3) + ' ' + (NAMES[g] || ('e' + g * 3));
+  }
+  function fmt(x) { return '$' + fmtN(x); }
+  function fmtI(x) {
+    if (x < 1e6) return Math.floor(x).toLocaleString('en-US');
+    return fmtN(x).replace(/\.?0+ /, ' ');
+  }
+  function compact(x) {
+    if (x < 1000) return String(Math.floor(x));
+    var g = grp(x), L = ['', 'K', 'M', 'B', 'T'];
+    return Math.floor(x / Math.pow(10, g * 3)) + (L[g] || 'e' + g * 3);
+  }
+  function fmtT(s) {
+    s = Math.max(0, Math.floor(s));
+    var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60;
+    function p(n) { return n < 10 ? '0' + n : '' + n; }
+    return p(h) + ':' + p(m) + ':' + p(ss);
+  }
+  function fmtAway(ms) {
+    var s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+    if (d) return d + 'd ' + h + 'h ' + m + 'm';
+    if (h) return h + 'h ' + m + 'm';
+    return m + 'm ' + (s % 60) + 's';
+  }
+
+  /* ---------- state ---------- */
+  function fresh(keep) {
+    var s = {
+      cash: 0, life: 0, run: 0, angels: 0, spent: 0,
+      own: [], prog: [], go: [], mgr: [], cu: [], au: [],
+      mode: 0, t: Date.now(), resets: 0
+    };
+    for (var i = 0; i < NB; i++) { s.own.push(i === 0 ? 1 : 0); s.prog.push(0); s.go.push(false); s.mgr.push(false); }
+    for (i = 0; i < CASH.length; i++) s.cu.push(false);
+    for (i = 0; i < ANG.length; i++) s.au.push(false);
+    if (keep) { s.life = keep.life; s.angels = keep.angels; s.spent = keep.spent; s.mode = keep.mode; s.resets = keep.resets; }
+    return s;
+  }
+  var S = fresh(null);
+  var D = { rev: [], time: [], mult: [], spd: [], all: 1, allSpd: 0, eff: 2, bonus: 1 };
+
+  function compute() {
+    var i, j, e, minOwn = Infinity, mult = [], spd = [], all = 1, allSpd = 0, eff = 2;
+    for (i = 0; i < NB; i++) { mult.push(1); spd.push(0); if (S.own[i] < minOwn) minOwn = S.own[i]; }
+    for (i = 0; i < NB; i++) {
+      var L = UNL[i];
+      for (j = 0; j < L.length; j++) {
+        e = L[j]; if (e[0] > S.own[i]) break;
+        if (e[2] === 's') spd[e[4]]++; else mult[e[4]] *= e[3];
+      }
+    }
+    for (j = 0; j < ALLU.length; j++) { e = ALLU[j]; if (e[0] > minOwn) break; if (e[2] === 's') allSpd++; else all *= e[3]; }
+    for (j = 0; j < CASH.length; j++) if (S.cu[j]) { e = CASH[j]; if (e[1] === -1) all *= e[3]; else if (e[1] === -2) eff += e[3]; else mult[e[1]] *= e[3]; }
+    for (j = 0; j < ANG.length; j++) if (S.au[j]) { e = ANG[j]; if (e[3] === 'a') eff += e[4]; else if (e[3] === 'm') { if (e[1] === -1) all *= e[4]; else mult[e[1]] *= e[4]; } }
+    D.mult = mult; D.spd = spd; D.all = all; D.allSpd = allSpd; D.eff = eff;
+    D.bonus = 1 + S.angels * eff / 100;
+    for (i = 0; i < NB; i++) {
+      D.rev[i] = BIZ[i].r * S.own[i] * mult[i] * all * D.bonus;
+      D.time[i] = BIZ[i].t / Math.pow(2, spd[i] + allSpd);
+    }
+  }
+  function cost(i, k) {
+    var b = BIZ[i], c0 = b.c * Math.pow(b.k, S.own[i]);
+    return c0 * (Math.pow(b.k, k) - 1) / (b.k - 1);
+  }
+  function maxAff(i) {
+    var b = BIZ[i], c0 = b.c * Math.pow(b.k, S.own[i]);
+    if (S.cash < c0) return 0;
+    var k = Math.floor(Math.log(1 + S.cash * (b.k - 1) / c0) / Math.log(b.k));
+    while (k > 0 && cost(i, k) > S.cash * (1 + 1e-12)) k--;
+    return k;
+  }
+  function qty(i) {
+    if (S.mode === 0) return 1;
+    if (S.mode === 1) return 10;
+    if (S.mode === 2) return 100;
+    return Math.max(1, maxAff(i));
+  }
+  function totalAngels() { return Math.floor(150 * Math.sqrt(S.life / 1e15)); }
+  function claimable() { return Math.max(0, totalAngels() - S.angels - S.spent); }
+  function rate() {
+    var r = 0;
+    for (var i = 0; i < NB; i++) if (S.own[i] > 0 && S.mgr[i]) r += D.rev[i] / D.time[i];
+    return r;
+  }
+
+  function earn(x) { S.cash += x; S.life += x; S.run += x; }
+  var events = [];
+  function step(dt) {
+    for (var i = 0; i < NB; i++) {
+      if (S.own[i] <= 0) continue;
+      if (S.mgr[i]) S.go[i] = true;
+      if (!S.go[i]) continue;
+      S.prog[i] += dt / D.time[i];
+      if (S.prog[i] >= 1) {
+        var n = S.mgr[i] ? Math.floor(S.prog[i]) : 1;
+        earn(D.rev[i] * n);
+        if (S.mgr[i]) S.prog[i] -= n; else { S.prog[i] = 0; S.go[i] = false; }
+        if (D.time[i] >= 0.5) events.push([i, D.rev[i] * n]);
+      }
+    }
+  }
+
+  /* ---------- actions ---------- */
+  var dirty = true;
+  function tap(i) {
+    if (S.own[i] <= 0 || S.go[i]) return false;
+    S.go[i] = true; S.prog[i] = 0; dirty = true;
+    return true;
+  }
+  function buy(i, k) {
+    if (k == null) k = qty(i);
+    var c = cost(i, k);
+    if (c > S.cash * (1 + 1e-12) || k <= 0) return false;
+    var before = milestoneIndex(i);
+    S.cash = Math.max(0, S.cash - c); S.own[i] += k;
+    compute(); dirty = true;
+    if (milestoneIndex(i) > before) flashCard(i);
+    return true;
+  }
+  function milestoneIndex(i) {
+    var n = 0, L = UNL[i];
+    while (n < L.length && L[n][0] <= S.own[i]) n++;
+    return n;
+  }
+  function nextUnl(i) {
+    var L = UNL[i], n = milestoneIndex(i);
+    return n < L.length ? L[n] : null;
+  }
+  function prevGoal(i) { var n = milestoneIndex(i); return n > 0 ? UNL[i][n - 1][0] : 0; }
+  function hire(i) {
+    if (S.mgr[i] || S.cash < BIZ[i].mc) return false;
+    S.cash -= BIZ[i].mc; S.mgr[i] = true; S.go[i] = S.own[i] > 0; dirty = true;
+    return true;
+  }
+  function buyCash(j) {
+    if (S.cu[j] || S.cash < CASH[j][2]) return false;
+    S.cash -= CASH[j][2]; S.cu[j] = true; compute(); dirty = true;
+    return true;
+  }
+  function buyAngel(j) {
+    var e = ANG[j];
+    if (S.au[j] || S.angels < e[2]) return false;
+    S.angels -= e[2]; S.spent += e[2]; S.au[j] = true;
+    if (e[3] === 'u' && e[1] >= 0) S.own[e[1]] += e[4];
+    compute(); dirty = true;
+    return true;
+  }
+  function restart() {
+    var c = claimable();
+    var keep = { life: S.life, angels: S.angels + c, spent: S.spent, mode: S.mode, resets: S.resets + 1 };
+    S = fresh(keep);
+    compute(); dirty = true;
+    buildCards();
+    renderPanel();
+    save(true);
+  }
+
+  /* ---------- save / load ---------- */
+  function bits(a) {
+    var s = '', i, v;
+    for (i = 0; i < a.length; i += 4) {
+      v = (a[i] ? 1 : 0) | (a[i + 1] ? 2 : 0) | (a[i + 2] ? 4 : 0) | (a[i + 3] ? 8 : 0);
+      s += v.toString(16);
+    }
+    return s.replace(/0+$/, '');
+  }
+  function unbits(s, n) {
+    var a = [], i;
+    for (i = 0; i < n; i++) a.push(false);
+    if (typeof s !== 'string') return a;
+    for (i = 0; i < s.length; i++) {
+      var v = parseInt(s.charAt(i), 16) || 0;
+      for (var b = 0; b < 4; b++) if (i * 4 + b < n) a[i * 4 + b] = !!(v & (1 << b));
+    }
+    return a;
+  }
+  function num(v, d) { v = +v; return isFinite(v) && v >= 0 ? v : d; }
+  function serialize() {
+    var muted = false;
+    try { muted = !!(window.GameMusic && GameMusic.isMuted()); } catch (e) {}
+    return JSON.stringify({
+      v: 1, t: Date.now(), cash: S.cash, life: S.life, run: S.run, angels: S.angels, spent: S.spent, resets: S.resets, mode: S.mode,
+      own: S.own, prog: S.prog.map(function (p) { return Math.round(p * 1e4) / 1e4; }), go: S.go.map(function (g) { return g ? 1 : 0; }),
+      mgr: bits(S.mgr), cu: bits(S.cu), au: bits(S.au), music: { muted: muted }
+    });
+  }
+  function deserialize(o) {
+    if (!o || typeof o !== 'object' || o.v !== 1) return false;
+    var s = fresh(null), i;
+    s.cash = num(o.cash, 0); s.life = num(o.life, 0); s.run = num(o.run, 0); s.angels = num(o.angels, 0); s.spent = num(o.spent, 0);
+    s.resets = num(o.resets, 0); s.mode = [0, 1, 2, 3].indexOf(o.mode) >= 0 ? o.mode : 0; s.t = num(o.t, Date.now());
+    for (i = 0; i < NB; i++) {
+      if (o.own) s.own[i] = Math.floor(num(o.own[i], s.own[i]));
+      if (o.prog) s.prog[i] = Math.min(0.9999, num(o.prog[i], 0));
+      if (o.go) s.go[i] = !!o.go[i];
+    }
+    s.mgr = unbits(o.mgr, NB); s.cu = unbits(o.cu, CASH.length); s.au = unbits(o.au, ANG.length);
+    S = s;
+    return true;
+  }
+  var framed = false;
+  try { framed = window.parent && window.parent !== window; } catch (e) { framed = true; }
+  var LSK = 'capitalist.save', loaded = false, lastSaved = '', lastSaveAt = 0;
+  /* admin testing mode: start maxed out, never save */
+  var TEST = window.SX_TEST === true;
+  function maxOut() {
+    var s = fresh(null), i;
+    for (i = 0; i < NB; i++) {
+      var b = BIZ[i], last = UNL[i][UNL[i].length - 1][0];
+      s.own[i] = Math.min(last, 1000);
+      s.go[i] = true; s.mgr[i] = true;
+    }
+    for (i = 0; i < CASH.length; i++) s.cu[i] = true;
+    for (i = 0; i < ANG.length; i++) s.au[i] = true;
+    s.cash = 1e120; s.life = 1e120; s.run = 1e120; s.angels = 1e6; s.resets = 99;
+    S = s;
+  }
+  /* test numbers run long, so shrink stat values to fit instead of cutting them off */
+  function fitStats() {
+    var bs = pb.querySelectorAll('.ainv b');
+    for (var i = 0; i < bs.length; i++) {
+      var b = bs[i], fs = parseFloat(getComputedStyle(b).fontSize);
+      while (b.scrollWidth > b.clientWidth + 0.5 && fs > 12) { fs -= 1; b.style.fontSize = fs + 'px'; }
+    }
+  }
+  function save(force) {
+    if (!loaded || TEST) return;
+    var str = serialize();
+    if (str.length > 20000) return;
+    try { localStorage.setItem(LSK, str); } catch (e) {}
+    if (framed) { try { parent.postMessage({ type: 'game-save', game: 'capitalist', data: str }, '*'); } catch (e) {} }
+    lastSaved = str; lastSaveAt = Date.now(); dirty = false;
+  }
+  function loadLocal() {
+    try { var v = localStorage.getItem(LSK); return v ? JSON.parse(v) : null; } catch (e) { return null; }
+  }
+  function load(cb) {
+    if (TEST) { cb(null); return; }
+    if (!framed) { cb(loadLocal()); return; }
+    var reqId = 'cap' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), done = false;
+    function finish(d) { if (done) return; done = true; window.removeEventListener('message', onMsg); cb(d); }
+    function onMsg(e) {
+      var m = e.data;
+      if (!m || m.type !== 'game-load-res' || m.reqId !== reqId) return;
+      var d = null;
+      try { d = typeof m.data === 'string' && m.data ? JSON.parse(m.data) : null; } catch (err) { d = null; }
+      finish(d && d.v === 1 ? d : loadLocal());
+    }
+    window.addEventListener('message', onMsg);
+    if (window.SXR) SXR.hold(reqId); try { parent.postMessage({ type: 'game-load', game: 'capitalist', reqId: reqId }, '*'); } catch (e) { finish(loadLocal()); return; }
+    setTimeout(function () { finish(loadLocal()); }, 15000);
+  }
+
+  /* ---------- DOM ---------- */
+  var $ = function (id) { return document.getElementById(id); };
+  var grid = $('grid'), cashEl = $('cash'), rateEl = $('rate'), playEl = $('play'), stage = $('stage');
+  /* split a value into a big part and a scale word, like 1.405 and sextillion */
+  function parts(x, dollar) {
+    var s = fmtN(x), sp = s.indexOf(' ');
+    if (sp < 0) return ['$' + s, ''];
+    return [(dollar ? '$' : '') + s.slice(0, sp), s.slice(sp + 1)];
+  }
+  var cards = [];
+  function buildCards() {
+    grid.innerHTML = '';
+    cards = [];
+    for (var i = 0; i < NB; i++) {
+      var el = document.createElement('div');
+      el.className = 'card';
+      el.style.left = (333 + 440 * (i < 5 ? 0 : 1)) + 'px';
+      el.style.top = [113, 225, 336, 448, 559][i % 5] + 'px';
+      el.innerHTML = '<div class="ic"><span class="ring"><span class="bd" style="background-image:var(--s-disc' + i + ')"></span></span><b class="cn"></b></div>' +
+        '<div class="hit"><span class="gf"></span><span class="st"></span><div class="tx"><span class="a"></span><span class="b"></span></div></div>' +
+        '<button class="buy bo" type="button"><span class="lb">Buy</span><span class="qt"></span><span class="c"><span class="a"></span><span class="b"></span></span></button><div class="tm bg"></div>' +
+        '<button class="lock bo" type="button"><span class="n">' + BIZ[i].n + '</span><span class="c"></span></button>';
+      grid.appendChild(el);
+      var c = { el: el, ic: el.querySelector('.ic'), cntB: el.querySelector('.cn'), hit: el.querySelector('.hit'),
+        fill: el.querySelector('.hit .gf'), ra: el.querySelector('.hit .tx .a'), rb: el.querySelector('.hit .tx .b'), buy: el.querySelector('.buy'),
+        qt: el.querySelector('.buy .qt'), ca: el.querySelector('.buy .c .a'), cb: el.querySelector('.buy .c .b'),
+        tm: el.querySelector('.tm'), lock: el.querySelector('.lock'), lockC: el.querySelector('.lock .c'), cache: {} };
+      cards.push(c);
+      (function (i, c) {
+        function run(e) { e.preventDefault(); if (tap(i)) { c.ic.classList.remove('pop'); void c.ic.offsetWidth; c.ic.classList.add('pop'); } }
+        c.ic.addEventListener('pointerdown', run);
+        c.hit.addEventListener('pointerdown', run);
+        c.buy.addEventListener('click', function () { buy(i); paint(true); });
+        c.lock.addEventListener('click', function () { if (buy(i, 1)) { c.ic.classList.add('pop'); } paint(true); });
+      })(i, c);
+    }
+  }
+  function setT(c, key, el, v) { if (c.cache[key] !== v) { c.cache[key] = v; el.textContent = v; } }
+  function setCls(c, key, el, cls, on) { var k = key + cls; if (c.cache[k] !== on) { c.cache[k] = on; el.classList.toggle(cls, on); } }
+  function flashCard(i) {
+    var c = cards[i]; if (!c) return;
+    c.el.classList.remove('flash'); void c.el.offsetWidth; c.el.classList.add('flash');
+  }
+  function floater(i, v) {
+    var c = cards[i]; if (!c || S.own[i] <= 0 || curPanel) return;
+    var host = narrow ? playEl : stage;
+    var pr = host.getBoundingClientRect(), r = c.hit.getBoundingClientRect(), vr = playEl.getBoundingClientRect();
+    if (r.bottom < vr.top || r.top > vr.bottom) return;
+    var f = document.createElement('div');
+    f.className = 'fl';
+    f.textContent = '+' + fmt(v);
+    f.style.left = ((r.left - pr.left + r.width / 2) / scale) + 'px';
+    f.style.top = ((r.top - pr.top) / scale + (narrow ? playEl.scrollTop : 0) - 8) + 'px';
+    host.appendChild(f);
+    setTimeout(function () { f.remove(); }, 950);
+  }
+
+  /* best buy: the cheapest way to reach a next unlock */
+  var bestEl = $('best'), bestI = -1, bestK = 0, bestSig = '';
+  function pickBest() {
+    var bi = -1, bk = 0, bc = Infinity;
+    for (var i = 0; i < NB; i++) {
+      if (S.own[i] <= 0) continue;
+      var nx = nextUnl(i); if (!nx) continue;
+      var k = nx[0] - S.own[i], c = cost(i, k);
+      if (c < bc) { bc = c; bi = i; bk = k; }
+    }
+    bestI = bi; bestK = bk;
+    var sig = bi < 0 ? 'none' : bi + ':' + bk + ':' + (bc <= S.cash * (1 + 1e-12));
+    if (sig === bestSig) return;
+    bestSig = sig;
+    bestEl.classList.toggle('none', bi < 0);
+    if (bi < 0) return;
+    bestEl.querySelector('.bi').style.backgroundImage = 'var(--s-disc' + bi + ')';
+    bestEl.querySelector('b').textContent = 'x' + fmtI(bk);
+    bestEl.classList.toggle('no', bc > S.cash * (1 + 1e-12));
+    bestEl.title = BIZ[bi].n + ' ' + fmt(bc);
+  }
+  bestEl.addEventListener('click', function () { if (bestI >= 0 && buy(bestI, bestK)) { bestSig = ''; paint(true); } });
+
+  var shownCash = 0, FAST = 0.25;
+  function paint(force) {
+    for (var i = 0; i < NB; i++) {
+      var c = cards[i], own = S.own[i];
+      setCls(c, 'l', c.el, 'locked', own <= 0);
+      if (own <= 0) {
+        var lc = cost(i, 1);
+        setT(c, 'lc', c.lockC, fmt(lc));
+        setCls(c, 'lk', c.lock, 'no', lc > S.cash);
+        setCls(c, 'lk', c.lock, 'bg', lc > S.cash);
+        continue;
+      }
+      var k = qty(i), cc = cost(i, k), cp = parts(cc, false);
+      setT(c, 'q', c.qt, 'x' + fmtI(k));
+      setT(c, 'ca', c.ca, cp[0]);
+      setT(c, 'cb', c.cb, cp[1]);
+      setCls(c, 'one', c.buy, 'one', !cp[1]);
+      setCls(c, 'b', c.buy, 'no', cc > S.cash * (1 + 1e-12));
+      setCls(c, 'b', c.buy, 'bg', cc > S.cash * (1 + 1e-12));
+      setT(c, 'n', c.cntB, fmtI(own));
+      var fast = D.time[i] < FAST && (S.go[i] || S.mgr[i]), auto = S.mgr[i];
+      setCls(c, 'f', c.hit, 'fast', fast);
+      setCls(c, 'ps', c.hit, 'ps', auto);
+      if (auto) {
+        var ps = D.rev[i] / D.time[i];
+        setT(c, 'ra', c.ra, (ps < 1e6 ? '$' : '') + fmtN(ps) + ' /sec');
+        setT(c, 'rb', c.rb, '');
+      } else {
+        var rp = parts(D.rev[i], false);
+        setT(c, 'ra', c.ra, rp[0]);
+        setT(c, 'rb', c.rb, rp[1]);
+      }
+      var pf = fast ? 1 : S.go[i] ? S.prog[i] : 0;
+      var tf = 'inset(0 ' + ((1 - pf) * 100).toFixed(2) + '% 0 0)';
+      if (c.cache.tf !== tf) { c.cache.tf = tf; c.fill.style.clipPath = tf; }
+      var rem = fast ? 0 : S.go[i] ? (1 - S.prog[i]) * D.time[i] : D.time[i];
+      setT(c, 't', c.tm, fmtT(rem));
+    }
+    var cpt = parts(shownCash, true);
+    var html = '<span class="v">' + cpt[0] + '</span>' + (cpt[1] ? '<span class="u">' + cpt[1] + '</span>' : '');
+    if (cashEl._h !== html) { cashEl._h = html; cashEl.innerHTML = html; }
+    var r = rate();
+    var rt = r > 0 ? fmt(r) + ' per sec' : '';
+    if (rateEl._t !== rt) { rateEl._t = rt; rateEl.textContent = rt; }
+    pickBest();
+    badges();
+  }
+  var navs = Array.prototype.slice.call(document.querySelectorAll('[data-p]'));
+  function knob(name, on) {
+    var b = document.querySelector('.nav[data-p="' + name + '"]');
+    if (b && b._on !== on) { b._on = on; b.classList.toggle('new', on); }
+  }
+  var seenMs = -1;
+  function msTotal() { var t = 0; for (var i = 0; i < NB; i++) t += milestoneIndex(i); return t; }
+  function badges() {
+    var m = 0, u = 0, i;
+    for (i = 0; i < NB; i++) if (!S.mgr[i] && S.cash >= BIZ[i].mc) m++;
+    for (i = 0; i < CASH.length; i++) if (!S.cu[i] && S.cash >= CASH[i][2]) u++;
+    knob('managers', m > 0); knob('upgrades', u > 0);
+    var cl = claimable();
+    knob('investors', cl >= Math.max(1, S.angels * 0.1));
+    var mt = msTotal();
+    if (seenMs < 0 || mt < seenMs || curPanel === 'unlocks') seenMs = mt;
+    knob('unlocks', mt > seenMs);
+  }
+
+  /* ---------- layout: fixed 1280x720 stage scaled to fit, single column flow when small ---------- */
+  var narrow = false, scale = 1;
+  function layout() {
+    var w = window.innerWidth, h = window.innerHeight, s = Math.min(w / 1280, h / 720);
+    narrow = w < 760 || s < 0.56;
+    document.body.classList.toggle('narrow', narrow);
+    if (narrow) { scale = 1; stage.style.zoom = ''; stage.style.left = '0px'; stage.style.top = '0px'; grid.style.setProperty('--gz', String(Math.min(1.2, (w - 8) / 396))); return; }
+    /* zoom relays out at the real size so text stays crisp, unlike a scale transform */
+    scale = s;
+    stage.style.zoom = String(s);
+    stage.style.left = (Math.round((w - 1280 * s) / 2) / s) + 'px';
+    stage.style.top = (Math.round((h - 720 * s) / 2) / s) + 'px';
+  }
+  window.addEventListener('resize', layout);
+  layout();
+
+
+
+  /* ---------- panels ---------- */
+  var curPanel = null, panelSig = '';
+  var TITLES = { unlocks: 'Unlocks', upgrades: 'Upgrades', managers: 'Managers', investors: 'Investors', shop: 'Shop', stats: 'Swag & Stats' };
+  var panel = $('panel'), pb = $('pb');
+  function openPanel(name) {
+    if (curPanel === name) { closePanel(); return; }
+    curPanel = name; panelSig = ''; confirmRestart = false;
+    navs.forEach(function (n) { n.classList.toggle('on', n.dataset.p === name); });
+    if (name === 'unlocks') seenMs = msTotal();
+    $('ptitle').textContent = TITLES[name] || name;
+    panel.classList.add('show'); stage.classList.add('pan');
+    pb.scrollTop = 0;
+    renderPanel();
+  }
+  function closePanel() {
+    curPanel = null;
+    navs.forEach(function (n) { n.classList.remove('on'); });
+    panel.classList.remove('show'); stage.classList.remove('pan');
+  }
+  navs.forEach(function (n) { n.addEventListener('click', function () { openPanel(n.dataset.p); }); });
+  $('pclose').addEventListener('click', closePanel);
+  $('cap').addEventListener('click', function () { openPanel('stats'); });
+  /* a press anywhere outside the open panel closes it (capture, so nothing can stop it); its own buttons still toggle */
+  document.addEventListener('pointerdown', function (e) {
+    if (!curPanel || !e.target || !e.target.closest) return;
+    if (e.target.closest('#panel, [data-p], #cap, #shade, #away')) return;
+    closePanel();
+  }, true);
+  var confirmRestart = false;
+  function bizIcon(t) {
+    if (t >= 0) return art(t);
+    return svgDisc(t === -2 ? ANGEL_IN : STAR_IN);
+  }
+  function tname(t) { return t >= 0 ? BIZ[t].n : t === -1 ? 'All businesses' : 'Angel investors'; }
+  function effTxt(t, v, kind) {
+    if (kind === 'u') return '+' + v + ' ' + tname(t);
+    if (t === -2 || kind === 'a') return 'Angel effectiveness +' + v + '%';
+    return tname(t) + ' profit x' + (+v.toFixed(4));
+  }
+  function row(icon, t1, t2, t3, t3cls, btn, btnCls, act, done) {
+    return '<div class="row' + (done ? ' done' : '') + '">' + icon + '<div class="tx"><div class="t1">' + t1 + '</div><div class="t2">' + t2 + '</div>' +
+      (t3 ? '<div class="t3' + (t3cls ? ' ' + t3cls : '') + '">' + t3 + '</div>' : '') + '</div>' +
+      (btn ? '<button type="button" class="pbuy' + (btnCls ? ' ' + btnCls : '') + '" data-a="' + act + '">' + btn + '</button>' : '') + '</div>';
+  }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function renderPanel() {
+    if (!curPanel) return;
+    var h = '', i, j, sig = curPanel + '|';
+    if (curPanel === 'managers') {
+      var any = false;
+      for (i = 0; i < NB; i++) {
+        if (S.mgr[i]) continue;
+        any = true;
+        var ok = S.cash >= BIZ[i].mc;
+        sig += i + (ok ? 'y' : 'n');
+        h += row(art(i), esc(BIZ[i].m), 'Runs ' + BIZ[i].n, fmt(BIZ[i].mc), '', 'Hire', ok ? '' : 'no', 'm' + i);
+      }
+      h = any ? '<div class="list">' + h + '</div>' : '<div class="empty">All managers hired</div>';
+    } else if (curPanel === 'upgrades') {
+      var n = 0;
+      for (j = 0; j < CASH.length && n < 40; j++) {
+        if (S.cu[j]) continue;
+        n++;
+        var e = CASH[j], ok2 = S.cash >= e[2];
+        sig += j + (ok2 ? 'y' : 'n');
+        h += row(bizIcon(e[1]), esc(e[0]), effTxt(e[1], e[3], e[1] === -2 ? 'a' : 'm'), fmt(e[2]), '', 'Buy', ok2 ? '' : 'no', 'c' + j);
+      }
+      h = n ? '<div class="list">' + h + '</div>' : '<div class="empty">All upgrades bought</div>';
+    } else if (curPanel === 'unlocks') {
+      for (i = 0; i < NB; i++) {
+        var nx = nextUnl(i);
+        sig += i + ':' + S.own[i] + ',';
+        if (!nx) { h += row(art(i), BIZ[i].n, 'Complete', '', '', '', '', '', true); continue; }
+        var pg = prevGoal(i), w = Math.max(0, Math.min(1, (S.own[i] - pg) / (nx[0] - pg)));
+        var eff = nx[2] === 's' ? (nx[4] === i ? BIZ[i].n : BIZ[nx[4]].n) + ' speed x2' : effTxt(nx[4], nx[3], 'm');
+        h += '<div class="row">' + art(i) + '<div class="tx"><div class="t1">' + esc(nx[1]) + '</div><div class="t2">' + eff + '</div>' +
+          '<div class="meter"><i style="width:' + (w * 100).toFixed(1) + '%"></i></div></div><div class="ct">' + fmtI(S.own[i]) + ' / ' + fmtI(nx[0]) + '</div></div>';
+      }
+      var mn = Math.min.apply(null, S.own), na = null;
+      for (j = 0; j < ALLU.length; j++) if (ALLU[j][0] > mn) { na = ALLU[j]; break; }
+      sig += 'a' + mn;
+      if (na) {
+        var lo = 0; for (j = 0; j < ALLU.length; j++) if (ALLU[j][0] <= mn) lo = ALLU[j][0];
+        var wa = Math.max(0, Math.min(1, (mn - lo) / (na[0] - lo)));
+        h = '<div class="row">' + bizIcon(-1) + '<div class="tx"><div class="t1">' + esc(na[1]) + '</div><div class="t2">All businesses ' + (na[2] === 's' ? 'speed x2' : 'profit x2') + '</div>' +
+          '<div class="meter"><i style="width:' + (wa * 100).toFixed(1) + '%"></i></div></div><div class="ct">' + fmtI(mn) + ' / ' + fmtI(na[0]) + '</div></div>' + h;
+      }
+      h = '<div class="list">' + h + '</div>';
+    } else if (curPanel === 'investors') {
+      var cl = claimable();
+      sig += S.angels + ':' + cl + ':' + confirmRestart;
+      h += '<div class="ainv"><div class="st"><span class="k">Angels</span><b>' + fmtI(S.angels) + '</b></div>' +
+        '<div class="st"><span class="k">Bonus</span><b>+' + fmtI(S.angels * D.eff) + '%</b></div>' +
+        '<div class="st"><span class="k">On restart</span><b>+' + fmtI(cl) + '</b></div>' +
+        '<div class="rs"><span class="k">Lifetime ' + fmt(S.life) + '</span><span class="sp"></span>' +
+        '<button type="button" class="pbuy ang' + (cl > 0 ? '' : ' no') + '" data-a="r">' + (confirmRestart ? 'Confirm' : 'Restart') + '</button></div></div>';
+      h += '<div class="sub">Angel upgrades</div>' + angelList();
+    } else if (curPanel === 'shop') {
+      h = '<div class="ainv"><div class="st"><span class="k">Angels</span><b>' + fmtI(S.angels) + '</b></div><div class="st"><span class="k">Bonus</span><b>+' + fmtI(S.angels * D.eff) + '%</b></div>' +
+        '<div class="st"><span class="k">Upgrades owned</span><b class="d">' + countOn(S.au) + '</b></div></div>' + angelList();
+      sig += S.angels;
+    } else if (curPanel === 'stats') {
+      var muted = false, owned = 0;
+      try { muted = !!(window.GameMusic && GameMusic.isMuted()); } catch (e2) {}
+      for (i = 0; i < NB; i++) owned += S.own[i];
+      sig += muted;
+      h = '<div class="sub brand">tycoon simulator</div><div class="ainv">' +
+        '<div class="st"><span class="k">Lifetime earnings</span><b class="g">' + fmt(S.life) + '</b></div>' +
+        '<div class="st"><span class="k">This run</span><b class="g">' + fmt(S.run) + '</b></div>' +
+        '<div class="st"><span class="k">Per sec</span><b class="g">' + fmt(rate()) + '</b></div>' +
+        '<div class="st"><span class="k">Angels</span><b>' + fmtI(S.angels) + '</b></div>' +
+        '<div class="st"><span class="k">Angel bonus</span><b>+' + fmtI(S.angels * D.eff) + '%</b></div>' +
+        '<div class="st"><span class="k">Restarts</span><b class="d">' + fmtI(S.resets) + '</b></div>' +
+        '<div class="st"><span class="k">Businesses owned</span><b class="d">' + fmtI(owned) + '</b></div>' +
+        '<div class="st"><span class="k">Managers</span><b class="d">' + countOn(S.mgr) + ' / ' + NB + '</b></div>' +
+        '<div class="st"><span class="k">Upgrades</span><b class="d">' + (countOn(S.cu) + countOn(S.au)) + '</b></div>' +
+        '<div class="rs"><button type="button" class="pbuy alt" data-a="s">' + (muted ? 'Music off' : 'Music on') + '</button><span class="sp"></span>' +
+        '<button type="button" class="pbuy" data-a="g">All games</button></div></div>';
+      sig += Math.floor(Date.now() / 1000);
+    }
+    function countOn(a) { var n = 0; for (var q = 0; q < a.length; q++) if (a[q]) n++; return n; }
+    function angelList() {
+      var cnt = 0, l2 = '';
+      for (j = 0; j < ANG.length && cnt < 30; j++) {
+        if (S.au[j]) continue;
+        cnt++;
+        var a = ANG[j], ok3 = S.angels >= a[2];
+        sig += j + (ok3 ? 'y' : 'n');
+        l2 += row(bizIcon(a[3] === 'a' ? -2 : a[1]), esc(a[0]), effTxt(a[1], a[4], a[3]), fmtI(a[2]) + ' angels', 'ang', 'Buy', 'ang' + (ok3 ? '' : ' no'), 'a' + j);
+      }
+      return cnt ? '<div class="list">' + l2 + '</div>' : '<div class="empty">All angel upgrades bought</div>';
+    }
+    if (sig === panelSig) return;
+    panelSig = sig;
+    var st = pb.scrollTop;
+    h = h.replace(/class="(row|st|rs)\b/g, 'class="$1 paper').replace(/class="pbuy([^"]*)"/g, function (m, c) { return 'class="pbuy bo' + c + (/ (no|alt)\b/.test(c) ? ' bg' : '') + '"'; });
+    pb.innerHTML = h || '<div class="empty"></div>';
+    if (TEST) fitStats();
+    pb.scrollTop = st;
+  }
+  pb.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-a]'); if (!b) return;
+    var a = b.getAttribute('data-a'), k = +a.slice(1), ok = false;
+    if (a.charAt(0) === 'm') ok = hire(k);
+    else if (a.charAt(0) === 'c') ok = buyCash(k);
+    else if (a.charAt(0) === 'a') ok = buyAngel(k);
+    else if (a === 'g') { try { parent.postMessage({ type: 'games-menu' }, '*'); } catch (e2) {} return; }
+    else if (a === 's') { try { GameMusic.setMuted(!GameMusic.isMuted()); } catch (e2) {} panelSig = ''; renderPanel(); return; }
+    else if (a === 'r') {
+      if (claimable() <= 0) return;
+      if (!confirmRestart) { confirmRestart = true; renderPanel(); return; }
+      confirmRestart = false; restart(); closePanel(); return;
+    }
+    if (ok) { panelSig = ''; renderPanel(); paint(true); save(true); }
+  });
+
+  /* ---------- mode ---------- */
+  var MODES = ['x1', 'x10', 'x100', 'Max'];
+  function paintMode() {
+    $('mult').querySelector('.tq').textContent = MODES[S.mode];
+  }
+  $('mult').addEventListener('click', function () { S.mode = (S.mode + 1) % 4; paintMode(); paint(true); dirty = true; });
+
+  /* ---------- away ---------- */
+  function showAway(ms, v) {
+    $('awayT').textContent = fmtAway(ms);
+    $('awayV').textContent = '+' + fmt(v);
+    $('shade').classList.add('show'); $('away').classList.add('show');
+  }
+  function hideAway() { $('shade').classList.remove('show'); $('away').classList.remove('show'); }
+  $('awayOk').addEventListener('click', hideAway);
+  $('shade').addEventListener('click', hideAway);
+
+  /* ---------- loop ---------- */
+  var lastT = Date.now(), lastP = -1, panelTick = 0;
+  function advance(sec) {
+    var before = S.cash;
+    /* split long gaps so non managed cycles finish naturally */
+    step(sec);
+    return S.cash - before;
+  }
+  function frame(ts) {
+    var now = Date.now(), pnow = typeof ts === 'number' ? ts : performance.now();
+    var dt = (now - lastT) / 1000;
+    /* smooth frame delta from the rAF clock, wall clock only for long gaps */
+    if (dt < 5 && lastP >= 0) dt = (pnow - lastP) / 1000;
+    lastT = now; lastP = pnow;
+    if (dt < 0) dt = 0;
+    if (loaded) {
+      if (dt > 60) {
+        var got = advance(dt);
+        if (got > 0) { shownCash = S.cash; showAway(dt * 1000, got); }
+        events.length = 0;
+      } else advance(dt);
+      if (events.length) {
+        var seen = {};
+        for (var i = events.length - 1; i >= 0 && events.length - i <= 12; i--) { var ev = events[i]; if (!seen[ev[0]]) { seen[ev[0]] = 1; floater(ev[0], ev[1]); } }
+        events.length = 0;
+      }
+      if (S.cash < shownCash) shownCash = S.cash;
+      else shownCash += (S.cash - shownCash) * Math.min(1, dt * 9);
+      if (Math.abs(S.cash - shownCash) < Math.max(0.005, S.cash * 1e-6)) shownCash = S.cash;
+      paint();
+      if ((panelTick += dt) > 0.25) { panelTick = 0; renderPanel(); }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  setInterval(function () {
+    if (!loaded) return;
+    if (Date.now() - lastSaveAt >= 4000) { var s = serialize(); if (s !== lastSaved) save(true); }
+  }, 1000);
+  document.addEventListener('visibilitychange', function () { if (document.hidden) save(true); });
+  window.addEventListener('pagehide', function () { save(true); });
+
+  if (TEST) $('tst').hidden = false;
+  compute();
+  buildCards();
+  paintMode();
+  paint(true);
+  load(function (d) {
+    var gap = 0;
+    if (TEST) maxOut();
+    else if (d && deserialize(d)) { gap = Math.max(0, Date.now() - S.t); }
+    compute();
+    buildCards();
+    paintMode();
+    loaded = true;
+    lastT = Date.now();
+    if (gap > 0) {
+      var got = advance(gap / 1000);
+      events.length = 0;
+      if (gap > 60000 && got > 0) showAway(gap, got);
+    }
+    shownCash = S.cash;
+    paint(true);
+    save(true);
+  });
+  requestAnimationFrame(frame);
+
+
+  window.__cap = {
+    get S() { return S; }, D: D, BIZ: BIZ, DATA: DATA, compute: compute, step: function (s) { var g = advance(s); paint(true); return g; },
+    tap: tap, buy: buy, hire: hire, buyCash: buyCash, buyAngel: buyAngel, restart: restart, claimable: claimable, cost: cost, maxAff: maxAff,
+    save: save, serialize: serialize, fmt: fmt, openPanel: openPanel, closePanel: closePanel, get loaded() { return loaded; },
+    setMode: function (m) { S.mode = m; paintMode(); paint(true); }
+  };
+})();
+</script>
+<script>
+/* GameMusic: Lander's synthesized music (Track 2, Holst's Mars and Mercury), engine and note data copied from lander.html */
+var GameMusic = (function () {
+  var ac = null, master = null, music = null, noiseBuf = null;
+  var songId = null, game = 'game', opts = {}, want = false, muted = false, touched = false, saved = null, btns = [];
+  function now() { return ac.currentTime; }
+  function makeNoise() {
+    var len = ac.sampleRate * 2, b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0);
+    for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    return b;
+  }
+  function noiseSrc() { var s = ac.createBufferSource(); s.buffer = noiseBuf; s.loop = true; return s; }
+  function gainNode(v) { var g = ac.createGain(); g.gain.value = v; return g; }
+  function filter(type, f, q) { var n = ac.createBiquadFilter(); n.type = type; n.frequency.value = f; if (q) n.Q.value = q; return n; }
+  var BPM = 124, BASE_STEP = 60 / BPM / 4, STEP = BASE_STEP, BAR = STEP * 16;
+  function midi(n) { return 440 * Math.pow(2, (n - 69) / 12); }
+  function nn(s) { var m = /^([A-G])(#|b)?(-?\d)$/.exec(s), b = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]]; return b + (m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0) + (+m[3] + 1) * 12; }
+  var CH = {};
+  function mel(str) { return str ? str.split(" ").map(function (t) { var p = t.split(":"); return [+p[0], nn(p[1]), +p[2]]; }) : []; }
+  function secP(name, bars, spb, qbpm, fill) {
+    var ev = {}, add = function (st, e) { var k = Math.floor(st + 1e-6); e.off = st - k; (ev[k] = ev[k] || []).push(e); };
+    fill(add, function (s) { return s.split(" ").map(nn); });
+    return { name: name, bars: bars, spb: spb, stepT: 60 / qbpm / 4, ev: ev };
+  }
+  function chordAt(add, st, inst, v, d, extra) { var e = { i: inst, v: v, d: d }; if (extra) for (var k in extra) e[k] = extra[k]; add(st, e); }
+  function notes(add, str, inst, o) {
+    o = o || {};
+    str.split(" ").forEach(function (t) {
+      if (!t) return;
+      var p = t.split(":"), e = { i: inst, n: nn(p[1]) + (o.tr || 0), d: +p[2] };
+      if (o.ex) for (var k in o.ex) e[k] = o.ex[k];
+      add((o.at || 0) + (+p[0]), e);
+    });
+  }
+  function phrase(add, str, o) {
+    o = o || {};
+    var ms = mel(str);
+    add((o.at || 0) + ms[0][0], { i: "soar", list: ms.map(function (m) { return [m[0] - ms[0][0], m[1] + (o.tr || 0), m[2]]; }), soft: !!o.soft });
+  }
+  var HOLST = {
+    mercury: function () {
+      function cell(add, s0, oct, vel) {
+        [["F", 0], ["Bb", 0], ["D", 1], ["E", 1], ["B", 0], ["G#", 0]].forEach(function (c, k) {
+          var n = nn(c[0] + (oct + c[1]));
+          add(s0 + k * 2, { i: "wood", n: n, d: 1.6, vel: k ? 0.7 : vel });
+          add(s0 + k * 2, { i: "strShort", n: n, d: 1.2, vel: 0.8 });
+        });
+      }
+      function harps(add, s0, oct) {
+        chordAt(add, s0, "harpC", [nn("Bb" + (oct - 1)), nn("D" + oct), nn("F" + oct)], 4, { vel: 0.8 });
+        chordAt(add, s0 + 6, "harpC", [nn("E" + oct), nn("G#" + oct), nn("B" + oct)], 4, { vel: 0.8 });
+        add(s0, { i: "pluck", n: nn("Bb1"), d: 4 }); add(s0 + 6, { i: "pluck", n: nn("E2"), d: 4 });
+      }
+      var m1 = secP("m1", 8, 12, 132, function (add) {
+        [2, 3, 4, 0, 4, 3, 2].forEach(function (oct, b) {
+          if (b === 3) notes(add, "0:A5:2 2:E5:2 4:C#5:2 6:E5:2", "wood", { at: 36, ex: { vel: 0.8 } });
+          else cell(add, b * 12, oct, 1);
+          harps(add, b * 12, b === 3 ? 4 : oct);
+        });
+        harps(add, 84, 4);
+        add(84, { i: "celesta", n: nn("F5"), d: 2 }); add(90, { i: "celesta", n: nn("E5"), d: 2 });
+        phrase(add, "94:A5:2");
+      });
+      var m2 = secP("m2", 7, 12, 132, function (add) {
+        phrase(add, "0:G5:2 8:G5:2 10:A5:2 12:G5:2 14:F5:2 16:E5:2 18:F5:2 20:G5:2 22:F5:2 24:E5:6 30:D5:6 36:G5:4 40:G5:2 42:A5:6 48:G5:2 50:F5:2 52:E5:2 54:F5:2 56:G5:2 58:F5:2 60:E5:4 64:C5:2 66:D5:6 72:G5:8");
+        for (var b = 0; b < 7; b++) {
+          var s0 = b * 12;
+          [0, 6].forEach(function (h) {
+            add(s0 + h, { i: "pluck", n: nn("G3"), d: 2, vel: 0.8 }); add(s0 + h + 2, { i: "pluck", n: nn("Bb3"), d: 2, vel: 0.7 });
+            add(s0 + h + 4, { i: "pluck", n: nn("D4"), d: 2, vel: 0.6 }); add(s0 + h + 4, { i: "pluck", n: nn("F4"), d: 2, vel: 0.6 });
+          });
+          if (b >= 3 && b <= 5) { add(s0, { i: "wood", n: nn("F4"), d: 11, vel: 0.35 }); add(s0, { i: "wood", n: nn("Bb4"), d: 11, vel: 0.35 }); }
+        }
+        add(0, { i: "pluck", n: nn("G2"), d: 6 }); add(36, { i: "pluck", n: nn("G2"), d: 6 }); add(72, { i: "pluck", n: nn("G2"), d: 6 });
+      });
+      var TA = "0:G5:4 4:G5:2 6:A5:6 12:G5:2 14:F5:2 16:E5:2 18:F5:2 20:G5:2 22:F5:2 24:E5:6 30:D5:6";
+      var TB = "36:G5:4 40:G5:2 42:A5:6 48:G5:2 50:F5:2 52:E5:2 54:F5:2 56:G5:2 58:F5:2 60:E5:4 64:C5:2 66:D5:6";
+      var TUNE = TA + " " + TB;
+      function hq(add, s0, lo, hi, vel) { [0, 3, 6, 9].forEach(function (q, k) { (k % 2 ? hi : lo).forEach(function (n) { add(s0 + q, { i: "pluck", n: n, d: 2, vel: vel || 0.6 }); }); }); }
+      function held(add, list, inst, vel) { list.forEach(function (c) { c[1].split(" ").map(nn).forEach(function (n) { add(c[0], { i: inst, n: n, d: c[2], vel: vel }); }); }); }
+      function timpC(add, s0, k) {
+        [["0:4 4:2 8:2 10:2"], ["0:2 2:2 4:2 6:4 10:2"], ["0:4 4:4 8:4"]][k % 3][0].split(" ").forEach(function (t) { var p = t.split(":"); add(s0 + +p[0], { i: "timp", n: nn("C3"), vel: 0.35 }); });
+      }
+      var N0 = function (s) { return s.split(" ").map(nn); };
+      var m3 = secP("oboe", 6, 12, 132, function (add) {
+        notes(add, TUNE, "wood", { ex: { vel: 0.85 } });
+        add(0, { i: "brassC", v: [nn("G4")], d: 48, vel: 0.3 });
+        for (var b = 0; b < 6; b++) hq(add, b * 12, b < 4 ? N0("G3 Bb3") : N0("F3 A3"), b < 4 ? N0("D4 F4") : N0("C4 F4"));
+      });
+      var m4 = secP("flute", 6, 12, 132, function (add) {
+        notes(add, TUNE, "wood", { ex: { vel: 0.85 } });
+        add(0, { i: "wood", n: nn("E4"), d: 72, vel: 0.3 });
+        var H = [["Eb4 G4", "Bb4 D5"], ["Eb4 G4", "Bb4 D5"], ["C#4 E4", "G4 Bb4"], ["A3 C#4", "E4 G4"], ["D4 F4", "Ab4 C5"], ["D4 F4", "Ab4 C5"]];
+        H.forEach(function (h, b) { hq(add, b * 12, N0(h[0]), N0(h[1])); });
+      });
+      var m5 = secP("celesta", 6, 12, 132, function (add) {
+        notes(add, TUNE, "celesta", { ex: { vel: 0.9 } });
+        ["F#3 D4 F4 A4", "F3 D4 E4 G4", "F3 D4 E4 G4", "F#3 D4 F4 A4", "F3 D4 E4 G4", "F3 D4 E4 G4"].forEach(function (c, b) { chordAt(add, b * 12, "strC", N0(c), 12, { vel: 0.35 }); });
+        for (var b = 0; b < 6; b++) hq(add, b * 12, N0("D4 F4"), b === 3 ? N0("Ab4 B4") : N0("Ab4 C5"), 0.5);
+      });
+      var m6 = secP("clarinet", 6, 12, 132, function (add) {
+        notes(add, TUNE, "wood", { tr: -12, ex: { vel: 0.9 } });
+        var C = ["B3 D#4 F#4", "B3 D#4 F#4", "Bb3 D4 F4", "C4 E4 G4", "Bb3 D4 F4", "D4 F4 A4"];
+        C.forEach(function (c, b) {
+          var v = N0(c);
+          chordAt(add, b * 12, "strC", [v[0] - 12, v[1] - 12], 12, { vel: 0.4 });
+          [0, 3, 6, 9].forEach(function (q, k) { [v[k % 2 ? 2 : 0] + 12, v[1] + 12].forEach(function (n) { add(b * 12 + q, { i: "wood", n: n, d: 1, vel: 0.3 }); }); });
+        });
+      });
+      var m7 = secP("figIV", 12, 12, 132, function (add) {
+        phrase(add, TUNE); phrase(add, TUNE, { at: 72 });
+        notes(add, TUNE, "cstr", { at: 72, tr: -12, ex: { vel: 0.6 } });
+        var C = ["F3 A3 B3 E4", "E3 A3 D4", "G3 B3 E4", "F3 A3 C4 G4", "G3 B3 D4 F4", "G3 C4 E4 A4",
+                 "F3 B3 D4 G4", "E3 A3 C4 F4", "F3 B3 D4 G4", "G3 C4 F4 A4", "B3 E4 G4 C5", "A3 D4 F#4 B4"];
+        C.forEach(function (c, b) { chordAt(add, b * 12, "brassC", N0(c), 12, { vel: 0.3 + b * 0.03 }); N0(c).forEach(function (n) { add(b * 12, { i: "wood", n: n, d: 12, vel: 0.25 + b * 0.02 }); }); });
+      });
+      function sweep(add, s0, ch, vel) { ch.forEach(function (n, k) { add(s0 + k * 0.5, { i: "pluck", n: n, d: 2, vel: vel || 0.7 }); }); }
+      var m8 = secP("tutti", 6, 12, 132, function (add) {
+        phrase(add, TUNE); notes(add, TUNE, "cstr", { tr: 12, ex: { vel: 0.55 } }); notes(add, TUNE, "wood", { ex: { vel: 0.6 } });
+        held(add, [[0, "Bb3 D4 F4 Bb4", 48], [48, "G3 Bb3 D4 G4", 24]], "str", 0.7);
+        add(0, { i: "deep", n: nn("Bb1"), d: 48, vel: 0.5 }); add(48, { i: "deep", n: nn("G1"), d: 24, vel: 0.5 });
+        add(0, { i: "str", n: nn("Bb2"), d: 48, vel: 0.8 }); add(48, { i: "str", n: nn("G2"), d: 24, vel: 0.8 });
+        for (var b = 0; b < 5; b++) sweep(add, b * 12, N0("Bb2 F3 Bb3 D4 F4 Bb4 D5 F5"));
+        chordAt(add, 60, "harpC", N0("G3 Bb3 D4 G4"), 4);
+      });
+      var m9 = secP("climax", 12, 12, 132, function (add) {
+        notes(add, TA, "brass", { ex: { vel: 0.7 } }); notes(add, TA, "wood", { ex: { vel: 0.7 } });
+        phrase(add, TB, { at: 0 }); notes(add, TB, "cstr", { tr: 12, ex: { vel: 0.6 } });
+        notes(add, TA, "hbrass", { at: 72, tr: -12 });
+        phrase(add, TB, { at: 72, soft: true });
+        ["0:C6:12 12:Bb5:12 24:Ab5:12", "72:C6:12 84:Bb5:12 96:Ab5:12"].forEach(function (s) { notes(add, s, "cstr", { ex: { vel: 0.8 } }); notes(add, s, "wood", { ex: { vel: 0.5 } }); });
+        add(0, { i: "crash" });
+        add(0, { i: "deep", n: nn("C1"), d: 144, vel: 0.6 }); add(0, { i: "str", n: nn("C2"), d: 144, vel: 0.9 }); add(0, { i: "lbrass", n: nn("C2"), d: 36 });
+        for (var q = 0; q < 48; q++) add(q, { i: "timp", n: nn("C2"), vel: 0.18 + (q % 6 ? 0 : 0.1) });
+        [0, 12, 48, 60].forEach(function (s) { sweep(add, s, N0("Ab2 Eb3 Ab3 C4 Eb4 Ab4 C5 Eb5"), 0.75); });
+        [36, 84].forEach(function (s) { chordAt(add, s, "harpC", N0("Ab3 C4 Eb4 Ab4"), 4); });
+        held(add, [[0, "Ab3 C4 Eb4", 36], [36, "Ab3 C4 Eb4 Ab4", 36], [72, "Ab3 C4 Eb4", 36]], "str", 0.55);
+        held(add, [[108, "E4 G4 C5", 12], [120, "E4 G4 Bb4", 12], [132, "Eb4 Ab4 C5", 12]], "wood", 0.4);
+      });
+      var m10 = secP("figV", 10, 12, 132, function (add) {
+        phrase(add, TA, { tr: -12 }); notes(add, TA, "str", { tr: -24, ex: { vel: 0.7 } }); notes(add, TA, "brass", { tr: -12, ex: { vel: 0.45 } });
+        notes(add, TB, "wood", { tr: -12, ex: { vel: 0.75 } }); phrase(add, TB, { tr: -12, soft: true });
+        notes(add, TA + " 36:E5:6 42:D5:6", "wood", { at: 72, tr: -12, ex: { vel: 0.8 } });
+        [[0, "Bb1", 24], [24, "G1", 12], [36, "Bb1", 12], [48, "G1", 24]].forEach(function (b) { add(b[0], { i: "str", n: nn(b[1]) + 12, d: b[2], vel: 0.8 }); add(b[0], { i: "deep", n: nn(b[1]), d: b[2], vel: 0.4 }); });
+        held(add, [[0, "D3 Ab3", 24], [24, "D3 F3", 12], [36, "D3 Ab3", 12], [48, "D3 F3", 24]], "wood", 0.4);
+        held(add, [[72, "C3 E3 G3", 24], [96, "Bb2 Eb3 G3", 12], [108, "C3 E3 G3", 12]], "str", 0.5);
+      });
+      var m11 = secP("pause", 4, 12, 80, function (add) {
+        add(0, { i: "wood", n: nn("G4"), d: 18, vel: 0.5 }); add(18, { i: "wood", n: nn("E4"), d: 6, vel: 0.45 });
+        held(add, [[0, "Bb1 Bb2", 24], [24, "Bb1 Bb2", 24]], "str", 0.6);
+        add(12, { i: "wood", n: nn("Bb3"), d: 2, vel: 0.5 }); add(14, { i: "wood", n: nn("D4"), d: 2, vel: 0.5 }); add(16, { i: "wood", n: nn("C#4"), d: 2, vel: 0.5 });
+        held(add, [[24, "E4 Bb3", 24]], "str", 0.45);
+      });
+      var m12 = secP("celestaRun", 9, 12, 132, function (add) {
+        "C5 D#5 G#5 A5 Bb5 C6 D6 Eb6".split(" ").forEach(function (n, k) { add(k * 1.5, { i: "celesta", n: nn(n), d: 1.5 }); });
+        notes(add, "12:E6:2 14:B5:2 16:G#5:2 18:F#6:2 20:A5:2 22:F#5:2 24:C#6:2 26:G#5:2 28:E5:2 30:D6:2 32:A#5:2 34:F#5:2 " +
+                   "36:Bb5:2 38:F5:2 40:D5:2 42:A5:2 44:Eb5:2 46:C5:2 48:G5:2 50:D5:2 52:Bb4:2 54:F5:2 56:C5:2 58:A4:2", "celesta");
+        notes(add, "12:E6:2 14:B5:2 16:G#5:2 18:F#6:2 20:A5:2 22:F#5:2 24:C#6:2 26:G#5:2 28:E5:2 30:D6:2 32:A#5:2 34:F#5:2", "wood", { ex: { vel: 0.35 } });
+        [[60, "F#4 B4 D#5"], [64, "G4 B4 E5"], [68, "A4 C#5 F#5"], [72, "C#4 E4 A4"], [76, "E4 G#4 C#5"], [80, "D#4 F#4 B4"], [84, "D4 F4 B4"], [88, "G4 B4 D5"], [92, "A4 C5 Eb5"]].forEach(function (c) { N0(c[1]).forEach(function (n) { add(c[0], { i: "celesta", n: n, d: 4, vel: 0.8 }); }); });
+        N0("Bb4 D5 F5").forEach(function (n) { add(96, { i: "celesta", n: n, d: 8, vel: 0.8 }); }); N0("A4 C5 F5").forEach(function (n) { add(104, { i: "celesta", n: n, d: 4, vel: 0.8 }); });
+        [36, 40, 44, 48, 52, 56].forEach(function (s, k) { chordAt(add, s, "harpC", N0(k % 3 === 1 ? "Bb3 D4 F4" : "F3 Bb3 D4"), 3, { vel: 0.6 }); });
+        notes(add, "84:F6:2 86:D6:2 88:Bb5:2 90:F6:2 92:D6:2 94:Bb5:2 96:Eb6:2 98:C6:2 100:A5:2 102:Eb6:2 104:C6:2 106:A5:2", "pluck", { ex: { vel: 0.5 } });
+      });
+      var m13 = secP("figVII", 13, 12, 132, function (add) {
+        var V = ("B3 C#4 D4 E4 F#4 G4 A4 B4 D5 C#5 F#4 A4 B4 C#5 D5 E5 F#5 G5 A5 B5 A5 G5 E5 F#5 G5 E5 F#5 G5 A5 F#5 " +
+                 "B4 C#5 F#5 E5 D5 C#5 D5 C#5 A4 B4 C#5 A4 A4 B4 C#5 A4 F#4 G4 C#5 D5 E5 F#5 G5 E5 F#5 G5 A5 E5 F#5 G5 " +
+                 "G5 A5 B5 C#6 D6 B5 D6 C#6 D6 B5 C#6 A5 A5").split(" ");
+        V.forEach(function (n, k) { add(k * 2, { i: "strShort", n: nn(n), d: 1.2, vel: 0.7 }); add(k * 2, { i: "strShort", n: nn(n) - 12, d: 1.2, vel: 0.5 }); });
+        add(0, { i: "pluck", n: nn("D2"), d: 2, vel: 0.6 });
+      });
+      var m14 = secP("soloF", 14, 12, 132, function (add) {
+        notes(add, "0:C#6:4 4:C#6:2 6:D6:6 12:C#6:2 14:B5:2 16:A#5:2 18:B5:2 20:C#6:2 22:B5:2 24:A#5:6 30:G#5:6", "wood", { ex: { vel: 0.7 } });
+        held(add, [[0, "G#4 B4", 36]], "wood", 0.3);
+        notes(add, "36:A4:2 38:Bb4:2 40:A4:2 42:Bb4:2 44:Ab4:2", "wood", { ex: { vel: 0.35 } });
+        phrase(add, TUNE, { at: 48, tr: 5, soft: true });
+        phrase(add, TA.split(" ").slice(0, 8).join(" "), { at: 120, tr: 5 }); notes(add, TA.split(" ").slice(0, 8).join(" "), "cstr", { at: 120, tr: 5, ex: { vel: 0.7 } });
+        notes(add, "144:A5:4 148:G5:1 149:F5:1 150:E5:1 151:D5:1 152:C5:1 153:B4:1 154:A4:1 155:G4:1", "cstr", { ex: { vel: 0.8 } });
+        held(add, [[48, "C4 E4 G4", 96]], "wood", 0.3);
+        for (var b = 0; b < 13; b++) timpC(add, b * 12, b);
+        held(add, [[156, "D4 A4", 12], [156, "Ab3", 12]], "str", 0.8); add(156, { i: "str", n: nn("B1"), d: 12, vel: 0.6 });
+      });
+      var m15 = secP("ending", 18, 12, 132, function (add) {
+        add(0, { i: "str", n: nn("B1"), d: 96, vel: 0.5 });
+        notes(add, "0:Bb6:2 2:F6:2 4:D6:2 6:A6:2 8:Eb6:2 10:C6:2 12:G6:2 14:D6:2 16:Bb5:2 18:F6:2 20:C6:2 22:A5:2 24:F6:2 26:C#6:2 28:A5:2 30:E6:2 32:B5:2 34:G#5:2 36:D#6:2 38:B5:2 40:G#5:2 42:C#6:2 44:G#5:2 46:E5:2", "celesta", { tr: -12, ex: { vel: 0.8 } });
+        [0, 4, 8, 12, 16, 20].forEach(function (s) { chordAt(add, s, "harpC", N0("Bb4 D5 F5"), 3, { vel: 0.4 }); });
+        [24, 28, 32, 36, 40, 44].forEach(function (s, k) { chordAt(add, s, "harpC", N0(k % 2 ? "E4 G#4 B4" : "G#4 B4 D#5"), 3, { vel: 0.4 }); });
+        notes(add, "48:Bb5:2 50:F5:2 52:D5:2 54:A5:2 56:Eb5:2 58:C5:2 60:G5:2 62:D5:2 64:Bb4:2 66:F5:2 68:C5:2 70:A4:2", "wood", { ex: { vel: 0.5 } });
+        add(72, { i: "str", n: nn("E6"), d: 144, vel: 0.35 });
+        N0("D5 G5 Bb5").forEach(function (n) { add(72, { i: "celesta", n: n, d: 6, vel: 0.7 }); }); N0("D5 F5 A5").forEach(function (n) { add(78, { i: "celesta", n: n, d: 6, vel: 0.7 }); });
+        N0("C#5 E5 A5").forEach(function (n) { add(84, { i: "celesta", n: n, d: 4, vel: 0.7 }); });
+        notes(add, "100:Bb4:2 102:A4:2 104:G4:2 108:E4:4", "str", { ex: { vel: 0.5 } });
+        notes(add, "100:G4:2 102:F4:2 104:D4:2 108:C#4:4", "str", { ex: { vel: 0.45 } });
+        notes(add, "100:D4:2 102:Bb3:2 104:G3:2 108:E3:4", "str", { ex: { vel: 0.45 } });
+        chordAt(add, 120, "harpC", N0("Bb3 D4 F4"), 4, { vel: 0.5 }); chordAt(add, 138, "harpC", N0("Bb3 D4 F4"), 4, { vel: 0.5 });
+        notes(add, "150:Bb2:2 152:Bb2:2 154:A2:2 156:E2:4", "pluck", { ex: { vel: 0.6 } });
+        add(156, { i: "deep", n: nn("E1"), d: 48, vel: 0.4 });
+        held(add, [[180, "B2 D#3 F#3", 24]], "wood", 0.35);
+        N0("E2 E3 B3 E4 G#4 B4 E5").forEach(function (n) { add(210, { i: "pluck", n: n, d: 2, vel: 0.6 }); });
+        N0("E4 G#4 B4 E5").forEach(function (n) { add(210, { i: "wood", n: n, d: 2, vel: 0.45 }); });
+        add(210, { i: "brassStabL", v: [nn("E4")], d: 1.5, vel: 0.4 });
+      });
+      return { intro: [], loop: [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15] };
+    },
+    mars: function () {
+      var R = [[0, 1.33], [1.333, 1.33], [2.667, 1.33], [4, 4], [8, 4], [12, 2], [14, 2], [16, 4]];
+      function ost(add, s0, vel, p) { var n = nn(p || "G2"); R.forEach(function (r) { add(s0 + r[0], { i: "pluck", n: n, d: r[1], tick: true, vel: vel }); }); add(s0, { i: "timp", n: n }); add(s0 + 16, { i: "timp", n: n, vel: 0.6 }); }
+      function theLine(add, at, full) {
+        var L = "0:G2:32 32:D3:8 40:Db3:28";
+        notes(add, L, "lbrass", { at: at });
+        notes(add, L, "deep", { at: at, tr: -12, ex: { vel: 0.45 } });
+        mel(L).forEach(function (m) { chordAt(add, at + m[0], "brassC", full ? [m[1] + 12, m[1] + 24] : [m[1] + 12], m[2], { vel: full ? 0.5 : 0.6 }); });
+        add(at + 40, { i: "str", n: nn("Bb2"), d: 28, vel: 0.6 }); add(at + 40, { i: "wood", n: nn("Db4"), d: 28, vel: 0.5 });
+      }
+      var ma1 = secP("ma1", 8, 20, 166, function (add, N) {
+        for (var b = 0; b < 8; b++) ost(add, b * 20, 0.8 + b * 0.03);
+        chordAt(add, 0, "strC", N("G2 D3 G3"), 40, { vel: 0.6 });
+        theLine(add, 40, false);
+        chordAt(add, 120, "strC", N("G2 D3 G3"), 40, { vel: 0.7 });
+      });
+      var ma2 = secP("ma2", 8, 20, 166, function (add, N) {
+        for (var b = 0; b < 8; b++) ost(add, b * 20, 1 + b * 0.04);
+        theLine(add, 0, true);
+        chordAt(add, 80, "strC", N("G2 D3 G3 D4"), 80, { vel: 0.9 });
+        add(80, { i: "deep", n: nn("G1"), d: 80, vel: 0.7 });
+        add(140, { i: "cymSwell", d: 20 });
+      });
+      var ma3 = secP("ma3", 6, 20, 166, function (add, N) {
+        var Db = N("Db4 F4 Ab4 Db5"), C = N("C2 C3");
+        for (var b = 0; b < 5; b++) {
+          var s0 = b * 20;
+          ost(add, s0, 1.2, "C2");
+          R.forEach(function (r, k) { if (b % 2 ? k >= 3 : k <= 3) { chordAt(add, s0 + r[0], "brassStabL", Db, r[1]); chordAt(add, s0 + r[0], "brassStabL", C, r[1], { vel: 1.1 }); } });
+          add(s0, { i: "deep", n: nn("C1"), d: 20 });
+          chordAt(add, s0, "strC", N("C2 C3"), 20, { vel: 1 });
+        }
+        add(0, { i: "crash" });
+        add(100, { i: "crash" });
+        add(100, { i: "lbrass", n: nn("C2"), d: 20 }); add(100, { i: "lbrass", n: nn("C3"), d: 20 });
+        chordAt(add, 100, "brassC", N("C3 C4"), 20, { vel: 0.8 });
+        add(100, { i: "deep", n: nn("C1"), d: 20 });
+        for (var q = 0; q < 16; q++) add(100 + q, { i: "timp", n: nn("C2"), vel: 0.25 + 0.02 * q });
+      });
+      var Nm = function (s) { return s.split(" ").map(nn); };
+      function hammer(add, s0, chord, vel) { R.forEach(function (r) { chordAt(add, s0 + r[0], "strC", chord, r[1] * 0.8, { vel: vel }); }); }
+      var GROAN = "0:Db3:6 6:C3:2 8:B2:6 14:C3:2 16:D3:6 22:Eb3:2 24:F3:6 30:G3:2 32:Ab3:6 38:G3:2";
+      function waver(add, at, s, inst, vel) { notes(add, s, inst, { at: at, ex: { vel: vel } }); }
+      var mb1 = secP("figII", 27, 20, 166, function (add, N) {
+        for (var b = 0; b < 21; b++) { ost(add, b * 20, b < 3 ? 1.1 : 0.9, "C2"); hammer(add, b * 20, N("C3 G3 C4"), b < 3 ? 0.8 : 0.55); }
+        add(0, { i: "crash" }); add(0, { i: "deep", n: nn("C1"), d: 60, vel: 0.6 });
+        chordAt(add, 0, "brassC", N("Db4 F4 Bb4 Db5"), 60, { vel: 0.8 }); chordAt(add, 0, "strC", N("Db5 F5 Bb5"), 60, { vel: 0.8 });
+        notes(add, GROAN, "lbrass", { at: 60 }); notes(add, GROAN, "lbrass", { at: 60, tr: 7 });
+        notes(add, GROAN, "lbrass", { at: 100 }); notes(add, GROAN, "brass", { at: 100, tr: 19, ex: { vel: 0.8 } });
+        mel(GROAN).forEach(function (m) { chordAt(add, 100 + m[0], "brassC", [m[1] + 12, m[1] + 15, m[1] + 19], m[2], { vel: 0.4 }); });
+        [140, 160, 180].forEach(function (at) {
+          var W = "0:G4:6 6:F#4:2 8:G4:6 14:F#4:2 16:F4:4";
+          notes(add, W, "brass", { at: at, ex: { vel: 0.8 } });
+          mel(W).forEach(function (m) { chordAt(add, at + m[0], "brassC", [m[1] - 12, m[1] - 8, m[1] - 5], m[2], { vel: 0.45 }); });
+        });
+        [200, 240].forEach(function (at, k) {
+          notes(add, "0:Db6:14 14:C6:16 30:B5:2", "cstr", { at: at, ex: { vel: 0.9 } }); notes(add, "0:Db6:14 14:C6:16 30:B5:2", "wood", { at: at, ex: { vel: 0.6 } });
+          notes(add, GROAN, "str", { at: at, tr: k ? 19 : 0, ex: { vel: 0.9 } }); notes(add, GROAN, k ? "wood" : "lbrass", { at: at, tr: k ? 19 : 0, ex: { vel: 0.7 } });
+        });
+        var WV = ["0:G5:6 6:F#5:2 8:G5:6 14:E5:2 16:F5:4", "0:A5:6 6:G#5:2 8:A5:6 14:F#5:2 16:G5:4", "0:Bb5:6 6:A5:2 8:Bb5:6 14:G#5:2 16:A5:4", "0:Bb5:4 4:A5:2 6:F5:6 12:Ab5:6 18:F5:2",
+                  "0:F#5:6 6:G5:2 8:Ab5:6 14:Ab5:2 16:Bb5:4", "0:Bb5:2 2:C6:4 6:Eb6:6 12:Bb5:2 14:Ab5:6", "0:G#5:6 6:A5:2 8:Bb5:6 14:Bb5:2 16:C6:4",
+                  "0:D5:2 2:E5:2 4:F5:6 10:F5:2 12:Bb5:6 18:A5:2", "0:A5:6 6:G#5:2 8:A5:2 10:B5:2 12:Bb5:6 18:A5:2", "0:A5:6 6:G#5:2 8:A5:2 10:B5:2 12:Bb5:6 18:A5:2",
+                  "0:A5:6 6:G#5:2 8:A5:2 10:B5:2 12:Bb5:6 18:A5:2", "0:Bb5:2 2:Bb5:2 4:Eb6:6 10:Bb5:2 12:Gb6:6 18:Bb5:2"];
+        WV.forEach(function (s, k) {
+          var at = 280 + k * 20;
+          waver(add, at, s, "cstr", 0.85); waver(add, at, s, "wood", 0.55);
+          mel(s).forEach(function (m) { chordAt(add, at + m[0], "brassC", [m[1] - 12, m[1] - 8, m[1] - 5], m[2], { vel: 0.35 }); });
+        });
+        [440, 460, 480].forEach(function (at) { add(at, { i: "cstr", n: nn("F#6"), d: 2, vel: 0.9 }); add(at + 12, { i: "cstr", n: nn("F#6"), d: 10, vel: 0.8 }); });
+        [[360, "G1"], [380, "G1"], [440, "Bb1"], [460, "Bb1"], [480, "Bb1"]].forEach(function (h) {
+          chordAt(add, h[0] + 12, "brassStabL", N("Bb3 Db4 F4"), 6, { vel: 1 }); add(h[0] + 12, { i: "lbrass", n: nn(h[1]) + 12, d: 8 });
+          chordAt(add, h[0] + 20, "brassStabL", N("C4 E4 A4"), 2, { vel: 1 }); add(h[0] + 20, { i: "timp", n: nn("C3") });
+        });
+        add(360, { i: "deep", n: nn("G1"), d: 60, vel: 0.6 }); for (var q = 0; q < 16; q++) add(400 + q, { i: "timp", n: nn("G2"), vel: 0.3 + q * 0.03 });
+        for (var b2 = 22; b2 < 26; b2++) { add((b2 - 1) * 20, { i: "str", n: nn("C2"), d: 12, vel: 0.9 }); add((b2 - 1) * 20 + 12, { i: "str", n: nn("Bb1"), d: 8, vel: 0.9 }); }
+        add(500, { i: "cymSwell", d: 20 });
+        add(520, { i: "crash" }); add(520, { i: "boom" }); chordAt(add, 520, "brassStabL", N("Bb2 Bb3 Db4 F4 Bb4"), 3, { vel: 1.2 }); add(520, { i: "deep", n: nn("Bb0"), d: 4 });
+        for (var c = 4; c < 20; c += 4) chordAt(add, 520 + c, "strC", N("Bb2 Eb4 G4 Bb4"), 3, { vel: 0.8 });
+      });
+      var mb2 = secP("figIV", 10, 20, 166, function (add, N) {
+        var CH = [["Bb2 Bb2 Bb2 Bb2 Eb3", "Db4 F4 Bb4"], ["Ab2 Ab2 Gb2 Ab2 Ab2", "C4 Eb4 Ab4"], ["B2 B2 B2 B2 B2", "D4 F#4 B4"], ["Bb2 Bb2 Bb2 Bb2 Eb3", "Db4 F4 Bb4"], ["Ab2 Ab2 Gb2 Ab2 Ab2", "C4 Eb4 Ab4"],
+                  ["B2 B2 B2 Bb2 B2", "D4 F#4 B4"], ["G2 G2 F#2 G2 G#2", "D4 G4 Bb4"], ["A2 A2 A2 A2 A2", "D4 F#4 A4"], ["A2 A2 A2 A2 A2", "D4 F#4 A4"], ["G#2 G#2 G#2 A2 A2", "E4 G#4 C#5"]];
+        CH.forEach(function (c, b) { N(c[0]).forEach(function (n, k) { add(b * 20 + k * 4, { i: "pluck", n: n, d: 3, vel: 0.9 }); chordAt(add, b * 20 + k * 4, "strC", N(c[1]), 3, { vel: 0.55 }); }); });
+        var T1 = "0:D4:4 4:D4:4 8:D4:4 12:D4:1.33 13.33:C#4:1.33 14.67:D4:1.33 16:D4:1.33 17.33:C4:1.33 18.67:D4:1.33";
+        var T2 = "20:F4:8 28:D4:3 31:D4:1 32:F4:4 36:D4:4 40:D4:14 54:D4:2";
+        [0, 60].forEach(function (at) { notes(add, T1 + " " + T2, "hbrass", { at: at }); notes(add, T1 + " " + T2, "brass", { at: at, tr: 12, ex: { vel: 0.5 } }); });
+        var TR = "0:B4:1.33 1.33:B4:1.33 2.67:B4:1.33 4:A4:1.33 5.33:B4:1.33 6.67:C5:1.33 8:D5:1.33 9.33:B4:1.33 10.67:G4:1.33 12:E4:8";
+        [40, 100].forEach(function (at) { notes(add, TR, "brass", { at: at, ex: { vel: 0.7 } }); notes(add, TR, "brass", { at: at, tr: -4, ex: { vel: 0.5 } }); });
+        "G4 A4 Bb4 C5 D5 Eb5 F5 F#5".split(" ").forEach(function (n, k) { add(132 + k * 0.5, { i: "strShort", n: nn(n) + 12, d: 0.6, vel: 0.8 }); add(132 + k * 0.5, { i: "wood", n: nn(n) + 12, d: 0.6, vel: 0.5 }); });
+        var TUNE = "140:F#5:4 144:F#5:4 148:F#5:4 152:F#5:1.33 153.33:E#5:1.33 154.67:F#5:1.33 156:F#5:1.33 157.33:E5:1.33 158.67:F#5:1.33 160:A5:8 168:F#5:3 171:F#5:1 172:A5:8 180:C#6:12 192:E6:4 196:C#6:4";
+        notes(add, TUNE, "cstr", { ex: { vel: 0.9 } }); notes(add, TUNE, "wood", { ex: { vel: 0.6 } }); notes(add, TUNE, "brass", { tr: -12, ex: { vel: 0.4 } });
+        add(140, { i: "timp", n: nn("A2") }); add(160, { i: "timp", n: nn("A2"), vel: 0.7 });
+      });
+      var mb3 = secP("fanfare", 7, 20, 166, function (add, N) {
+        for (var b = 0; b < 7; b++) { ost(add, b * 20, 0.9); R.forEach(function (r) { add(b * 20 + r[0], { i: "sn", vel: 0.3 }); }); hammer(add, b * 20, N("D4 G4"), 0.45); }
+        notes(add, "0:Bb3:4 4:Bb3:4 8:Bb3:4 12:Bb3:1.33 13.33:A3:1.33 14.67:Bb3:1.33 16:Bb3:1.33 17.33:A3:1.33 18.67:Bb3:1.33 20:Db4:8 28:Bb3:3 31:Bb3:1 32:Db4:4 36:Bb3:4", "hbrass");
+        ["40", "60", "80"].forEach(function (a) { notes(add, "0:G3:3 3:G3:1 4:Bb3:8 12:G3:3 15:G3:1 16:Bb3:4", "hbrass", { at: +a }); });
+        ["100", "120"].forEach(function (a) { notes(add, "0:A3:3 3:A3:1 4:C4:8 12:A3:3 15:A3:1 16:C4:4", "hbrass", { at: +a }); });
+        var TP = "20:G4:4 24:G4:4 28:G4:4 32:G4:1.33 33.33:F#4:1.33 34.67:G4:1.33 36:G4:1.33 37.33:F#4:1.33 38.67:G4:1.33 " +
+                 "40:Bb4:8 48:G4:3 51:G4:1 52:Bb4:4 56:G4:4 60:Bb4:8 68:G4:3 71:G4:1 72:Bb4:4 76:G4:4 80:B4:8 88:G4:3 91:G4:1 92:B4:4 96:G4:4 " +
+                 "100:C5:8 108:G4:3 111:G4:1 112:C5:4 116:G4:4 120:C5:8 128:G4:3 131:G4:1 132:C5:4 136:G4:4";
+        notes(add, TP, "brass", { ex: { vel: 0.85 } }); notes(add, TP, "brass", { tr: 12, ex: { vel: 0.35 } });
+        chordAt(add, 0, "brassC", N("D4 G4 Bb4"), 20, { vel: 0.5 });
+      });
+      var mb4 = secP("figX", 7, 20, 166, function (add, N) {
+        var WX = ["0:C#5:6 6:D5:2 8:Eb5:6 14:F5:2 16:F5:4", "0:F5:2 2:G5:2 4:Ab5:6 10:G5:2 12:F5:6 18:E5:2", "0:D#5:6 6:E5:2 8:F5:6 14:G5:2 16:G5:4",
+                  "0:G5:2 2:A5:2 4:Bb5:6 10:A5:2 12:G5:6 18:F5:2", "0:Ab5:6 6:Ab5:2 8:Bb5:6 14:Bb5:2 16:Cb6:4", "0:Bb5:6 6:Bb5:2 8:C6:6 14:B5:2 16:Db6:4", "0:Bb5:6 6:Ab5:2 8:Bb5:6 14:C6:2 16:Db6:4"];
+        WX.forEach(function (s, b) {
+          waver(add, b * 20, s, "cstr", 0.9); waver(add, b * 20, s, "wood", 0.6);
+          mel(s).forEach(function (m) { chordAt(add, b * 20 + m[0], "brassC", [m[1] - 12, m[1] - 8, m[1] - 5], m[2], { vel: 0.4 }); });
+          for (var q = 0; q < 20; q += 4) add(b * 20 + q, { i: "pluck", n: nn("G2"), d: 3, tick: true, vel: 0.8 });
+          if (b) { chordAt(add, b * 20 + 12, "brassStabL", N("Db4 F4 Ab4"), 6, { vel: 1 }); if (b < 6) chordAt(add, b * 20 + 20, "brassStabL", N("C4 E4 G4"), 2, { vel: 1 }); }
+        });
+        add(0, { i: "str", n: nn("G1"), d: 140, vel: 1 }); add(0, { i: "deep", n: nn("G1"), d: 140, vel: 0.5 });
+        for (var q2 = 0; q2 < 20; q2++) add(120 + q2, { i: "timp", n: nn("G2"), vel: 0.3 + q2 * 0.03 });
+        add(120, { i: "cymSwell", d: 20 });
+      });
+      var mb5 = secP("fiveTwo", 4, 20, 83, function (add, N) {
+        add(0, { i: "crash" }); add(0, { i: "boom" });
+        chordAt(add, 0, "brassC", N("Eb4 Gb4 Bb4 Eb5"), 48, { vel: 1 }); chordAt(add, 0, "strC", N("Eb4 Gb4 Bb4 Eb5 Gb5"), 48, { vel: 0.9 });
+        notes(add, "0:C2:48", "lbrass"); add(0, { i: "deep", n: nn("C1"), d: 60, vel: 0.7 });
+        for (var q = 0; q < 48; q++) add(q, { i: "timp", n: nn("C2"), vel: 0.25 });
+        chordAt(add, 48, "brassC", N("C#4 E4 G#4 C#5"), 12, { vel: 0.7 }); chordAt(add, 48, "strC", N("C#4 E4 G#4 C#5"), 12, { vel: 0.8 });
+        chordAt(add, 60, "brassC", N("Db4 Gb4 Bb4"), 20, { vel: 0.7 }); chordAt(add, 60, "strC", N("Db4 Gb4 Bb4 Db5"), 20, { vel: 0.7 });
+        notes(add, "60:C2:20", "lbrass");
+      });
+      var mb6 = secP("figXI", 5, 12, 250, function (add, N) {
+        var S = "A5 G#5 F#5 E5 D#5 E5 F#5 G#5 A5 B5 C6 B5".split(" ");
+        for (var b = 0; b < 5; b++) S.forEach(function (n, k) { add(b * 12 + k, { i: "strShort", n: nn(n) - (b % 2) * 12, d: 0.8, vel: 0.5 + b * 0.08 }); if (b > 1) add(b * 12 + k, { i: "wood", n: nn(n), d: 0.8, vel: 0.3 }); });
+        add(0, { i: "str", n: nn("G1"), d: 60, vel: 0.8 });
+        for (var q = 0; q < 60; q += 2) add(q, { i: "timp", n: nn("G2"), vel: 0.2 + q * 0.006 });
+        chordAt(add, 12, "brassC", N("C#4 E4 A4"), 48, { vel: 0.35 }); add(36, { i: "cymSwell", d: 24 });
+      });
+      return { intro: [], loop: [ma1, ma2, mb1, mb2, mb3, mb4, mb5, mb6, ma3] };
+    }
+  };
+  (function () {
+    var E = {
+      Dm: [38, "D4 F4 A4 D5"], Bb: [34, "D4 F4 Bb4 D5"], F: [41, "C4 F4 A4 C5"], C: [36, "C4 E4 G4 C5"], Gm: [43, "D4 G4 Bb4 D5"],
+      Asus: [33, "D4 E4 A4 D5"], A: [33, "C#4 E4 A4 C#5"], Csus: [36, "C4 F4 G4 C5"], FA: [45, "C4 F4 A4 C5"],
+      Em: [40, "E4 G4 B4 E5"], Cx: [36, "E4 G4 C5 E5"], G: [43, "D4 G4 B4 D5"], D: [38, "D4 F#4 A4 D5"], Esus: [40, "E4 A4 B4 E5"], EM: [40, "E4 G#4 B4 E5"]
+    };
+    Object.keys(E).forEach(function (k) { CH["t_" + k] = { b: E[k][0], v: E[k][1].split(" ").map(nn) }; });
+  })();
+  var EPIC2 = {
+    open: { bars: 4, lv: 0.75, ch: ["Dm", "Dm", "Bb", "Asus"], impact: [0], organ: [0, 1, 2, 3], choir: [0, 1, 2, 3], timp: [2, 3] },
+    build: { bars: 8, lv: 0.8, ch: ["Dm", "Bb", "F", "C", "Dm", "Bb", "Gm", "A"], organ: [0, 1, 2, 3, 4, 5, 6, 7], taikoA: [0, 1, 2, 3], taikoB: [4, 5, 6, 7],
+      spic: [2, 3, 4, 5, 6, 7], choirHits: [4, 5, 6, 7], roll: 7, rise: true },
+    climax: { bars: 8, lv: 1.15, ch: ["Dm", "Bb", "F", "C", "Gm", "Bb", "Csus", "A"], impact: [0, 4], organ: [0, 1, 2, 3, 4, 5, 6, 7], choir: [0, 1, 2, 3, 4, 5, 6, 7],
+      drive: true, spic: [0, 1, 2, 3, 4, 5, 6, 7], answers: [1, 3, 5],
+      mel: "0:D4:4 4:A4:4 8:D5:8 16:C5:6 22:Bb4:2 24:F4:8 32:F4:4 36:C5:4 40:F5:6 46:E5:2 48:D5:4 52:C5:4 56:G4:8 64:G4:4 68:D5:4 72:G5:8 80:F5:6 86:D5:2 88:Bb4:8 96:C5:4 100:F5:4 104:E5:8 112:D5:8 120:C#5:8",
+      counter: "0:A5:16 16:F5:16 32:A5:16 48:G5:16 64:Bb5:16 80:F5:16 96:G5:16 112:A5:16" },
+    breath: { bars: 4, lv: 0.55, ch: ["Bb", "FA", "Gm", "Asus"], organ: [0, 1, 2, 3], choir: [1, 2, 3], swell: 3 },
+    final: { bars: 8, lv: 1.25, ch: ["Em", "Cx", "G", "D", "Cx", "D", "Esus", "EM"], impact: [0, 4], organ: [0, 1, 2, 3, 4, 5, 6, 7], choir: [0, 1, 2, 3, 4, 5, 6, 7],
+      drive: true, spic: [0, 1, 2, 3, 4, 5, 6], answers: [1, 3, 5],
+      mel: "0:E4:4 4:B4:4 8:E5:8 16:D5:6 22:C5:2 24:G4:8 32:G4:4 36:D5:4 40:G5:6 46:F#5:2 48:E5:4 52:D5:4 56:A4:8 64:C5:4 68:G5:4 72:E5:8 80:F#5:6 86:E5:2 88:D5:8 96:A4:4 100:B4:4 104:E5:8 112:E5:16",
+      counter: "0:B5:16 16:G5:16 32:B5:16 48:A5:16 64:G5:16 80:A5:16 96:A5:16 112:G#5:16" }
+  };
+  function compileEpic2(sec) {
+    var ev = {}, add = function (step, e) { (ev[step] = ev[step] || []).push(e); }, lv = sec.lv;
+    var melodyOn = !!sec.mel;
+    for (var b = 0; b < sec.bars; b++) {
+      var c = CH["t_" + sec.ch[b]], s0 = b * 16, prev = b ? sec.ch[b - 1] : null, rise = sec.rise ? 0.7 + 0.45 * b / (sec.bars - 1) : 1;
+      if (sec.ch[b] !== prev) {
+        var len = 1; while (b + len < sec.bars && sec.ch[b + len] === sec.ch[b]) len++;
+        add(s0, { i: "esub", n: c.b - 12 >= 26 ? c.b - 12 : c.b, d: len * 16 });
+        if (sec.choir && sec.choir.indexOf(b) >= 0) add(s0, { i: "choirT", v: c.v, d: len * 16, vel: lv * (melodyOn ? 0.7 : 1) });
+      } else if (sec.choir && sec.choir.indexOf(b) >= 0 && sec.choir.indexOf(b - 1) < 0) add(s0, { i: "choirT", v: c.v, d: 16, vel: lv });
+      if (sec.organ && sec.organ.indexOf(b) >= 0) for (var a = 0; a < 16; a += 2) add(s0 + a, { i: "oarp", n: c.v[[0, 2, 3, 2][(a / 2) % 4]] + 12, d: 2, vel: (melodyOn ? 0.5 : 0.75) * rise * (a % 8 === 0 ? 1.2 : 1) });
+      if (sec.spic && sec.spic.indexOf(b) >= 0) for (var q = 0; q < 16; q++) add(s0 + q, { i: "spic", n: c.v[[0, 1, 2, 1][q % 4]], d: 1, vel: (q % 4 === 0 ? 1.3 : 0.8) * rise * (melodyOn ? 0.8 : 1) });
+      if (sec.impact && sec.impact.indexOf(b) >= 0) { add(s0, { i: "boom" }); add(s0, { i: "taiko", vel: 1.4 }); add(s0, { i: "crash" }); }
+      if (sec.timp && sec.timp.indexOf(b) >= 0) { add(s0, { i: "timp", n: c.b, vel: 0.9 }); add(s0 + 8, { i: "timp", n: c.b, vel: 0.6 }); }
+      if (sec.taikoA && sec.taikoA.indexOf(b) >= 0) "x...x...x..x.x..".split("").forEach(function (ch2, z) { if (ch2 === "x") add(s0 + z, { i: "taiko", vel: (z === 0 ? 1.1 : 0.75) * rise }); });
+      if (sec.taikoB && sec.taikoB.indexOf(b) >= 0) { for (var z = 0; z < 16; z += 2) add(s0 + z, { i: "taiko", vel: (z % 8 === 0 ? 1.2 : 0.8) * rise }); [6, 14].forEach(function (z) { add(s0 + z, { i: "tm", n: z, vel: 1.1 }); }); }
+      if (sec.choirHits && sec.choirHits.indexOf(b) >= 0) [0, 3, 6, 10].forEach(function (z) { add(s0 + z, { i: "choirHit", v: c.v, d: 2, vel: rise }); });
+      if (sec.roll === b) for (var r = 0; r < 16; r++) add(s0 + r, { i: "sn", vel: 0.3 + r * 0.06 });
+      if (sec.drive) {
+        for (var z2 = 0; z2 < 16; z2 += 2) add(s0 + z2, { i: "taiko", vel: z2 % 8 === 0 ? 1.1 : 0.7 });
+        [6, 14].forEach(function (z) { add(s0 + z, { i: "tm", n: z % 3, vel: 1.2 }); });
+        "x.xxx.xxx.xxx.xx".split("").forEach(function (ch2, z) { if (ch2 === "x") add(s0 + z, { i: "sn", vel: z % 4 === 0 ? 0.9 : 0.35 }); });
+      }
+      if (sec.answers && sec.answers.indexOf(b) >= 0) [12, 14].forEach(function (z) { add(s0 + z, { i: "brassStabL", v: c.v, d: 1.5, vel: 1.2 }); });
+      if (sec.swell === b) add(s0, { i: "cymSwell", d: 16 });
+    }
+    if (sec.mel) mel(sec.mel).forEach(function (m, k) { add(m[0], { i: "brassMel", n: m[1], d: m[2], vel: lv * (m[0] % 16 === 0 ? 1.2 : 1) }); });
+    if (sec.counter) mel(sec.counter).forEach(function (m) { add(m[0], { i: "cstr", n: m[1], d: m[2], vel: lv }); });
+    return ev;
+  }
+  var SONGS = {};
+  function songs(id) {
+    if (SONGS[id]) return;
+    var mkE = function (parts) { return parts.map(function (n) { return { name: n, bars: EPIC2[n].bars, spb: 16, stepT: BASE_STEP, ev: compileEpic2(EPIC2[n]) }; }); };
+    if (id === "epic") SONGS.epic = { intro: [], loop: mkE(["open", "build", "climax", "breath", "final"]) };
+    else SONGS[id] = HOLST[id]();
+  }
+  function secSteps(x) { return x.bars * (x.spb || 16); }
+  function eventsAt(song, p) {
+    var introSteps = song.intro.reduce(function (t, s) { return t + secSteps(s); }, 0), list = song.intro, q = p;
+    if (p >= introSteps) { list = song.loop; var loopSteps = song.loop.reduce(function (t, s) { return t + secSteps(s); }, 0); q = (p - introSteps) % loopSteps; }
+    for (var i = 0; i < list.length; i++) { var n = secSteps(list[i]); if (q < n) return { sec: list[i].name, ev: list[i].ev[q] || [], q: q, spb: list[i].spb || 16, stepT: list[i].stepT || BASE_STEP }; q -= n; }
+    return { sec: "", ev: [], q: 0, spb: 16, stepT: BASE_STEP };
+  }
+  var verb = null, dly = null;
+  function fx() {
+    if (verb) return;
+    verb = ac.createConvolver();
+    var len = Math.floor(ac.sampleRate * 2.2), ir = ac.createBuffer(2, len, ac.sampleRate);
+    for (var ch = 0; ch < 2; ch++) { var d = ir.getChannelData(ch); for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+    verb.buffer = ir; var vg = gainNode(0.32); verb.connect(vg); vg.connect(music);
+    dly = ac.createDelay(1); dly.delayTime.value = STEP * 3; var fb = gainNode(0.32), dl = filter("lowpass", 2200); dly.connect(dl); dl.connect(fb); fb.connect(dly); var dg = gainNode(0.5); dl.connect(dg); dg.connect(music);
+  }
+  function send(node, rv, dl) { if (rv) { var a = gainNode(rv); node.connect(a); a.connect(verb); } if (dl) { var b = gainNode(dl); node.connect(b); b.connect(dly); } }
+  function note(t, dur, f, type, peak, a, r, dest, cut, q, detune, rv, dl, fenv) {
+    var o = ac.createOscillator(), g = gainNode(0), end = t + Math.max(a + 0.01, dur);
+    o.type = type; o.frequency.value = f; if (detune) o.detune.value = detune;
+    var src = o;
+    if (cut) { var fl = filter("lowpass", cut, q || 0.8); if (fenv) { fl.frequency.setValueAtTime(cut * fenv, t); fl.frequency.exponentialRampToValueAtTime(cut, t + Math.min(0.3, dur)); } o.connect(fl); src = fl; }
+    src.connect(g); g.connect(dest); send(g, rv, dl);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a);
+    g.gain.setValueAtTime(peak, end); g.gain.exponentialRampToValueAtTime(0.0001, end + r);
+    o.start(t); o.stop(end + r + 0.05);
+    return end + r;
+  }
+  function hit(dest, t, type, f, peak, dur, rv) {
+    var s = noiseSrc(), fl = filter(type, f, 0.9), g = gainNode(0); s.connect(fl); fl.connect(g); g.connect(dest); send(g, rv, 0);
+    g.gain.setValueAtTime(peak, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.start(t, Math.random()); s.stop(t + dur + 0.02);
+  }
+  function thump(dest, t, f0, f1, peak, dur) {
+    var o = ac.createOscillator(), g = gainNode(0);
+    o.frequency.setValueAtTime(Math.min(f0, f1 * 1.6), t); o.frequency.setTargetAtTime(f1, t, 0.012);
+    o.connect(g); g.connect(dest);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+  function membrane(dest, t, f, peak, dur, noiseF) {
+    thump(dest, t, f * 1.2, f, peak, dur);
+    var o = ac.createOscillator(), g = gainNode(0); o.type = "triangle"; o.frequency.value = f * 1.5;
+    o.connect(g); g.connect(dest); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak * 0.25, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.5); o.start(t); o.stop(t + dur * 0.5 + 0.02);
+    hit(dest, t, "bandpass", noiseF || 900, peak * 0.35, 0.05);
+  }
+  var TOMS = [50, 45, 43, 38];
+  function play1(tr, t, e) {
+    var D = (e.d || 1) * STEP;
+    switch (e.i) {
+      case "sn": var sv = e.vel || 1; hit(tr.drums, t, "bandpass", 1900, 0.2 * sv, 0.15, 0.25); thump(tr.drums, t, 240, 185, 0.11 * sv, 0.09); break;
+      case "boom": thump(tr.drums, t, 70, 46, 0.7, 0.9); hit(tr.drums, t, "lowpass", 700, 0.3, 0.7, 0.5); break;
+      case "tm": membrane(tr.drums, t, midi(TOMS[(e.n || 0) % 4]), 0.26 * (e.vel || 1), 0.4, 700); break;
+      case "crash": hit(tr.drums, t, "highpass", 5000, 0.12, 1.8, 0.4); break;
+      case "soar": soar(tr, t, e); break;
+      case "wood": note(t, D, midi(e.n), "triangle", 0.042 * (e.vel || 1), 0.03, 0.25, tr.g, 3200, 0.8, 0, 0.25); note(t, D, midi(e.n) * 2, "sine", 0.006 * (e.vel || 1), 0.03, 0.2, tr.g); break;
+      case "pluck": note(t, Math.min(D, 0.3), midi(e.n), "triangle", (tr.name === "mars" ? 0.035 : 0.05) * (e.vel || 1), 0.003, 0.25, tr.g, 2000, 1, 0, 0.2); if (e.tick) hit(tr.g, t, "bandpass", 2600, 0.05 * (e.vel || 1), 0.03); break;
+      case "celesta": note(t, Math.min(D, 0.25), midi(e.n + 12), "sine", 0.022 * (e.vel || 1), 0.002, 0.6, tr.g, 0, 0, 0, 0.35, 0.2); note(t, 0.1, midi(e.n + 12) * 4, "sine", 0.004, 0.002, 0.3, tr.g); break;
+      case "str": [-7, 7].forEach(function (dt) { note(t, D, midi(e.n), "sawtooth", 0.014 * (e.vel || 1), 0.18, 0.6, tr.padBus, 2200, 0.5, dt, 0.3); }); break;
+      case "strShort": note(t, D, midi(e.n), "sawtooth", 0.012 * (e.vel || 1), 0.005, 0.08, tr.g, 2600, 0.6); break;
+      case "strC": e.v.forEach(function (n) { [-7, 7].forEach(function (dt) { note(t, D, midi(n), "sawtooth", 0.011 * (e.vel || 1), 0.25, 0.8, tr.padBus, 2000, 0.5, dt, 0.35); }); }); break;
+      case "brassC": e.v.forEach(function (n) { [-8, 8].forEach(function (dt) { note(t, D, midi(n), "sawtooth", 0.022 * (e.vel || 1), 0.4, 0.9, tr.g, 1300, 1, dt, 0.35, 0, 1.6); }); }); break;
+      case "brassStabL": e.v.forEach(function (n) { [-9, 9].forEach(function (dt) { note(t, D, midi(n), "sawtooth", 0.02 * (e.vel || 1), 0.008, 0.2, tr.g, 1100, 2, dt, 0.2, 0, 3); }); }); break;
+      case "harpC": e.v.forEach(function (n, k) { note(t + k * 0.035, Math.min(D, 0.5), midi(n), "triangle", 0.035 * (e.vel || 1), 0.002, 0.9, tr.g, 2600, 0.7, 0, 0.35); }); break;
+      case "choirT": e.v.concat([e.v[0] - 12]).forEach(function (n) { [650, 1080].forEach(function (fm) { var o = ac.createOscillator(), bp = filter("bandpass", fm, 5), g = gainNode(0), end = t + D, pk = 0.06 * (e.vel || 1);
+          o.type = "sawtooth"; o.frequency.value = midi(n); o.connect(bp); bp.connect(g); g.connect(tr.padBus); send(g, 0.5, 0);
+          g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(pk, t + 0.35); g.gain.setValueAtTime(pk, end); g.gain.exponentialRampToValueAtTime(0.0001, end + 1.2); o.start(t); o.stop(end + 1.3); }); }); break;
+      case "choirHit": e.v.forEach(function (n) { [650, 1080].forEach(function (fm) { var o = ac.createOscillator(), bp = filter("bandpass", fm, 5), g = gainNode(0), pk = 0.07 * (e.vel || 1);
+          o.type = "sawtooth"; o.frequency.value = midi(n); o.connect(bp); bp.connect(g); g.connect(tr.g); send(g, 0.4, 0);
+          g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(pk, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35); o.start(t); o.stop(t + 0.4); }); }); break;
+      case "spic": note(t, D * 0.6, midi(e.n), "sawtooth", 0.013 * (e.vel || 1), 0.004, 0.07, tr.g, 2400, 0.8, 0, 0.12); break;
+      case "brassMel": [[0, -8], [0, 8], [-12, -5], [-12, 5]].forEach(function (pr) { note(t, D, midi(e.n + pr[0]), "sawtooth", 0.03 * (e.vel || 1), 0.035, 0.45, tr.g, 1700, 1.3, pr[1], 0.35, 0, 2.2); }); break;
+      case "cstr": [-6, 6].forEach(function (dt) { note(t, D, midi(e.n), "sawtooth", 0.012 * (e.vel || 1), 0.3, 0.9, tr.padBus, 3000, 0.5, dt, 0.45); }); break;
+      case "deep": note(t, D, midi(e.n), "sine", 0.11 * (e.vel || 1), 0.02, 0.18, tr.pump); note(t, D, midi(e.n), "triangle", 0.03 * (e.vel || 1), 0.02, 0.15, tr.pump, 160, 0.7); break;
+      case "esub": note(t, D, midi(e.n), "sine", 0.15, 0.6, 1.4, tr.pump); break;
+      case "oarp": note(t, D, midi(e.n), "square", 0.011 * (e.vel || 1), 0.004, 0.18, tr.g, 1800, 1, 0, 0.35, 0.25); note(t, D, midi(e.n - 12), "sine", 0.012 * (e.vel || 1), 0.004, 0.2, tr.g); break;
+      case "timp": var tf = midi(e.n); while (tf < 73) tf *= 2; while (tf > 147) tf /= 2;
+        membrane(tr.drums, t, tf, 0.42 * (e.vel || 1), 1.3, 500); break;
+      case "taiko": var tv = e.vel || 1; thump(tr.drums, t, 85, 62, 0.5 * tv, 0.45); hit(tr.drums, t, "lowpass", 1100, 0.2 * tv, 0.12, 0.35); break;
+      case "cymSwell": var cs = noiseSrc(), cf = filter("highpass", 4500), cg = gainNode(0); cs.connect(cf); cf.connect(cg); cg.connect(tr.drums); send(cg, 0.5, 0);
+        cg.gain.setValueAtTime(0.0001, t); cg.gain.exponentialRampToValueAtTime(0.06, t + D); cg.gain.exponentialRampToValueAtTime(0.0001, t + D + 0.6); cs.start(t); cs.stop(t + D + 0.7); break;
+      case "lbrass": [-8, 8].forEach(function (dt) { note(t, D, midi(e.n), "sawtooth", 0.045, 0.5, 0.9, tr.g, 700, 1.2, dt, 0.4, 0, 1.8); }); break;
+      case "hbrass": [-8, 0, 8].forEach(function (dt) { note(t, D, midi(e.n), "sawtooth", 0.026, 0.12, 0.7, tr.g, 1500, 1.4, dt, 0.4, 0, 2.2); }); note(t, D, midi(e.n - 12), "sawtooth", 0.02, 0.15, 0.7, tr.g, 900, 1); break;
+      case "brass": [-9, 9].forEach(function (dt) { note(t, D, midi(e.n), "sawtooth", 0.03 * (e.vel || 1), 0.03, 0.25, tr.g, 1400, 2, dt, 0.25, 0, 2.5); }); break;
+    }
+  }
+  function soar(tr, t, e) {
+    var total = 0; e.list.forEach(function (m) { total = Math.max(total, (m[0] + m[2]) * STEP); });
+    var g = gainNode(0), lp = filter("lowpass", e.soft ? 1300 : 2400, 0.7), peak = e.soft ? 0.022 : 0.035, end = t + total;
+    lp.connect(g); g.connect(tr.g); send(g, 0.45, e.soft ? 0.25 : 0.15);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + 0.25);
+    g.gain.setValueAtTime(peak, end - 0.05); g.gain.exponentialRampToValueAtTime(0.0001, end + 1.2);
+    var vib = ac.createOscillator(), vg = gainNode(0); vib.frequency.value = 5.2; vib.connect(vg);
+    vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(4, t + 0.6);
+    [-1, 1].forEach(function (side) {
+      var o = ac.createOscillator(), pn = ac.createStereoPanner ? ac.createStereoPanner() : null;
+      o.type = e.soft ? "triangle" : "sawtooth"; o.detune.value = side * 7; vg.connect(o.detune);
+      e.list.forEach(function (m, k) {
+        var f = midi(m[1]), at = t + m[0] * STEP, leap = k && Math.abs(m[1] - e.list[k - 1][1]) >= 5;
+        if (e.glide && leap) o.frequency.setTargetAtTime(f, at, 0.025); else o.frequency.setValueAtTime(f, at);
+      });
+      if (pn) { pn.pan.value = side * 0.6; o.connect(pn); pn.connect(lp); } else o.connect(lp);
+      o.start(t); o.stop(end + 1.3);
+    });
+    vib.start(t); vib.stop(end + 1.3);
+  }
+  var tracks = {}, seq = null, LOG = null;
+  var SECTION_MIX = { "epic:breath": { oarp: 1.35, choirT: 0.55 } };
+  var DRUM_LV = { home: 0.7, epic: 0.6, flight: 0.6, mercury: 0.35, mars: 0.4, jupiter: 0.5, saturn: 0.5, uranus: 0.5, neptune: 0.5, venus: 0.5 };
+  function mkTrack(name, level) {
+    var g = gainNode(0), pump = gainNode(1), padBus = filter("lowpass", 4000, 0.3);
+    padBus.connect(pump); pump.connect(g); g.connect(music);
+    var dist = ac.createWaveShaper(), curve = new Float32Array(256);
+    for (var ci = 0; ci < 256; ci++) { var xx = ci / 128 - 1; curve[ci] = Math.tanh(xx * 3); }
+    dist.curve = curve; dist.connect(pump);
+    var drums = gainNode(DRUM_LV[name] || 0.5); drums.connect(g);
+    tracks[name] = { name: name, g: g, pump: pump, padBus: padBus, dist: dist, drums: drums, level: level, on: false, step: 0, nextT: 0, stopAt: 0, bright: 1, song: SONGS[name] };
+    return tracks[name];
+  }
+  function schedule() {
+    if (!ac) return;
+    Object.keys(tracks).forEach(function (name) {
+      var tr = tracks[name];
+      if (!tr.on) return;
+      if (tr.stopAt && now() > tr.stopAt) { tr.on = false; return; }
+      while (tr.nextT < now() + 0.25) {
+        var at = eventsAt(tr.song, tr.step);
+        STEP = at.stepT;
+        var mixFix = SECTION_MIX[name + ":" + at.sec];
+        at.ev.forEach(function (e) {
+          var t = tr.nextT + (e.off || 0) * STEP;
+          if (mixFix && mixFix[e.i]) { var c2 = {}; for (var kk in e) c2[kk] = e[kk]; c2.vel = (e.vel || 1) * mixFix[e.i]; e = c2; }
+          play1(tr, t, e); if (LOG) LOG.push([name, tr.step, at.sec, e.i, e.n || "", +t.toFixed(3), +((e.d || 1) * STEP).toFixed(3)]); });
+        tr.step++; tr.nextT += at.stepT;
+      }
+      STEP = BASE_STEP;
+    });
+  }
+  var LEVEL = { epic: 0.48, mercury: 1.5, mars: 1.15 };
+  function build() {
+    noiseBuf = makeNoise();
+    var comp = ac.createDynamicsCompressor();
+    master = gainNode(muted ? 0 : 0.55);
+    master.connect(comp); comp.connect(ac.destination);
+    music = gainNode(1.6); music.connect(master);
+  }
+  function unlock() {
+    if (!ac) {
+      try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return false; }
+      build();
+    }
+    if (ac.state === 'suspended' && !document.hidden && !muted) ac.resume();
+    return true;
+  }
+  function start() {
+    if (!ac || !songId || !want || muted) return;
+    songs(songId); fx();
+    var tr = tracks[songId] || mkTrack(songId, LEVEL[songId] || 1), fade = Math.max(2.5, BASE_STEP * 8);
+    if (tr.on && !tr.stopAt) return;
+    var t0 = now() + 0.06;
+    if (!tr.on) { tr.on = true; tr.step = 0; tr.nextT = t0; }
+    tr.stopAt = 0;
+    tr.g.gain.cancelScheduledValues(now()); tr.g.gain.setValueAtTime(tr.g.gain.value, now());
+    tr.g.gain.setValueAtTime(tr.g.gain.value, t0); tr.g.gain.linearRampToValueAtTime(tr.level, t0 + fade);
+    if (!seq) seq = setInterval(schedule, 50);
+  }
+  function halt() {
+    var tr = ac && tracks[songId];
+    if (!tr || !tr.on || tr.stopAt) return;
+    tr.g.gain.cancelScheduledValues(now()); tr.g.gain.setValueAtTime(tr.g.gain.value, now());
+    tr.g.gain.linearRampToValueAtTime(0.0001, now() + 0.8);
+    tr.stopAt = now() + 0.9;
+  }
+  function typing(t) { return t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || '')); }
+  function gesture(e) {
+    if (e.type === 'keydown' && ((e.key || '').toLowerCase() === 'h' || e.metaKey || e.ctrlKey || e.altKey)) return;
+    if (muted) return;
+    if (unlock()) start();
+  }
+  ['pointerdown', 'keydown', 'touchstart'].forEach(function (t) { document.addEventListener(t, gesture, true); });
+  document.addEventListener('visibilitychange', function () {
+    if (!ac) return;
+    if (document.hidden) ac.suspend(); else if (!muted) ac.resume();
+  });
+  window.addEventListener('pagehide', function () { if (ac) ac.suspend(); });
+  var ICON_ON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+  var ICON_OFF = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M3 3l18 18"/></svg>';
+  function paint() {
+    btns.forEach(function (b) {
+      b.innerHTML = muted ? ICON_OFF : ICON_ON;
+      b.setAttribute('aria-pressed', muted ? 'true' : 'false');
+      b.setAttribute('aria-label', muted ? 'Music off' : 'Music on');
+      b.title = muted ? 'Music off' : 'Music on';
+      b.classList.toggle('muted', muted);
+    });
+  }
+  function lsKey() { return 'gamemusic.' + game + '.muted'; }
+  function bridgeSave() {
+    if (opts.bridge === false || window.SX_TEST === true) return;
+    var o = saved && typeof saved === 'object' ? saved : {};
+    o.music = { muted: muted }; saved = o;
+    try { if (parent && parent !== window) parent.postMessage({ type: 'game-save', game: game, data: JSON.stringify(o) }, '*'); } catch (e) {}
+  }
+  function bridgeLoad() {
+    if (opts.bridge === false) return;
+    try { if (!parent || parent === window) return; } catch (e) { return; }
+    var reqId = 'gm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    function onMsg(e) {
+      var m = e.data;
+      if (!m || m.type !== 'game-load-res' || m.reqId !== reqId) return;
+      window.removeEventListener('message', onMsg);
+      var d = null;
+      try { d = typeof m.data === 'string' && m.data ? JSON.parse(m.data) : null; } catch (err) { d = null; }
+      if (!d || typeof d !== 'object') return;
+      saved = d;
+      if (!touched && d.music && typeof d.music.muted === 'boolean') setMuted(d.music.muted, true);
+    }
+    window.addEventListener('message', onMsg);
+    if (window.SXR) SXR.hold(reqId); try { parent.postMessage({ type: 'game-load', game: game, reqId: reqId }, '*'); } catch (e) {}
+    setTimeout(function () { window.removeEventListener('message', onMsg); }, 15000);
+  }
+  /* silent: apply a saved value without saving it again */
+  function setMuted(m, silent) {
+    m = !!m;
+    var changed = m !== muted;
+    muted = m;
+    if (!silent) {
+      touched = true;
+      try { window.localStorage.setItem(lsKey(), m ? '1' : '0'); } catch (e) {}
+      bridgeSave();
+      if (opts.onChange) try { opts.onChange(m); } catch (e) {}
+    }
+    paint();
+    if (!changed) return;
+    if (m) {
+      if (ac) { ramp(master.gain, 0, 0.15); var a = ac; setTimeout(function () { if (muted && a.state === 'running') a.suspend(); }, 600); }
+    } else if (!silent || ac) {
+      if (unlock()) { ramp(master.gain, 0.55, 0.15); start(); }
+    }
+  }
+  function ramp(p, v, t) { p.cancelScheduledValues(now()); p.setTargetAtTime(v, now(), t); }
+  function init(id, o) {
+    songId = id; opts = o || {}; game = opts.game || 'game';
+    var v = null;
+    try { v = window.localStorage.getItem(lsKey()); } catch (e) { v = null; }
+    if (v === '1' || v === '0') muted = v === '1';
+    if (opts.button) bind(opts.button);
+    if (opts.key) document.addEventListener('keydown', function (e) {
+      if ((e.key === 'm' || e.key === 'M') && !e.metaKey && !e.ctrlKey && !e.altKey && !typing(e.target)) setMuted(!muted);
+    });
+    bridgeLoad();
+    paint();
+  }
+  function bind(b) {
+    if (typeof b === 'string') b = document.getElementById(b);
+    if (!b) return;
+    btns.push(b);
+    b.addEventListener('click', function () {
+      if (opts.pop) { b.classList.remove(opts.pop); void b.offsetWidth; b.classList.add(opts.pop); }
+      setMuted(!muted);
+    });
+    paint();
+  }
+  return {
+    init: init, bind: bind,
+    play: function () { want = true; if (ac && ac.state !== 'closed') { unlock(); start(); } },
+    stop: function () { want = false; halt(); },
+    setMuted: setMuted, isMuted: function () { return muted; },
+    state: function () { return { ctx: ac ? ac.state : 'none', song: songId, playing: !!(ac && tracks[songId] && tracks[songId].on && !tracks[songId].stopAt), step: ac && tracks[songId] ? tracks[songId].step : 0, muted: muted }; }
+  };
+})();
+GameMusic.init('epic', { game: 'capitalist', button: 'bMusic', key: true, onChange: function () { setTimeout(function () { if (window.__cap) window.__cap.save(true); }, 400); } }); GameMusic.play();
+</script>
+
+</body>
+</html>

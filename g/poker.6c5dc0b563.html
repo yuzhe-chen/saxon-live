@@ -1,0 +1,1266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><!--sx-ob--><style>html,body{overscroll-behavior:none}*{overscroll-behavior-x:none}[data-ob]{overscroll-behavior-y:none!important}</style><script>/* game-ready: the planner keeps its loading screen over this game until the saved data it asked for has arrived and been
+   applied. Each save request holds it (SXR.hold); once nothing is held after the page has parsed, the game posts game-ready */
+(function () {
+  if (window.SXR) return;
+  var n = 0, armed = false, sent = false, keys = {};
+  function go() { if (sent || !armed || n > 0) return; sent = true; try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'game-ready', game: 'poker' }, '*'); } catch (e) {} }
+  function hold(key) {
+    if (sent) return function () {};
+    n++; var done = false, t;
+    function rel() { if (done) return; done = true; clearTimeout(t); if (key != null && keys[key] === rel) delete keys[key]; n--; setTimeout(go, 0); }
+    if (key != null) keys[key] = rel;
+    t = setTimeout(rel, 16000);
+    return rel;
+  }
+  /* registered before the game's own listeners: the release runs after they have applied the reply */
+  window.addEventListener('message', function (e) { var m = e.data; if (m && m.type === 'game-load-res' && keys[m.reqId]) keys[m.reqId](); });
+  window.SXR = { hold: hold };
+  function arm() { setTimeout(function () { armed = true; go(); }, 0); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arm); else arm();
+})();
+</script><script>/* no bounce and no scroll chaining: a box that really overflows stops dead at its ends */(function(){function ob(e){for(var el=e.target;el&&el.nodeType===1;el=el.parentElement){var o=getComputedStyle(el).overflowY;if(o!=="auto"&&o!=="scroll")continue;var on=el.scrollHeight>el.clientHeight+2;if(on!==el.hasAttribute("data-ob")){if(on)el.setAttribute("data-ob","");else el.removeAttribute("data-ob");}}}["pointerover","wheel","touchstart"].forEach(function(t){addEventListener(t,ob,{capture:true,passive:true});});})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>poker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<script>(function(){var R=document.documentElement;function s(){var t=null;try{t=parent.document.documentElement.getAttribute('data-theme')}catch(e){}
+var d=t?t==='dark':!!(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);R.setAttribute('data-theme',d?'dark':'light')}
+s();try{new MutationObserver(s).observe(parent.document.documentElement,{attributes:true,attributeFilter:['data-theme']})}catch(e){}})();</script>
+<style>
+  :root { --green: #58cc02; --green-dark: #58a700; --green-hi: #61e002; --green-wash: #d7ffb8;
+    --blue: #4b9af3; --blue-dark: #3c81db; --blue-hi: #63a8f6; --blue-wash: #e6f1ff; --blue-line: #a4ceff;
+    --red: #ff4b4b; --red-dark: #ea2b2b; --red-wash: #ffdfe0; --gold: #ffc800; --gold-dark: #e5a400;
+    --bg: #fff; --panel: #fff; --panel-soft: #f7f7f7; --line: #e5e5e5; --line-hi: #d0d0d0; --text: #4b4b4b; --text-dim: #777; --text-faint: #afafaf;
+    --display: 'Fredoka', 'Nunito', system-ui, sans-serif; --sans: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif; --font: var(--display); color-scheme: light; }
+  :root[data-theme="dark"] { --bg: #131f24; --panel: #131f24; --panel-soft: #202f36; --line: #37464f; --line-hi: #52656d; --text: #f1f7fb; --text-dim: #8799a3; --text-faint: #6f8691;
+    --green-wash: #1c3a12; --blue-wash: #1c3150; --blue-line: #3c81db; --red-wash: #3d1f22; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body { background: var(--bg); color: var(--text); font: 700 16px/1.5 var(--sans); -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
+  input, textarea { -webkit-user-select: text; user-select: text; }
+  button, input, textarea { font: inherit; color: inherit; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px; background: var(--bg); border-bottom: 2px solid var(--line); position: sticky; top: 0; z-index: 5; }
+  .title { font: 700 28px/1.1 var(--display); letter-spacing: -0.02em; color: var(--blue); cursor: pointer; flex: none; }
+  .tright { display: flex; gap: 6px; flex-wrap: nowrap; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 18px 16px 40px; }
+  .lbl { font: 800 13px/1.3 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); }
+  .sec { margin-top: 22px; }
+  .sec > .lbl { margin-bottom: 10px; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .row.sp { justify-content: space-between; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 18px;
+    border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 12px; background: var(--bg); color: var(--blue);
+    font: 800 14px/1.2 var(--sans); letter-spacing: .8px; text-transform: uppercase; cursor: pointer; touch-action: manipulation; outline: none; text-align: center; }
+  .btn:active:not([disabled]) { transform: translateY(2px); border-bottom-width: 2px; margin-bottom: 2px; }
+  .btn.acc { background: var(--blue); border-color: var(--blue-dark); color: #fff; }
+  .btn.red { color: var(--red); }
+  .btn.ghost { color: var(--text-dim); }
+  .btn.sm { min-height: 36px; padding: 0 12px; font-size: 13px; border-radius: 10px; border-bottom-width: 3px; }
+  .btn.sm:active:not([disabled]) { transform: translateY(1px); border-bottom-width: 2px; margin-bottom: 1px; }
+  .btn.wide { width: 100%; min-height: 54px; font-size: 16px; border-radius: 16px; }
+  .btn[disabled] { cursor: default; background: var(--line); border-color: var(--line); color: var(--text-faint); }
+  @media (hover: hover) { .btn:not([disabled]):hover { background: var(--panel-soft); } .btn.acc:not([disabled]):hover { background: var(--blue-hi); } }
+  .step { display: flex; align-items: center; gap: 8px; }
+  .step .btn { width: 52px; min-height: 52px; font-size: 24px; padding: 0; flex: none; }
+  .step .v { flex: 1; text-align: center; font: 700 32px/1.1 var(--display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--text); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .names { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .field { width: 100%; min-height: 48px; padding: 10px 14px; border: 2px solid var(--line); border-radius: 12px; background: var(--panel-soft); color: var(--text);
+    font: 700 17px/1.3 var(--sans); outline: none; font-variant-numeric: tabular-nums; }
+  .field:focus { border-color: var(--blue); background: var(--bg); }
+  .field::placeholder { color: var(--text-faint); }
+  .fl .lbl { margin-bottom: 6px; }
+  .err { color: var(--red); font: 800 13px/1.3 var(--sans); letter-spacing: .04em; text-transform: uppercase; min-height: 18px; margin-top: 12px; }
+  /* table */
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; margin-bottom: 14px;
+    background: var(--blue); border: 2px solid var(--blue-dark); border-bottom-width: 6px; border-radius: 20px; color: #fff; }
+  .head .lbl { color: rgba(255,255,255,.8); }
+  .street { font: 700 clamp(28px, 7vw, 44px)/1.1 var(--display); letter-spacing: -0.02em; }
+  .meta { margin-top: 4px; }
+  .pot { text-align: right; display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center; }
+  .pot::before { content: ''; grid-row: 1 / 3; width: clamp(40px, 9vw, 56px); height: clamp(40px, 9vw, 56px); background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cellipse cx='24' cy='36' rx='20' ry='9' fill='%23ea2b2b'/%3E%3Crect x='4' y='31' width='40' height='5' fill='%23ea2b2b'/%3E%3Cellipse cx='24' cy='31' rx='20' ry='9' fill='%23ff4b4b'/%3E%3Cellipse cx='24' cy='31' rx='12' ry='5' fill='%23ea2b2b'/%3E%3Cellipse cx='24' cy='30' rx='12' ry='5' fill='%23ff4b4b'/%3E%3Crect x='21' y='22' width='6' height='3' fill='%23fff'/%3E%3Crect x='21' y='37' width='6' height='3' fill='%23fff'/%3E%3Crect x='4' y='29' width='5' height='4' fill='%23fff'/%3E%3Crect x='39' y='29' width='5' height='4' fill='%23fff'/%3E%3Cellipse cx='24' cy='26' rx='20' ry='9' fill='%23a568cc'/%3E%3Crect x='4' y='21' width='40' height='5' fill='%23a568cc'/%3E%3Cellipse cx='24' cy='21' rx='20' ry='9' fill='%23ce82ff'/%3E%3Cellipse cx='24' cy='21' rx='12' ry='5' fill='%23a568cc'/%3E%3Cellipse cx='24' cy='20' rx='12' ry='5' fill='%23ce82ff'/%3E%3Crect x='21' y='12' width='6' height='3' fill='%23fff'/%3E%3Crect x='21' y='27' width='6' height='3' fill='%23fff'/%3E%3Crect x='4' y='19' width='5' height='4' fill='%23fff'/%3E%3Crect x='39' y='19' width='5' height='4' fill='%23fff'/%3E%3Cellipse cx='24' cy='16' rx='20' ry='9' fill='%23e5a400'/%3E%3Crect x='4' y='11' width='40' height='5' fill='%23e5a400'/%3E%3Cellipse cx='24' cy='11' rx='20' ry='9' fill='%23ffc800'/%3E%3Cellipse cx='24' cy='11' rx='12' ry='5' fill='%23e5a400'/%3E%3Cellipse cx='24' cy='10' rx='12' ry='5' fill='%23ffc800'/%3E%3Crect x='21' y='2' width='6' height='3' fill='%23fff'/%3E%3Crect x='21' y='17' width='6' height='3' fill='%23fff'/%3E%3Crect x='4' y='9' width='5' height='4' fill='%23fff'/%3E%3Crect x='39' y='9' width='5' height='4' fill='%23fff'/%3E%3C/svg%3E"); }
+  .pot .n { font: 700 clamp(32px, 9vw, 52px)/1.1 var(--display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .plist { display: flex; flex-direction: column; gap: 8px; }
+  .pl { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; padding: 10px 14px; background: var(--panel); position: relative; min-height: 66px;
+    border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 16px; }
+  .pl.turn { border-color: var(--blue-line); background: var(--blue-wash); }
+  .pl.fold, .pl.sitout { color: var(--text-faint); background: var(--panel-soft); }
+  .pl.fold .st .n, .pl.sitout .st .n { color: var(--text-faint); }
+  .pl .nm { font: 700 19px/1.25 var(--display); letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; padding-bottom: 1px; }
+  .pl .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 3px; }
+  .tag { font: 800 11.5px/1.2 var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--text-dim); background: var(--panel-soft); border-radius: 999px; padding: 3px 8px; }
+  .tag.d { color: var(--blue); background: var(--blue-wash); }
+  .tag.ai { color: var(--red); background: var(--red-wash); }
+  .tag.w { color: var(--green-dark); background: var(--green-wash); }
+  .pl .st { text-align: right; }
+  .pl .st .n { font: 700 24px/1.1 var(--display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 6px; }
+  .plist .pl .st .n::before { content: ''; width: 26px; height: 17px; flex: none; background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 30'%3E%3Cellipse cx='24' cy='15' rx='20' ry='9' fill='%23e5a400'/%3E%3Crect x='4' y='10' width='40' height='5' fill='%23e5a400'/%3E%3Cellipse cx='24' cy='10' rx='20' ry='9' fill='%23ffc800'/%3E%3Cellipse cx='24' cy='10' rx='12' ry='5' fill='%23e5a400'/%3E%3Cellipse cx='24' cy='9' rx='12' ry='5' fill='%23ffc800'/%3E%3Crect x='21' y='1' width='6' height='3' fill='%23fff'/%3E%3Crect x='21' y='16' width='6' height='3' fill='%23fff'/%3E%3Crect x='4' y='8' width='5' height='4' fill='%23fff'/%3E%3Crect x='39' y='8' width='5' height='4' fill='%23fff'/%3E%3C/svg%3E"); }
+  .plist .pl.fold .st .n::before, .plist .pl.sitout .st .n::before { opacity: .45; }
+  .pl .st .b { font: 800 13px/1.25 var(--sans); color: var(--blue); font-variant-numeric: tabular-nums; margin-top: 2px; min-height: 16px; }
+  .pl .ed { position: absolute; inset: 0; background: transparent; border: 0; border-radius: 14px; cursor: pointer; }
+  .act { position: sticky; bottom: 0; background: var(--bg); padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); margin-top: 12px; z-index: 4; border-top: 2px solid var(--line); }
+  .who { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .who .nm { font: 700 clamp(24px, 7vw, 32px)/1.15 var(--display); letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; padding-bottom: 2px; }
+  .who .tc { font: 800 13px/1 var(--sans); color: var(--text-faint); letter-spacing: .06em; text-transform: uppercase; flex: none; }
+  .who .tc b { color: var(--text); font: 700 22px/1 var(--display); letter-spacing: -0.01em; }
+  .abtns { display: grid; grid-template-columns: 1fr 1.3fr 1.3fr; gap: 8px; }
+  .abtns .btn { min-height: 68px; font-size: 13.5px; flex-direction: column; gap: 4px; padding: 0 8px; }
+  .abtns .btn i { font: 700 21px/1.1 var(--display); font-style: normal; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; text-transform: none; }
+  /* raise pad */
+  .pad .amt { display: flex; justify-content: space-between; align-items: center; background: var(--panel-soft); border: 2px solid var(--line); border-radius: 16px; padding: 10px 16px; margin-bottom: 8px; gap: 10px; }
+  .pad .amt .n { font: 700 clamp(32px, 9vw, 46px)/1.1 var(--display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .pad .amt .n.bad { color: var(--red); }
+  .pre { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 8px; }
+  .pre .btn { min-height: 54px; font-size: 12px; padding: 4px; flex-direction: column; gap: 3px; letter-spacing: .4px; }
+  .pre .btn i { font: 800 13px/1.1 var(--sans); font-style: normal; color: var(--text-faint); letter-spacing: 0; font-variant-numeric: tabular-nums; }
+  .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+  .keys .btn { min-height: 54px; font: 700 24px/1 var(--display); letter-spacing: 0; color: var(--text); }
+  .pad .go { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; }
+  /* showdown */
+  .potbox { background: var(--panel); border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 16px; padding: 14px; margin-bottom: 10px; }
+  .potbox .row.sp { margin-bottom: 10px; }
+  .potbox .n { font: 700 28px/1.1 var(--display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .wins { display: flex; flex-wrap: wrap; gap: 8px; }
+  .wins .btn { flex: 1 1 40%; min-height: 52px; font: 700 17px/1.2 var(--display); letter-spacing: 0; text-transform: none; color: var(--text-dim); }
+  .wins .btn.on, .wins .btn.on:hover { border-color: var(--blue-line); background: var(--blue-wash); color: var(--blue); }
+  /* sheets */
+  .sheet { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
+  .sheet .in { background: var(--bg); border: 2px solid var(--line); border-bottom: 0; border-radius: 20px 20px 0 0; width: 100%; max-width: 620px; max-height: 92vh; max-height: 92dvh; overflow-y: auto; padding: 20px 16px calc(18px + env(safe-area-inset-bottom)); }
+  @media (min-width: 700px) { .sheet { align-items: center; } .sheet .in { border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 20px; } }
+  .sheet h2 { font: 700 30px/1.1 var(--display); letter-spacing: -0.02em; margin: 0 0 14px; overflow-wrap: anywhere; color: var(--text); }
+  .hist { display: flex; flex-direction: column; gap: 8px; }
+  .hi { background: var(--panel); border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 14px; padding: 10px 14px; cursor: pointer; }
+  .hi .row.sp { align-items: baseline; }
+  .hi .t { font: 800 15.5px/1.35 var(--sans); }
+  .hi .lg { font: 700 13.5px/1.55 var(--sans); color: var(--text-dim); margin-top: 6px; display: none; }
+  .hi.open .lg { display: block; }
+  .net { display: flex; flex-direction: column; gap: 8px; }
+  .net .pl { grid-template-columns: 1fr auto; }
+  .net .up { color: var(--green-dark); } .net .dn { color: var(--red); }
+  [hidden] { display: none !important; }
+  @media (max-width: 420px) { .title { font-size: 24px; } .names { grid-template-columns: 1fr; } .tright .btn.sm { padding: 0 9px; } .head { padding: 12px 14px; } }
+  .btn.sq { flex: none; width: 40px; padding: 0; }
+</style>
+</head>
+<body>
+<div class="top"><div class="title" id="title">poker</div><div class="tright"><div class="tright" id="tbar"></div><button class="btn sm ghost sq" id="bMusic" type="button"></button></div></div>
+<div id="app"></div>
+<div id="sheet"></div>
+<script id="engine">
+// ---------- rules engine (pure, no DOM). Chips are integers. ----------
+var PE = (function () {
+  'use strict';
+  var STREETS = ['Preflop', 'Flop', 'Turn', 'River', 'Showdown'];
+  function newGame(o) {
+    var g = { players: [], sb: o.sb, bb: o.bb, ante: o.ante || 0, every: o.every || 0, level: 1, handNo: 0, buttonId: null, nextId: 1, hand: null, history: [] };
+    (o.names || []).forEach(function (n) { addPlayer(g, n, o.stack); });
+    return g;
+  }
+  function addPlayer(g, name, stack) {
+    var p = { id: g.nextId++, name: name, stack: stack, buyin: stack, out: false, gone: false };
+    g.players.push(p); return p;
+  }
+  function P(g, id) { for (var i = 0; i < g.players.length; i++) if (g.players[i].id === id) return g.players[i]; return null; }
+  function canDeal(g) { return g.players.filter(function (p) { return !p.gone && !p.out && p.stack > 0; }).length >= 2; }
+  function put(g, h, id, amt) {
+    var p = P(g, id); amt = Math.min(amt, p.stack);
+    p.stack -= amt; h.bet[id] = (h.bet[id] || 0) + amt; h.contrib[id] = (h.contrib[id] || 0) + amt;
+    if (p.stack === 0) h.allin[id] = true;
+    return amt;
+  }
+  function startHand(g) {
+    if (g.hand && !g.hand.done) throw new Error('hand in progress');
+    var seated = g.players.filter(function (p) { return !p.gone; });
+    var elig = seated.filter(function (p) { return !p.out && p.stack > 0; });
+    if (elig.length < 2) return false;
+    g.handNo++;
+    if (g.every > 0 && g.handNo > 1 && (g.handNo - 1) % g.every === 0) { g.sb *= 2; g.bb *= 2; g.ante *= 2; g.level++; }
+    // button moves to the next eligible player after the old button (table order = players array order)
+    var order = g.players.map(function (p) { return p.id; });
+    var ok = function (id) { return elig.some(function (p) { return p.id === id; }); };
+    var start = g.buttonId == null ? -1 : order.indexOf(g.buttonId);
+    if (start < 0 && g.buttonId != null) start = -1;
+    var btn = null;
+    for (var k = 1; k <= order.length; k++) { var id = order[(start + k + order.length) % order.length]; if (ok(id)) { btn = id; break; } }
+    g.buttonId = btn;
+    var bi = order.indexOf(btn), seats = [];
+    for (k = 1; k <= order.length; k++) { id = order[(bi + k) % order.length]; if (ok(id)) seats.push(id); }
+    // seats: left of button first, button last
+    var h = { no: g.handNo, seats: seats, street: 0, bet: {}, contrib: {}, folded: {}, allin: {}, acted: {}, actedAt: {}, cur: 0, minRaise: g.bb,
+      toAct: null, done: false, pots: null, log: [], buttonId: btn, sbId: null, bbId: null, blinds: [g.sb, g.bb, g.ante], result: null };
+    g.hand = h;
+    if (g.ante > 0) seats.forEach(function (id) { var a = put(g, h, id, g.ante); h.bet[id] -= a; });
+    var sbId, bbId;
+    if (seats.length === 2) { sbId = btn; bbId = seats[0]; } else { sbId = seats[0]; bbId = seats[1]; }
+    h.sbId = sbId; h.bbId = bbId;
+    var a1 = put(g, h, sbId, g.sb), a2 = put(g, h, bbId, g.bb);
+    if (g.ante > 0) h.log.push('Antes ' + g.ante);
+    h.log.push(P(g, sbId).name + ' posts SB ' + a1);
+    h.log.push(P(g, bbId).name + ' posts BB ' + a2);
+    h.cur = g.bb; h.minRaise = g.bb;
+    var first = seats.length === 2 ? sbId : seats[2 % seats.length];
+    h.toAct = nextActor(g, h, seats.indexOf(first), true);
+    settle(g);
+    return true;
+  }
+  function live(h) { return h.seats.filter(function (id) { return !h.folded[id]; }); }
+  function active(h) { return h.seats.filter(function (id) { return !h.folded[id] && !h.allin[id]; }); }
+  function needs(h, id) { return !h.folded[id] && !h.allin[id] && (!h.acted[id] || (h.bet[id] || 0) < h.cur); }
+  function roundDone(h) {
+    var L = live(h); if (L.length <= 1) return true;
+    var A = active(h); if (A.length === 0) return true;
+    if (A.length === 1) {
+      var p = A[0], mx = 0;
+      L.forEach(function (id) { if (id !== p) mx = Math.max(mx, h.bet[id] || 0); });
+      return (h.bet[p] || 0) >= mx;
+    }
+    return A.every(function (id) { return h.acted[id] && (h.bet[id] || 0) === h.cur; });
+  }
+  // first player from seat index i (inclusive) that still needs to act
+  function nextActor(g, h, i, incl) {
+    var n = h.seats.length;
+    for (var k = incl ? 0 : 1; k <= n; k++) { var id = h.seats[((i + k) % n + n) % n]; if (needs(h, id)) return id; }
+    return null;
+  }
+  function refundUncalled(g, h) {
+    var ids = h.seats.slice().sort(function (a, b) { return (h.bet[b] || 0) - (h.bet[a] || 0); });
+    var top = ids[0], b1 = h.bet[top] || 0, b2 = ids.length > 1 ? (h.bet[ids[1]] || 0) : 0;
+    if (b1 > b2) {
+      var r = b1 - b2; h.bet[top] -= r; h.contrib[top] -= r; P(g, top).stack += r;
+      if (P(g, top).stack > 0) delete h.allin[top];
+      h.log.push(P(g, top).name + ' gets back ' + r);
+    }
+  }
+  // after any action: close the street if done, deal with runouts and the end of the hand
+  function settle(g) {
+    var h = g.hand;
+    while (!h.done && h.street < 4 && roundDone(h)) {
+      refundUncalled(g, h);
+      var L = live(h);
+      if (L.length === 1) {
+        var w = L[0], amt = potTotal(h);
+        P(g, w).stack += amt; h.done = true; h.toAct = null;
+        h.result = [{ amount: amt, winners: [w] }];
+        h.log.push(P(g, w).name + ' wins ' + amt);
+        finish(g); return;
+      }
+      h.street++;
+      h.bet = {}; h.cur = 0; h.minRaise = g.bb; h.acted = {}; h.actedAt = {};
+      if (h.street < 4) h.log.push(STREETS[h.street]);
+      if (h.street === 4 || active(h).length <= 1) {
+        if (h.street < 4) h.log.push('Run out');
+        h.street = 4;
+      }
+      if (h.street === 4) { h.toAct = null; h.pots = pots(h); return; }
+      h.toAct = nextActor(g, h, 0, true);
+    }
+  }
+  function potTotal(h) { var t = 0; for (var k in h.contrib) t += h.contrib[k]; return t; }
+  function pots(h) {
+    var rem = {}, out = [];
+    h.seats.forEach(function (id) { rem[id] = h.contrib[id] || 0; });
+    var L = live(h);
+    for (;;) {
+      var lr = L.filter(function (id) { return rem[id] > 0; });
+      if (!lr.length) break;
+      var m = Math.min.apply(null, lr.map(function (id) { return rem[id]; })), amt = 0;
+      h.seats.forEach(function (id) { var t = Math.min(rem[id], m); amt += t; rem[id] -= t; });
+      var last = out[out.length - 1];
+      if (last && last.elig.join() === lr.join()) last.amount += amt; else out.push({ amount: amt, elig: lr });
+    }
+    var left = 0; h.seats.forEach(function (id) { left += rem[id]; });
+    if (left && out.length) out[out.length - 1].amount += left;
+    return out;
+  }
+  function legal(g) {
+    var h = g.hand; if (!h || h.done || h.toAct == null) return null;
+    var id = h.toAct, p = P(g, id), my = h.bet[id] || 0, toCall = Math.max(0, h.cur - my), maxTo = my + p.stack;
+    var others = active(h).filter(function (x) { return x !== id; }).length > 0;
+    var reopened = !h.acted[id] || (h.cur - (h.actedAt[id] || 0)) >= h.minRaise;
+    var canRaise = others && reopened && p.stack > toCall;
+    var minTo = h.cur === 0 ? Math.min(g.bb, maxTo) : Math.min(h.cur + h.minRaise, maxTo);
+    if (h.cur === 0) minTo = Math.max(minTo, 1);
+    return { id: id, toCall: Math.min(toCall, p.stack), canCheck: toCall === 0, canRaise: canRaise, isBet: h.cur === 0, minTo: minTo, maxTo: maxTo, my: my, cur: h.cur,
+      pot: potTotal(h) };
+  }
+  // amount a raise-to of size frac*pot would be (pot-size raise: call first, then raise the pot)
+  function potRaiseTo(g, frac) {
+    var L = legal(g); if (!L) return 0;
+    var after = L.pot + L.toCall, to = L.cur + Math.round(after * frac);
+    return Math.max(L.minTo, Math.min(L.maxTo, to));
+  }
+  function act(g, a) {
+    var h = g.hand, L = legal(g); if (!L) throw new Error('no action');
+    var id = L.id, nm = P(g, id).name;
+    if (a.type === 'fold') { h.folded[id] = true; h.acted[id] = true; h.log.push(nm + ' folds'); }
+    else if (a.type === 'check') { if (!L.canCheck) throw new Error('cannot check'); h.acted[id] = true; h.actedAt[id] = h.cur; h.log.push(nm + ' checks'); }
+    else if (a.type === 'call') {
+      if (L.canCheck) throw new Error('nothing to call');
+      put(g, h, id, L.toCall); h.acted[id] = true; h.actedAt[id] = h.cur;
+      h.log.push(nm + ' calls ' + L.toCall + (h.allin[id] ? ' (all in)' : ''));
+    } else if (a.type === 'raise') {
+      var to = Math.floor(a.to);
+      if (!L.canRaise) throw new Error('cannot raise');
+      if (to > L.maxTo || to <= h.cur) throw new Error('bad amount');
+      if (to < L.minTo && to !== L.maxTo) throw new Error('below min');
+      var inc = to - h.cur;
+      if (inc >= h.minRaise) h.minRaise = inc;
+      put(g, h, id, to - L.my); h.cur = to; h.acted[id] = true; h.actedAt[id] = to;
+      h.log.push(nm + (L.isBet ? ' bets ' : ' raises to ') + to + (h.allin[id] ? ' (all in)' : ''));
+    } else throw new Error('bad action');
+    var idx = h.seats.indexOf(id);
+    if (!roundDone(h)) h.toAct = nextActor(g, h, idx, false);
+    settle(g);
+  }
+  // winners: array (one per pot) of arrays of player ids
+  function award(g, winners) {
+    var h = g.hand; if (!h || h.done || h.street !== 4) throw new Error('not at showdown');
+    var res = [];
+    h.pots.forEach(function (pot, i) {
+      var w = (winners[i] || []).filter(function (id) { return pot.elig.indexOf(id) >= 0; });
+      if (!w.length) throw new Error('pot ' + i + ' has no winner');
+      w.sort(function (a, b) { return h.seats.indexOf(a) - h.seats.indexOf(b); });
+      var share = Math.floor(pot.amount / w.length), odd = pot.amount - share * w.length;
+      w.forEach(function (id, j) { P(g, id).stack += share + (j < odd ? 1 : 0); });
+      res.push({ amount: pot.amount, winners: w });
+      h.log.push((h.pots.length > 1 ? (i === 0 ? 'Main pot ' : 'Side pot ' + i + ' ') : 'Pot ') + pot.amount + ': ' + w.map(function (id) { return P(g, id).name; }).join(', '));
+    });
+    h.result = res; h.done = true; finish(g);
+  }
+  function finish(g) {
+    var h = g.hand;
+    g.history.unshift({ no: h.no, result: h.result.map(function (r) { return { amount: r.amount, names: r.winners.map(function (id) { return P(g, id).name; }) }; }),
+      street: h.street, log: h.log.slice() });
+  }
+  function chipsInPlay(g) {
+    var t = 0; g.players.forEach(function (p) { if (!p.gone) t += p.stack; });
+    if (g.hand && !g.hand.done) t += potTotal(g.hand);
+    return t;
+  }
+  return { STREETS: STREETS, newGame: newGame, addPlayer: addPlayer, P: P, canDeal: canDeal, startHand: startHand, legal: legal, act: act, award: award,
+    pots: pots, potTotal: potTotal, potRaiseTo: potRaiseTo, chipsInPlay: chipsInPlay, live: live, active: active };
+})();
+if (typeof module !== 'undefined') module.exports = PE;
+</script>
+<script>
+(function () {
+'use strict';
+var KEY = 'poker.v1';
+var S = { g: null, undo: [], cfg: { n: 6, names: [], stack: 1000, sb: 5, bb: 10, ante: 0, every: 0 }, mode: 'idle', pad: '', padOpen: false, sel: null, sheet: null, err: '' };
+try { var sv = JSON.parse(localStorage.getItem(KEY) || 'null'); if (sv) { if (sv.cfg) S.cfg = sv.cfg; if (sv.g) S.g = sv.g; if (sv.undo) S.undo = sv.undo; } } catch (e) {}
+function save() { try { localStorage.setItem(KEY, JSON.stringify({ cfg: S.cfg, g: S.g, undo: S.undo.slice(-40) })); } catch (e) {} }
+function snap() { S.undo.push(JSON.stringify(S.g)); if (S.undo.length > 150) S.undo.shift(); }
+function doUndo() { if (!S.undo.length) return; S.g = JSON.parse(S.undo.pop()); S.padOpen = false; S.pad = ''; S.sel = null; }
+
+var app = document.getElementById('app'), sheet = document.getElementById('sheet'), tbar = document.getElementById('tbar');
+function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function n(x) { return Number(x).toLocaleString('en-US'); }
+function pname(i) { var s = (S.cfg.names[i] || '').trim(); return s || 'Player ' + (i + 1); }
+
+function render() {
+  var g = S.g;
+  tbar.innerHTML = g ? '<button class="btn sm ghost" data-a="undo"' + (S.undo.length ? '' : ' disabled') + '>Undo</button><button class="btn sm ghost" data-a="hist">History</button><button class="btn sm ghost" data-a="menu">Table</button>' : '';
+  if (!g) rSetup(); else rTable();
+  rSheet();
+}
+
+function rSetup() {
+  var c = S.cfg, h = '<div class="wrap"><div class="lbl" style="margin-bottom:10px">Players</div><div class="step"><button class="btn" data-a="n-">&minus;</button><div class="v">' + c.n + '</div><button class="btn" data-a="n+">+</button></div>';
+  h += '<div class="sec"><div class="lbl">Names</div><div class="names">';
+  for (var i = 0; i < c.n; i++) h += '<input class="field" data-nm="' + i + '" maxlength="14" placeholder="Player ' + (i + 1) + '" value="' + esc(c.names[i] || '') + '">';
+  h += '</div></div><div class="sec grid3">' + numf('Stack', 'stack') + numf('Small blind', 'sb') + numf('Big blind', 'bb') + '</div>';
+  h += '<div class="sec grid2">' + numf('Ante', 'ante') + numf('Hands per level', 'every', 'Off') + '</div>';
+  h += '<div class="err">' + esc(S.err) + '</div><button class="btn acc wide" data-a="start" style="margin-top:8px">Start game</button></div>';
+  app.innerHTML = h;
+}
+function numf(label, k, ph) { return '<div class="fl"><div class="lbl">' + label + '</div><input class="field" inputmode="numeric" data-cf="' + k + '" value="' + (S.cfg[k] || '') + '" placeholder="' + (ph || '0') + '"></div>'; }
+
+function tagsFor(g, h, p) {
+  var t = [];
+  if (h && h.buttonId === p.id) t.push('<span class="tag d">Dealer</span>');
+  if (h && h.sbId === p.id && h.seats.length > 2) t.push('<span class="tag">SB</span>');
+  if (h && h.bbId === p.id) t.push('<span class="tag">BB</span>');
+  if (h && !h.done && h.seats.indexOf(p.id) >= 0) {
+    if (h.folded[p.id]) t.push('<span class="tag">Folded</span>');
+    else if (h.allin[p.id]) t.push('<span class="tag ai">All in</span>');
+  }
+  if (p.out) t.push('<span class="tag">Sitting out</span>');
+  else if (p.stack === 0 && (!h || h.done || h.seats.indexOf(p.id) < 0)) t.push('<span class="tag ai">Busted</span>');
+  return t.join('');
+}
+
+function rTable() {
+  var g = S.g, h = g.hand, inHand = h && !h.done, L = inHand ? PE.legal(g) : null;
+  var html = '<div class="wrap"><div class="head"><div><div class="street">' + (inHand ? PE.STREETS[h.street] : (h ? 'Hand ' + h.no + ' done' : 'Ready')) + '</div>';
+  html += '<div class="lbl meta">Hand ' + (inHand ? h.no : g.handNo + 1) + ', blinds ' + n(inHand ? h.blinds[0] : nextBlinds()[0]) + '/' + n(inHand ? h.blinds[1] : nextBlinds()[1]) + ((inHand ? h.blinds[2] : nextBlinds()[2]) ? ', ante ' + n(inHand ? h.blinds[2] : nextBlinds()[2]) : '') + '</div></div>';
+  html += '<div class="pot"><div class="lbl">Pot</div><div class="n">' + n(inHand ? PE.potTotal(h) : 0) + '</div></div></div>';
+  html += '<div class="plist">';
+  g.players.forEach(function (p) {
+    if (p.gone) return;
+    var cls = 'pl', b = '';
+    if (inHand) {
+      var inS = h.seats.indexOf(p.id) >= 0;
+      if (!inS) cls += ' sitout'; else if (h.folded[p.id]) cls += ' fold';
+      if (h.toAct === p.id) cls += ' turn';
+      if (inS && h.bet[p.id]) b = 'Bet ' + n(h.bet[p.id]);
+    } else if (p.out) cls += ' sitout';
+    if (!inHand && h && h.result) { var won = 0; h.result.forEach(function (r) { if (r.winners.indexOf(p.id) >= 0) won = 1; }); if (won) b = 'Won'; }
+    html += '<div class="' + cls + '"><div style="min-width:0"><div class="nm">' + esc(p.name) + '</div><div class="tags">' + tagsFor(g, h, p) + '</div></div>';
+    html += '<div class="st"><div class="n">' + n(p.stack) + '</div><div class="b">' + b + '</div></div>';
+    if (!inHand) html += '<button class="ed" data-ed="' + p.id + '" aria-label="Edit"></button>';
+    html += '</div>';
+  });
+  html += '</div><div class="act">';
+  if (inHand && L) html += S.padOpen ? rPad(g, L) : rActions(g, L);
+  else if (inHand && h.street === 4) html += rShow(g, h);
+  else {
+    var busted = g.players.some(function (p) { return !p.gone && p.stack === 0; });
+    html += '<div class="grid2" style="margin-bottom:6px">' + (busted ? '<button class="btn red" data-a="rmbust">Remove busted</button><button class="btn" data-a="settle">Settle up</button>' : '<button class="btn" data-a="settle" style="grid-column:1/-1">Settle up</button>') + '</div>';
+    html += '<button class="btn acc wide" data-a="deal"' + (PE.canDeal(g) ? '' : ' disabled') + '>Deal hand ' + (g.handNo + 1) + '</button>';
+  }
+  html += '</div></div>';
+  app.innerHTML = html;
+}
+function nextBlinds() { var g = S.g, f = (g.every > 0 && g.handNo > 0 && g.handNo % g.every === 0) ? 2 : 1; return [g.sb * f, g.bb * f, g.ante * f]; }
+
+function rActions(g, L) {
+  var p = PE.P(g, L.id), h = '<div class="who"><div class="nm">' + esc(p.name) + '</div><div class="tc">' + (L.toCall ? 'To call <b>' + n(L.toCall) + '</b>' : 'Stack <b>' + n(p.stack) + '</b>') + '</div></div><div class="abtns">';
+  h += '<button class="btn red" data-act="fold">Fold</button>';
+  h += L.canCheck ? '<button class="btn" data-act="check">Check</button>' : '<button class="btn" data-act="call">' + (L.toCall >= p.stack ? 'All in' : 'Call') + '<i>' + n(L.toCall) + '</i></button>';
+  h += '<button class="btn acc" data-a="pad"' + (L.canRaise ? '' : ' disabled') + '>' + (L.isBet ? 'Bet' : 'Raise') + (L.canRaise ? '<i>' + n(L.minTo) + '+</i>' : '') + '</button></div>';
+  return h;
+}
+function rPad(g, L) {
+  var v = S.pad === '' ? 0 : +S.pad, ok = v <= L.maxTo && v > L.cur && (v >= L.minTo || v === L.maxTo);
+  var h = '<div class="pad"><div class="amt"><div class="lbl">' + (L.isBet ? 'Bet' : 'Raise to') + '</div><div class="n' + (ok || S.pad === '' ? '' : ' bad') + '">' + n(v) + '</div></div>';
+  var pre = [['Min', L.minTo], ['Half pot', PE.potRaiseTo(g, 0.5)], ['Pot', PE.potRaiseTo(g, 1)], ['All in', L.maxTo]];
+  h += '<div class="pre">' + pre.map(function (x) { return '<button class="btn" data-set="' + x[1] + '">' + x[0] + '<i>' + n(x[1]) + '</i></button>'; }).join('') + '</div>';
+  h += '<div class="keys">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 'C', 0, 'del'].map(function (k) { return '<button class="btn" data-k="' + k + '">' + (k === 'del' ? '&larr;' : k) + '</button>'; }).join('') + '</div>';
+  h += '<div class="go"><button class="btn" data-a="padx">Back</button><button class="btn acc" data-a="raise"' + (ok ? '' : ' disabled') + '>' + (v === L.maxTo ? 'All in ' : (L.isBet ? 'Bet ' : 'Raise to ')) + n(v) + '</button></div></div>';
+  return h;
+}
+function rShow(g, h) {
+  if (!S.sel || S.sel.length !== h.pots.length) S.sel = h.pots.map(function (p) { return p.elig.length === 1 ? p.elig.slice() : []; });
+  var html = '<div class="lbl" style="margin-bottom:8px">Showdown</div>';
+  h.pots.forEach(function (pot, i) {
+    html += '<div class="potbox"><div class="row sp"><div class="lbl">' + (h.pots.length > 1 ? (i === 0 ? 'Main pot' : 'Side pot ' + i) : 'Pot') + '</div><div class="n">' + n(pot.amount) + '</div></div><div class="wins">';
+    pot.elig.forEach(function (id) { html += '<button class="btn' + (S.sel[i].indexOf(id) >= 0 ? ' on' : '') + '" data-win="' + i + ':' + id + '">' + esc(PE.P(g, id).name) + '</button>'; });
+    html += '</div></div>';
+  });
+  var ready = S.sel.every(function (s) { return s.length; });
+  html += '<button class="btn acc wide" data-a="pay"' + (ready ? '' : ' disabled') + '>Pay out</button>';
+  return html;
+}
+
+function rSheet() {
+  var g = S.g, s = S.sheet;
+  if (!s || !g) { sheet.innerHTML = ''; return; }
+  var h = '<div class="sheet" data-a="close"><div class="in">';
+  if (s.t === 'edit') {
+    var p = PE.P(g, s.id);
+    h += '<h2>' + esc(p.name) + '</h2><div class="row sp" style="margin-bottom:14px"><div class="lbl">Stack</div><div style="font:800 32px/1.1 var(--font);letter-spacing:-0.02em">' + n(p.stack) + '</div></div>';
+    h += '<div class="fl"><div class="lbl">Amount</div><input class="field" id="edv" inputmode="numeric" placeholder="' + S.cfg.stack + '"></div>';
+    h += '<div class="grid2" style="margin-top:8px"><button class="btn acc" data-a="rebuy">Rebuy</button><button class="btn" data-a="setstack">Set stack</button></div>';
+    h += '<div class="grid2" style="margin-top:8px"><button class="btn" data-a="sitout">' + (p.out ? 'Sit in' : 'Sit out') + '</button><button class="btn red" data-a="remove">Remove</button></div>';
+    h += '<div class="fl" style="margin-top:14px"><div class="lbl">Name</div><input class="field" id="edn" maxlength="14" value="' + esc(p.name) + '"></div>';
+    h += '<button class="btn wide" data-a="close" style="margin-top:14px">Done</button>';
+  } else if (s.t === 'hist') {
+    h += '<h2>History</h2><div class="hist">';
+    if (!g.history.length) h += '<div class="lbl">No hands yet</div>';
+    g.history.forEach(function (x, i) {
+      h += '<div class="hi" data-hi="' + i + '"><div class="row sp"><div class="t">' + x.result.map(function (r) { return esc(r.names.join(' and ')) + ' ' + n(r.amount); }).join(', ') + '</div><div class="lbl">#' + x.no + '</div></div>';
+      h += '<div class="lg">' + x.log.map(esc).join('<br>') + '</div></div>';
+    });
+    h += '</div><button class="btn wide" data-a="close" style="margin-top:14px">Close</button>';
+  } else if (s.t === 'menu') {
+    var inHand = g.hand && !g.hand.done;
+    h += '<h2>Table</h2><div class="grid3">' + tf('Small blind', 'sb', g.sb) + tf('Big blind', 'bb', g.bb) + tf('Ante', 'ante', g.ante) + '</div>';
+    h += '<div class="grid2" style="margin-top:10px">' + tf('Hands per level', 'every', g.every || '') + '<div class="fl"><div class="lbl">Add player</div><input class="field" id="addn" maxlength="14" placeholder="Name"></div></div>';
+    h += '<div class="grid2" style="margin-top:8px"><button class="btn" data-a="applyt">Apply</button><button class="btn" data-a="addp"' + (inHand ? ' disabled' : '') + '>Add player</button></div>';
+    h += '<div class="grid2" style="margin-top:8px"><button class="btn" data-a="settle">Settle up</button><button class="btn red" data-a="newgame">New game</button></div>';
+    h += '<button class="btn wide" data-a="close" style="margin-top:14px">Close</button>';
+  } else if (s.t === 'settle') {
+    var rows = g.players.map(function (p) { return { p: p, net: p.stack - p.buyin }; }).sort(function (a, b) { return b.net - a.net; });
+    h += '<h2>Settle up</h2><div class="net">';
+    rows.forEach(function (r) {
+      h += '<div class="pl"><div style="min-width:0"><div class="nm">' + esc(r.p.name) + '</div><div class="tags"><span class="tag">In ' + n(r.p.buyin) + '</span><span class="tag">Out ' + n(r.p.stack) + '</span>' + (r.p.gone ? '<span class="tag">Left</span>' : '') + '</div></div>';
+      h += '<div class="st"><div class="n ' + (r.net > 0 ? 'up' : r.net < 0 ? 'dn' : '') + '">' + (r.net > 0 ? '+' : '') + n(r.net) + '</div></div></div>';
+    });
+    h += '</div><button class="btn wide" data-a="close" style="margin-top:14px">Close</button>';
+  } else if (s.t === 'confirm') {
+    h += '<h2>New game?</h2><div class="grid2"><button class="btn" data-a="close">Cancel</button><button class="btn red" data-a="reset">New game</button></div>';
+  }
+  sheet.innerHTML = h + '</div></div>';
+}
+function tf(label, k, v) { return '<div class="fl"><div class="lbl">' + label + '</div><input class="field" inputmode="numeric" data-tf="' + k + '" value="' + v + '" placeholder="Off"></div>'; }
+function int(v) { v = parseInt(String(v).replace(/[^0-9]/g, ''), 10); return isNaN(v) ? 0 : v; }
+
+function onClick(e) {
+  var b = e.target.closest('button, [data-a="close"], .hi');
+  if (!b) return;
+  if (b.classList.contains('sheet') && e.target !== b) return;
+  if (b.disabled) return;
+  if (b.tagName === 'BUTTON') { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }
+  var g = S.g, d = b.dataset, a = d.a;
+  if (b.classList.contains('hi')) { b.classList.toggle('open'); return; }
+  if (d.act) { snap(); PE.act(g, { type: d.act }); S.sel = null; return done(); }
+  if (d.k !== undefined) {
+    if (d.k === 'C') S.pad = ''; else if (d.k === 'del') S.pad = S.fresh ? '' : S.pad.slice(0, -1); else padKey(String(d.k));
+    S.fresh = false;
+    return done();
+  }
+  if (d.set) { S.pad = d.set; S.fresh = true; return done(); }
+  if (d.win) {
+    var pr = d.win.split(':'), i = +pr[0], id = +pr[1], s = S.sel[i], j = s.indexOf(id);
+    if (j >= 0) s.splice(j, 1); else s.push(id);
+    // same winners carry down to side pots they can win
+    if (j < 0) for (var k = i + 1; k < S.sel.length; k++) if (g.hand.pots[k].elig.indexOf(id) >= 0 && !S.sel[k].length) S.sel[k] = [id];
+    return done();
+  }
+  if (d.ed) { S.sheet = { t: 'edit', id: +d.ed }; return done(); }
+  var sp = S.sheet && S.sheet.id ? PE.P(g, S.sheet.id) : null;
+  switch (a) {
+    case 'n-': S.cfg.n = Math.max(2, S.cfg.n - 1); break;
+    case 'n+': S.cfg.n = Math.min(10, S.cfg.n + 1); break;
+    case 'start': {
+      var c = S.cfg;
+      if (c.stack < 1 || c.bb < 1) { S.err = 'Set stack and big blind'; break; }
+      if (c.sb > c.bb) { S.err = 'Small blind above big blind'; break; }
+      var names = [], seen = {};
+      for (var q = 0; q < c.n; q++) { var nm = pname(q), base = nm, z = 2; while (seen[nm.toLowerCase()]) nm = base + ' ' + z++; seen[nm.toLowerCase()] = 1; names.push(nm); }
+      S.g = PE.newGame({ names: names, stack: c.stack, sb: c.sb, bb: c.bb, ante: c.ante, every: c.every }); S.undo = []; S.err = '';
+      break;
+    }
+    case 'deal': snap(); PE.startHand(g); S.sel = null; S.padOpen = false; break;
+    case 'pad': S.padOpen = true; S.pad = String(PE.legal(g).minTo); S.fresh = true; break;
+    case 'padx': S.padOpen = false; break;
+    case 'raise': snap(); PE.act(g, { type: 'raise', to: +S.pad }); S.padOpen = false; S.pad = ''; S.sel = null; break;
+    case 'pay': snap(); PE.award(g, S.sel); S.sel = null; break;
+    case 'undo': doUndo(); break;
+    case 'hist': S.sheet = { t: 'hist' }; break;
+    case 'menu': S.sheet = { t: 'menu' }; break;
+    case 'settle': S.sheet = { t: 'settle' }; break;
+    case 'close': saveName(); S.sheet = null; break;
+    case 'rebuy': { var v = int(document.getElementById('edv').value) || S.cfg.stack; snap(); sp.stack += v; sp.buyin += v; break; }
+    case 'setstack': { var raw = document.getElementById('edv').value; if (raw.trim() === '') return; snap(); if (g.handNo === 0) sp.buyin = int(raw); sp.stack = int(raw); break; }
+    case 'sitout': snap(); sp.out = !sp.out; break;
+    case 'remove': snap(); sp.gone = true; S.sheet = null; break;
+    case 'rmbust': snap(); g.players.forEach(function (p) { if (p.stack === 0) p.gone = true; }); break;
+    case 'applyt': {
+      snap();
+      document.querySelectorAll('[data-tf]').forEach(function (el) { g[el.dataset.tf] = int(el.value); });
+      if (g.bb < 1) g.bb = 1; if (g.sb > g.bb) g.sb = g.bb;
+      S.sheet = null; break;
+    }
+    case 'addp': {
+      var nn = document.getElementById('addn').value.trim(); if (!nn) return;
+      snap(); var np = PE.addPlayer(g, nn.slice(0, 14), S.cfg.stack); S.sheet = { t: 'edit', id: np.id }; break;
+    }
+    case 'newgame': S.sheet = { t: 'confirm' }; break;
+    case 'reset': S.g = null; S.undo = []; S.sheet = null; break;
+    default: return;
+  }
+  done();
+}
+function padKey(k) { if (S.fresh) S.pad = ''; if (S.pad.length < 9) S.pad = (S.pad + k).replace(/^0+/, ''); }
+function saveName() {
+  var el = document.getElementById('edn');
+  if (el && S.sheet && S.sheet.t === 'edit') { var v = el.value.trim(); if (v) PE.P(S.g, S.sheet.id).name = v.slice(0, 14); }
+}
+function done() { save(); render(); }
+document.addEventListener('click', onClick);
+app.addEventListener('input', function (e) {
+  var t = e.target;
+  if (t.dataset.nm !== undefined) { S.cfg.names[+t.dataset.nm] = t.value; save(); }
+  else if (t.dataset.cf) { S.cfg[t.dataset.cf] = int(t.value); save(); }
+});
+// number keys type into the raise pad
+document.addEventListener('keydown', function (e) {
+  if (!S.padOpen || /INPUT|TEXTAREA/.test(document.activeElement && document.activeElement.tagName)) return;
+  if (/^[0-9]$/.test(e.key)) { padKey(e.key); S.fresh = false; render(); }
+  else if (e.key === 'Backspace') { S.pad = S.fresh ? '' : S.pad.slice(0, -1); S.fresh = false; render(); }
+  else if (e.key === 'Enter') { var bt = document.querySelector('[data-a="raise"]'); if (bt && !bt.disabled) bt.click(); }
+  else if (e.key === 'Escape') { S.padOpen = false; render(); }
+});
+document.getElementById('title').addEventListener('click', function () { try { parent.postMessage({ type: 'games-menu' }, '*'); } catch (e) {} });
+window.__pk = S;
+render();
+})();
+</script>
+<script>
+/* GameMusic: Lander's synthesized music (Track 2, Holst's Mars and Mercury), engine and note data copied from lander.html */
+var GameMusic = (function () {
+  var ac = null, master = null, music = null, noiseBuf = null;
+  var songId = null, game = 'game', opts = {}, want = false, muted = false, touched = false, saved = null, btns = [];
+  function now() { return ac.currentTime; }
+  function makeNoise() {
+    var len = ac.sampleRate * 2, b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0);
+    for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    return b;
+  }
+  function noiseSrc() { var s = ac.createBufferSource(); s.buffer = noiseBuf; s.loop = true; return s; }
+  function gainNode(v) { var g = ac.createGain(); g.gain.value = v; return g; }
+  function filter(type, f, q) { var n = ac.createBiquadFilter(); n.type = type; n.frequency.value = f; if (q) n.Q.value = q; return n; }
+  var BPM = 124, BASE_STEP = 60 / BPM / 4, STEP = BASE_STEP, BAR = STEP * 16;
+  function midi(n) { return 440 * Math.pow(2, (n - 69) / 12); }
+  function nn(s) { var m = /^([A-G])(#|b)?(-?\d)$/.exec(s), b = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]]; return b + (m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0) + (+m[3] + 1) * 12; }
+  var CH = {};
+  function mel(str) { return str ? str.split(" ").map(function (t) { var p = t.split(":"); return [+p[0], nn(p[1]), +p[2]]; }) : []; }
+  function secP(name, bars, spb, qbpm, fill) {
+    var ev = {}, add = function (st, e) { var k = Math.floor(st + 1e-6); e.off = st - k; (ev[k] = ev[k] || []).push(e); };
+    fill(add, function (s) { return s.split(" ").map(nn); });
+    return { name: name, bars: bars, spb: spb, stepT: 60 / qbpm / 4, ev: ev };
+  }
+  function chordAt(add, st, inst, v, d, extra) { var e = { i: inst, v: v, d: d }; if (extra) for (var k in extra) e[k] = extra[k]; add(st, e); }
+  function notes(add, str, inst, o) {
+    o = o || {};
+    str.split(" ").forEach(function (t) {
+      if (!t) return;
+      var p = t.split(":"), e = { i: inst, n: nn(p[1]) + (o.tr || 0), d: +p[2] };
+      if (o.ex) for (var k in o.ex) e[k] = o.ex[k];
+      add((o.at || 0) + (+p[0]), e);
+    });
+  }
+  function phrase(add, str, o) {
+    o = o || {};
+    var ms = mel(str);
+    add((o.at || 0) + ms[0][0], { i: "soar", list: ms.map(function (m) { return [m[0] - ms[0][0], m[1] + (o.tr || 0), m[2]]; }), soft: !!o.soft });
+  }
+  var HOLST = {
+    mercury: function () {
+      function cell(add, s0, oct, vel) {
+        [["F", 0], ["Bb", 0], ["D", 1], ["E", 1], ["B", 0], ["G#", 0]].forEach(function (c, k) {
+          var n = nn(c[0] + (oct + c[1]));
+          add(s0 + k * 2, { i: "wood", n: n, d: 1.6, vel: k ? 0.7 : vel });
+          add(s0 + k * 2, { i: "strShort", n: n, d: 1.2, vel: 0.8 });
+        });
+      }
+      function harps(add, s0, oct) {
+        chordAt(add, s0, "harpC", [nn("Bb" + (oct - 1)), nn("D" + oct), nn("F" + oct)], 4, { vel: 0.8 });
+        chordAt(add, s0 + 6, "harpC", [nn("E" + oct), nn("G#" + oct), nn("B" + oct)], 4, { vel: 0.8 });
+        add(s0, { i: "pluck", n: nn("Bb1"), d: 4 }); add(s0 + 6, { i: "pluck", n: nn("E2"), d: 4 });
+      }
+      var m1 = secP("m1", 8, 12, 132, function (add) {
+        [2, 3, 4, 0, 4, 3, 2].forEach(function (oct, b) {
+          if (b === 3) notes(add, "0:A5:2 2:E5:2 4:C#5:2 6:E5:2", "wood", { at: 36, ex: { vel: 0.8 } });
+          else cell(add, b * 12, oct, 1);
+          harps(add, b * 12, b === 3 ? 4 : oct);
+        });
+        harps(add, 84, 4);
+        add(84, { i: "celesta", n: nn("F5"), d: 2 }); add(90, { i: "celesta", n: nn("E5"), d: 2 });
+        phrase(add, "94:A5:2");
+      });
+      var m2 = secP("m2", 7, 12, 132, function (add) {
+        phrase(add, "0:G5:2 8:G5:2 10:A5:2 12:G5:2 14:F5:2 16:E5:2 18:F5:2 20:G5:2 22:F5:2 24:E5:6 30:D5:6 36:G5:4 40:G5:2 42:A5:6 48:G5:2 50:F5:2 52:E5:2 54:F5:2 56:G5:2 58:F5:2 60:E5:4 64:C5:2 66:D5:6 72:G5:8");
+        for (var b = 0; b < 7; b++) {
+          var s0 = b * 12;
+          [0, 6].forEach(function (h) {
+            add(s0 + h, { i: "pluck", n: nn("G3"), d: 2, vel: 0.8 }); add(s0 + h + 2, { i: "pluck", n: nn("Bb3"), d: 2, vel: 0.7 });
+            add(s0 + h + 4, { i: "pluck", n: nn("D4"), d: 2, vel: 0.6 }); add(s0 + h + 4, { i: "pluck", n: nn("F4"), d: 2, vel: 0.6 });
+          });
+          if (b >= 3 && b <= 5) { add(s0, { i: "wood", n: nn("F4"), d: 11, vel: 0.35 }); add(s0, { i: "wood", n: nn("Bb4"), d: 11, vel: 0.35 }); }
+        }
+        add(0, { i: "pluck", n: nn("G2"), d: 6 }); add(36, { i: "pluck", n: nn("G2"), d: 6 }); add(72, { i: "pluck", n: nn("G2"), d: 6 });
+      });
+      var TA = "0:G5:4 4:G5:2 6:A5:6 12:G5:2 14:F5:2 16:E5:2 18:F5:2 20:G5:2 22:F5:2 24:E5:6 30:D5:6";
+      var TB = "36:G5:4 40:G5:2 42:A5:6 48:G5:2 50:F5:2 52:E5:2 54:F5:2 56:G5:2 58:F5:2 60:E5:4 64:C5:2 66:D5:6";
+      var TUNE = TA + " " + TB;
+      function hq(add, s0, lo, hi, vel) { [0, 3, 6, 9].forEach(function (q, k) { (k % 2 ? hi : lo).forEach(function (n) { add(s0 + q, { i: "pluck", n: n, d: 2, vel: vel || 0.6 }); }); }); }
+      function held(add, list, inst, vel) { list.forEach(function (c) { c[1].split(" ").map(nn).forEach(function (n) { add(c[0], { i: inst, n: n, d: c[2], vel: vel }); }); }); }
+      function timpC(add, s0, k) {
+        [["0:4 4:2 8:2 10:2"], ["0:2 2:2 4:2 6:4 10:2"], ["0:4 4:4 8:4"]][k % 3][0].split(" ").forEach(function (t) { var p = t.split(":"); add(s0 + +p[0], { i: "timp", n: nn("C3"), vel: 0.35 }); });
+      }
+      var N0 = function (s) { return s.split(" ").map(nn); };
+      var m3 = secP("oboe", 6, 12, 132, function (add) {
+        notes(add, TUNE, "wood", { ex: { vel: 0.85 } });
+        add(0, { i: "brassC", v: [nn("G4")], d: 48, vel: 0.3 });
+        for (var b = 0; b < 6; b++) hq(add, b * 12, b < 4 ? N0("G3 Bb3") : N0("F3 A3"), b < 4 ? N0("D4 F4") : N0("C4 F4"));
+      });
+      var m4 = secP("flute", 6, 12, 132, function (add) {
+        notes(add, TUNE, "wood", { ex: { vel: 0.85 } });
+        add(0, { i: "wood", n: nn("E4"), d: 72, vel: 0.3 });
+        var H = [["Eb4 G4", "Bb4 D5"], ["Eb4 G4", "Bb4 D5"], ["C#4 E4", "G4 Bb4"], ["A3 C#4", "E4 G4"], ["D4 F4", "Ab4 C5"], ["D4 F4", "Ab4 C5"]];
+        H.forEach(function (h, b) { hq(add, b * 12, N0(h[0]), N0(h[1])); });
+      });
+      var m5 = secP("celesta", 6, 12, 132, function (add) {
+        notes(add, TUNE, "celesta", { ex: { vel: 0.9 } });
+        ["F#3 D4 F4 A4", "F3 D4 E4 G4", "F3 D4 E4 G4", "F#3 D4 F4 A4", "F3 D4 E4 G4", "F3 D4 E4 G4"].forEach(function (c, b) { chordAt(add, b * 12, "strC", N0(c), 12, { vel: 0.35 }); });
+        for (var b = 0; b < 6; b++) hq(add, b * 12, N0("D4 F4"), b === 3 ? N0("Ab4 B4") : N0("Ab4 C5"), 0.5);
+      });
+      var m6 = secP("clarinet", 6, 12, 132, function (add) {
+        notes(add, TUNE, "wood", { tr: -12, ex: { vel: 0.9 } });
+        var C = ["B3 D#4 F#4", "B3 D#4 F#4", "Bb3 D4 F4", "C4 E4 G4", "Bb3 D4 F4", "D4 F4 A4"];
+        C.forEach(function (c, b) {
+          var v = N0(c);
+          chordAt(add, b * 12, "strC", [v[0] - 12, v[1] - 12], 12, { vel: 0.4 });
+          [0, 3, 6, 9].forEach(function (q, k) { [v[k % 2 ? 2 : 0] + 12, v[1] + 12].forEach(function (n) { add(b * 12 + q, { i: "wood", n: n, d: 1, vel: 0.3 }); }); });
+        });
+      });
+      var m7 = secP("figIV", 12, 12, 132, function (add) {
+        phrase(add, TUNE); phrase(add, TUNE, { at: 72 });
+        notes(add, TUNE, "cstr", { at: 72, tr: -12, ex: { vel: 0.6 } });
+        var C = ["F3 A3 B3 E4", "E3 A3 D4", "G3 B3 E4", "F3 A3 C4 G4", "G3 B3 D4 F4", "G3 C4 E4 A4",
+                 "F3 B3 D4 G4", "E3 A3 C4 F4", "F3 B3 D4 G4", "G3 C4 F4 A4", "B3 E4 G4 C5", "A3 D4 F#4 B4"];
+        C.forEach(function (c, b) { chordAt(add, b * 12, "brassC", N0(c), 12, { vel: 0.3 + b * 0.03 }); N0(c).forEach(function (n) { add(b * 12, { i: "wood", n: n, d: 12, vel: 0.25 + b * 0.02 }); }); });
+      });
+      function sweep(add, s0, ch, vel) { ch.forEach(function (n, k) { add(s0 + k * 0.5, { i: "pluck", n: n, d: 2, vel: vel || 0.7 }); }); }
+      var m8 = secP("tutti", 6, 12, 132, function (add) {
+        phrase(add, TUNE); notes(add, TUNE, "cstr", { tr: 12, ex: { vel: 0.55 } }); notes(add, TUNE, "wood", { ex: { vel: 0.6 } });
+        held(add, [[0, "Bb3 D4 F4 Bb4", 48], [48, "G3 Bb3 D4 G4", 24]], "str", 0.7);
+        add(0, { i: "deep", n: nn("Bb1"), d: 48, vel: 0.5 }); add(48, { i: "deep", n: nn("G1"), d: 24, vel: 0.5 });
+        add(0, { i: "str", n: nn("Bb2"), d: 48, vel: 0.8 }); add(48, { i: "str", n: nn("G2"), d: 24, vel: 0.8 });
+        for (var b = 0; b < 5; b++) sweep(add, b * 12, N0("Bb2 F3 Bb3 D4 F4 Bb4 D5 F5"));
+        chordAt(add, 60, "harpC", N0("G3 Bb3 D4 G4"), 4);
+      });
+      var m9 = secP("climax", 12, 12, 132, function (add) {
+        notes(add, TA, "brass", { ex: { vel: 0.7 } }); notes(add, TA, "wood", { ex: { vel: 0.7 } });
+        phrase(add, TB, { at: 0 }); notes(add, TB, "cstr", { tr: 12, ex: { vel: 0.6 } });
+        notes(add, TA, "hbrass", { at: 72, tr: -12 });
+        phrase(add, TB, { at: 72, soft: true });
+        ["0:C6:12 12:Bb5:12 24:Ab5:12", "72:C6:12 84:Bb5:12 96:Ab5:12"].forEach(function (s) { notes(add, s, "cstr", { ex: { vel: 0.8 } }); notes(add, s, "wood", { ex: { vel: 0.5 } }); });
+        add(0, { i: "crash" });
+        add(0, { i: "deep", n: nn("C1"), d: 144, vel: 0.6 }); add(0, { i: "str", n: nn("C2"), d: 144, vel: 0.9 }); add(0, { i: "lbrass", n: nn("C2"), d: 36 });
+        for (var q = 0; q < 48; q++) add(q, { i: "timp", n: nn("C2"), vel: 0.18 + (q % 6 ? 0 : 0.1) });
+        [0, 12, 48, 60].forEach(function (s) { sweep(add, s, N0("Ab2 Eb3 Ab3 C4 Eb4 Ab4 C5 Eb5"), 0.75); });
+        [36, 84].forEach(function (s) { chordAt(add, s, "harpC", N0("Ab3 C4 Eb4 Ab4"), 4); });
+        held(add, [[0, "Ab3 C4 Eb4", 36], [36, "Ab3 C4 Eb4 Ab4", 36], [72, "Ab3 C4 Eb4", 36]], "str", 0.55);
+        held(add, [[108, "E4 G4 C5", 12], [120, "E4 G4 Bb4", 12], [132, "Eb4 Ab4 C5", 12]], "wood", 0.4);
+      });
+      var m10 = secP("figV", 10, 12, 132, function (add) {
+        phrase(add, TA, { tr: -12 }); notes(add, TA, "str", { tr: -24, ex: { vel: 0.7 } }); notes(add, TA, "brass", { tr: -12, ex: { vel: 0.45 } });
+        notes(add, TB, "wood", { tr: -12, ex: { vel: 0.75 } }); phrase(add, TB, { tr: -12, soft: true });
+        notes(add, TA + " 36:E5:6 42:D5:6", "wood", { at: 72, tr: -12, ex: { vel: 0.8 } });
+        [[0, "Bb1", 24], [24, "G1", 12], [36, "Bb1", 12], [48, "G1", 24]].forEach(function (b) { add(b[0], { i: "str", n: nn(b[1]) + 12, d: b[2], vel: 0.8 }); add(b[0], { i: "deep", n: nn(b[1]), d: b[2], vel: 0.4 }); });
+        held(add, [[0, "D3 Ab3", 24], [24, "D3 F3", 12], [36, "D3 Ab3", 12], [48, "D3 F3", 24]], "wood", 0.4);
+        held(add, [[72, "C3 E3 G3", 24], [96, "Bb2 Eb3 G3", 12], [108, "C3 E3 G3", 12]], "str", 0.5);
+      });
+      var m11 = secP("pause", 4, 12, 80, function (add) {
+        add(0, { i: "wood", n: nn("G4"), d: 18, vel: 0.5 }); add(18, { i: "wood", n: nn("E4"), d: 6, vel: 0.45 });
+        held(add, [[0, "Bb1 Bb2", 24], [24, "Bb1 Bb2", 24]], "str", 0.6);
+        add(12, { i: "wood", n: nn("Bb3"), d: 2, vel: 0.5 }); add(14, { i: "wood", n: nn("D4"), d: 2, vel: 0.5 }); add(16, { i: "wood", n: nn("C#4"), d: 2, vel: 0.5 });
+        held(add, [[24, "E4 Bb3", 24]], "str", 0.45);
+      });
+      var m12 = secP("celestaRun", 9, 12, 132, function (add) {
+        "C5 D#5 G#5 A5 Bb5 C6 D6 Eb6".split(" ").forEach(function (n, k) { add(k * 1.5, { i: "celesta", n: nn(n), d: 1.5 }); });
+        notes(add, "12:E6:2 14:B5:2 16:G#5:2 18:F#6:2 20:A5:2 22:F#5:2 24:C#6:2 26:G#5:2 28:E5:2 30:D6:2 32:A#5:2 34:F#5:2 " +
+                   "36:Bb5:2 38:F5:2 40:D5:2 42:A5:2 44:Eb5:2 46:C5:2 48:G5:2 50:D5:2 52:Bb4:2 54:F5:2 56:C5:2 58:A4:2", "celesta");
+        notes(add, "12:E6:2 14:B5:2 16:G#5:2 18:F#6:2 20:A5:2 22:F#5:2 24:C#6:2 26:G#5:2 28:E5:2 30:D6:2 32:A#5:2 34:F#5:2", "wood", { ex: { vel: 0.35 } });
+        [[60, "F#4 B4 D#5"], [64, "G4 B4 E5"], [68, "A4 C#5 F#5"], [72, "C#4 E4 A4"], [76, "E4 G#4 C#5"], [80, "D#4 F#4 B4"], [84, "D4 F4 B4"], [88, "G4 B4 D5"], [92, "A4 C5 Eb5"]].forEach(function (c) { N0(c[1]).forEach(function (n) { add(c[0], { i: "celesta", n: n, d: 4, vel: 0.8 }); }); });
+        N0("Bb4 D5 F5").forEach(function (n) { add(96, { i: "celesta", n: n, d: 8, vel: 0.8 }); }); N0("A4 C5 F5").forEach(function (n) { add(104, { i: "celesta", n: n, d: 4, vel: 0.8 }); });
+        [36, 40, 44, 48, 52, 56].forEach(function (s, k) { chordAt(add, s, "harpC", N0(k % 3 === 1 ? "Bb3 D4 F4" : "F3 Bb3 D4"), 3, { vel: 0.6 }); });
+        notes(add, "84:F6:2 86:D6:2 88:Bb5:2 90:F6:2 92:D6:2 94:Bb5:2 96:Eb6:2 98:C6:2 100:A5:2 102:Eb6:2 104:C6:2 106:A5:2", "pluck", { ex: { vel: 0.5 } });
+      });
+      var m13 = secP("figVII", 13, 12, 132, function (add) {
+        var V = ("B3 C#4 D4 E4 F#4 G4 A4 B4 D5 C#5 F#4 A4 B4 C#5 D5 E5 F#5 G5 A5 B5 A5 G5 E5 F#5 G5 E5 F#5 G5 A5 F#5 " +
+                 "B4 C#5 F#5 E5 D5 C#5 D5 C#5 A4 B4 C#5 A4 A4 B4 C#5 A4 F#4 G4 C#5 D5 E5 F#5 G5 E5 F#5 G5 A5 E5 F#5 G5 " +
+                 "G5 A5 B5 C#6 D6 B5 D6 C#6 D6 B5 C#6 A5 A5").split(" ");
+        V.forEach(function (n, k) { add(k * 2, { i: "strShort", n: nn(n), d: 1.2, vel: 0.7 }); add(k * 2, { i: "strShort", n: nn(n) - 12, d: 1.2, vel: 0.5 }); });
+        add(0, { i: "pluck", n: nn("D2"), d: 2, vel: 0.6 });
+      });
+      var m14 = secP("soloF", 14, 12, 132, function (add) {
+        notes(add, "0:C#6:4 4:C#6:2 6:D6:6 12:C#6:2 14:B5:2 16:A#5:2 18:B5:2 20:C#6:2 22:B5:2 24:A#5:6 30:G#5:6", "wood", { ex: { vel: 0.7 } });
+        held(add, [[0, "G#4 B4", 36]], "wood", 0.3);
+        notes(add, "36:A4:2 38:Bb4:2 40:A4:2 42:Bb4:2 44:Ab4:2", "wood", { ex: { vel: 0.35 } });
+        phrase(add, TUNE, { at: 48, tr: 5, soft: true });
+        phrase(add, TA.split(" ").slice(0, 8).join(" "), { at: 120, tr: 5 }); notes(add, TA.split(" ").slice(0, 8).join(" "), "cstr", { at: 120, tr: 5, ex: { vel: 0.7 } });
+        notes(add, "144:A5:4 148:G5:1 149:F5:1 150:E5:1 151:D5:1 152:C5:1 153:B4:1 154:A4:1 155:G4:1", "cstr", { ex: { vel: 0.8 } });
+        held(add, [[48, "C4 E4 G4", 96]], "wood", 0.3);
+        for (var b = 0; b < 13; b++) timpC(add, b * 12, b);
+        held(add, [[156, "D4 A4", 12], [156, "Ab3", 12]], "str", 0.8); add(156, { i: "str", n: nn("B1"), d: 12, vel: 0.6 });
+      });
+      var m15 = secP("ending", 18, 12, 132, function (add) {
+        add(0, { i: "str", n: nn("B1"), d: 96, vel: 0.5 });
+        notes(add, "0:Bb6:2 2:F6:2 4:D6:2 6:A6:2 8:Eb6:2 10:C6:2 12:G6:2 14:D6:2 16:Bb5:2 18:F6:2 20:C6:2 22:A5:2 24:F6:2 26:C#6:2 28:A5:2 30:E6:2 32:B5:2 34:G#5:2 36:D#6:2 38:B5:2 40:G#5:2 42:C#6:2 44:G#5:2 46:E5:2", "celesta", { tr: -12, ex: { vel: 0.8 } });
+        [0, 4, 8, 12, 16, 20].forEach(function (s) { chordAt(add, s, "harpC", N0("Bb4 D5 F5"), 3, { vel: 0.4 }); });
+        [24, 28, 32, 36, 40, 44].forEach(function (s, k) { chordAt(add, s, "harpC", N0(k % 2 ? "E4 G#4 B4" : "G#4 B4 D#5"), 3, { vel: 0.4 }); });
+        notes(add, "48:Bb5:2 50:F5:2 52:D5:2 54:A5:2 56:Eb5:2 58:C5:2 60:G5:2 62:D5:2 64:Bb4:2 66:F5:2 68:C5:2 70:A4:2", "wood", { ex: { vel: 0.5 } });
+        add(72, { i: "str", n: nn("E6"), d: 144, vel: 0.35 });
+        N0("D5 G5 Bb5").forEach(function (n) { add(72, { i: "celesta", n: n, d: 6, vel: 0.7 }); }); N0("D5 F5 A5").forEach(function (n) { add(78, { i: "celesta", n: n, d: 6, vel: 0.7 }); });
+        N0("C#5 E5 A5").forEach(function (n) { add(84, { i: "celesta", n: n, d: 4, vel: 0.7 }); });
+        notes(add, "100:Bb4:2 102:A4:2 104:G4:2 108:E4:4", "str", { ex: { vel: 0.5 } });
+        notes(add, "100:G4:2 102:F4:2 104:D4:2 108:C#4:4", "str", { ex: { vel: 0.45 } });
+        notes(add, "100:D4:2 102:Bb3:2 104:G3:2 108:E3:4", "str", { ex: { vel: 0.45 } });
+        chordAt(add, 120, "harpC", N0("Bb3 D4 F4"), 4, { vel: 0.5 }); chordAt(add, 138, "harpC", N0("Bb3 D4 F4"), 4, { vel: 0.5 });
+        notes(add, "150:Bb2:2 152:Bb2:2 154:A2:2 156:E2:4", "pluck", { ex: { vel: 0.6 } });
+        add(156, { i: "deep", n: nn("E1"), d: 48, vel: 0.4 });
+        held(add, [[180, "B2 D#3 F#3", 24]], "wood", 0.35);
+        N0("E2 E3 B3 E4 G#4 B4 E5").forEach(function (n) { add(210, { i: "pluck", n: n, d: 2, vel: 0.6 }); });
+        N0("E4 G#4 B4 E5").forEach(function (n) { add(210, { i: "wood", n: n, d: 2, vel: 0.45 }); });
+        add(210, { i: "brassStabL", v: [nn("E4")], d: 1.5, vel: 0.4 });
+      });
+      return { intro: [], loop: [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15] };
+    },
+    mars: function () {
+      var R = [[0, 1.33], [1.333, 1.33], [2.667, 1.33], [4, 4], [8, 4], [12, 2], [14, 2], [16, 4]];
+      function ost(add, s0, vel, p) { var n = nn(p || "G2"); R.forEach(function (r) { add(s0 + r[0], { i: "pluck", n: n, d: r[1], tick: true, vel: vel }); }); add(s0, { i: "timp", n: n }); add(s0 + 16, { i: "timp", n: n, vel: 0.6 }); }
+      function theLine(add, at, full) {
+        var L = "0:G2:32 32:D3:8 40:Db3:28";
+        notes(add, L, "lbrass", { at: at });
+        notes(add, L, "deep", { at: at, tr: -12, ex: { vel: 0.45 } });
+        mel(L).forEach(function (m) { chordAt(add, at + m[0], "brassC", full ? [m[1] + 12, m[1] + 24] : [m[1] + 12], m[2], { vel: full ? 0.5 : 0.6 }); });
+        add(at + 40, { i: "str", n: nn("Bb2"), d: 28, vel: 0.6 }); add(at + 40, { i: "wood", n: nn("Db4"), d: 28, vel: 0.5 });
+      }
+      var ma1 = secP("ma1", 8, 20, 166, function (add, N) {
+        for (var b = 0; b < 8; b++) ost(add, b * 20, 0.8 + b * 0.03);
+        chordAt(add, 0, "strC", N("G2 D3 G3"), 40, { vel: 0.6 });
+        theLine(add, 40, false);
+        chordAt(add, 120, "strC", N("G2 D3 G3"), 40, { vel: 0.7 });
+      });
+      var ma2 = secP("ma2", 8, 20, 166, function (add, N) {
+        for (var b = 0; b < 8; b++) ost(add, b * 20, 1 + b * 0.04);
+        theLine(add, 0, true);
+        chordAt(add, 80, "strC", N("G2 D3 G3 D4"), 80, { vel: 0.9 });
+        add(80, { i: "deep", n: nn("G1"), d: 80, vel: 0.7 });
+        add(140, { i: "cymSwell", d: 20 });
+      });
+      var ma3 = secP("ma3", 6, 20, 166, function (add, N) {
+        var Db = N("Db4 F4 Ab4 Db5"), C = N("C2 C3");
+        for (var b = 0; b < 5; b++) {
+          var s0 = b * 20;
+          ost(add, s0, 1.2, "C2");
+          R.forEach(function (r, k) { if (b % 2 ? k >= 3 : k <= 3) { chordAt(add, s0 + r[0], "brassStabL", Db, r[1]); chordAt(add, s0 + r[0], "brassStabL", C, r[1], { vel: 1.1 }); } });
+          add(s0, { i: "deep", n: nn("C1"), d: 20 });
+          chordAt(add, s0, "strC", N("C2 C3"), 20, { vel: 1 });
+        }
+        add(0, { i: "crash" });
+        add(100, { i: "crash" });
+        add(100, { i: "lbrass", n: nn("C2"), d: 20 }); add(100, { i: "lbrass", n: nn("C3"), d: 20 });
+        chordAt(add, 100, "brassC", N("C3 C4"), 20, { vel: 0.8 });
+        add(100, { i: "deep", n: nn("C1"), d: 20 });
+        for (var q = 0; q < 16; q++) add(100 + q, { i: "timp", n: nn("C2"), vel: 0.25 + 0.02 * q });
+      });
+      var Nm = function (s) { return s.split(" ").map(nn); };
+      function hammer(add, s0, chord, vel) { R.forEach(function (r) { chordAt(add, s0 + r[0], "strC", chord, r[1] * 0.8, { vel: vel }); }); }
+      var GROAN = "0:Db3:6 6:C3:2 8:B2:6 14:C3:2 16:D3:6 22:Eb3:2 24:F3:6 30:G3:2 32:Ab3:6 38:G3:2";
+      function waver(add, at, s, inst, vel) { notes(add, s, inst, { at: at, ex: { vel: vel } }); }
+      var mb1 = secP("figII", 27, 20, 166, function (add, N) {
+        for (var b = 0; b < 21; b++) { ost(add, b * 20, b < 3 ? 1.1 : 0.9, "C2"); hammer(add, b * 20, N("C3 G3 C4"), b < 3 ? 0.8 : 0.55); }
+        add(0, { i: "crash" }); add(0, { i: "deep", n: nn("C1"), d: 60, vel: 0.6 });
+        chordAt(add, 0, "brassC", N("Db4 F4 Bb4 Db5"), 60, { vel: 0.8 }); chordAt(add, 0, "strC", N("Db5 F5 Bb5"), 60, { vel: 0.8 });
+        notes(add, GROAN, "lbrass", { at: 60 }); notes(add, GROAN, "lbrass", { at: 60, tr: 7 });
+        notes(add, GROAN, "lbrass", { at: 100 }); notes(add, GROAN, "brass", { at: 100, tr: 19, ex: { vel: 0.8 } });
+        mel(GROAN).forEach(function (m) { chordAt(add, 100 + m[0], "brassC", [m[1] + 12, m[1] + 15, m[1] + 19], m[2], { vel: 0.4 }); });
+        [140, 160, 180].forEach(function (at) {
+          var W = "0:G4:6 6:F#4:2 8:G4:6 14:F#4:2 16:F4:4";
+          notes(add, W, "brass", { at: at, ex: { vel: 0.8 } });
+          mel(W).forEach(function (m) { chordAt(add, at + m[0], "brassC", [m[1] - 12, m[1] - 8, m[1] - 5], m[2], { vel: 0.45 }); });
+        });
+        [200, 240].forEach(function (at, k) {
+          notes(add, "0:Db6:14 14:C6:16 30:B5:2", "cstr", { at: at, ex: { vel: 0.9 } }); notes(add, "0:Db6:14 14:C6:16 30:B5:2", "wood", { at: at, ex: { vel: 0.6 } });
+          notes(add, GROAN, "str", { at: at, tr: k ? 19 : 0, ex: { vel: 0.9 } }); notes(add, GROAN, k ? "wood" : "lbrass", { at: at, tr: k ? 19 : 0, ex: { vel: 0.7 } });
+        });
+        var WV = ["0:G5:6 6:F#5:2 8:G5:6 14:E5:2 16:F5:4", "0:A5:6 6:G#5:2 8:A5:6 14:F#5:2 16:G5:4", "0:Bb5:6 6:A5:2 8:Bb5:6 14:G#5:2 16:A5:4", "0:Bb5:4 4:A5:2 6:F5:6 12:Ab5:6 18:F5:2",
+                  "0:F#5:6 6:G5:2 8:Ab5:6 14:Ab5:2 16:Bb5:4", "0:Bb5:2 2:C6:4 6:Eb6:6 12:Bb5:2 14:Ab5:6", "0:G#5:6 6:A5:2 8:Bb5:6 14:Bb5:2 16:C6:4",
+                  "0:D5:2 2:E5:2 4:F5:6 10:F5:2 12:Bb5:6 18:A5:2", "0:A5:6 6:G#5:2 8:A5:2 10:B5:2 12:Bb5:6 18:A5:2", "0:A5:6 6:G#5:2 8:A5:2 10:B5:2 12:Bb5:6 18:A5:2",
+                  "0:A5:6 6:G#5:2 8:A5:2 10:B5:2 12:Bb5:6 18:A5:2", "0:Bb5:2 2:Bb5:2 4:Eb6:6 10:Bb5:2 12:Gb6:6 18:Bb5:2"];
+        WV.forEach(function (s, k) {
+          var at = 280 + k * 20;
+          waver(add, at, s, "cstr", 0.85); waver(add, at, s, "wood", 0.55);
+          mel(s).forEach(function (m) { chordAt(add, at + m[0], "brassC", [m[1] - 12, m[1] - 8, m[1] - 5], m[2], { vel: 0.35 }); });
+        });
+        [440, 460, 480].forEach(function (at) { add(at, { i: "cstr", n: nn("F#6"), d: 2, vel: 0.9 }); add(at + 12, { i: "cstr", n: nn("F#6"), d: 10, vel: 0.8 }); });
+        [[360, "G1"], [380, "G1"], [440, "Bb1"], [460, "Bb1"], [480, "Bb1"]].forEach(function (h) {
+          chordAt(add, h[0] + 12, "brassStabL", N("Bb3 Db4 F4"), 6, { vel: 1 }); add(h[0] + 12, { i: "lbrass", n: nn(h[1]) + 12, d: 8 });
+          chordAt(add, h[0] + 20, "brassStabL", N("C4 E4 A4"), 2, { vel: 1 }); add(h[0] + 20, { i: "timp", n: nn("C3") });
+        });
+        add(360, { i: "deep", n: nn("G1"), d: 60, vel: 0.6 }); for (var q = 0; q < 16; q++) add(400 + q, { i: "timp", n: nn("G2"), vel: 0.3 + q * 0.03 });
+        for (var b2 = 22; b2 < 26; b2++) { add((b2 - 1) * 20, { i: "str", n: nn("C2"), d: 12, vel: 0.9 }); add((b2 - 1) * 20 + 12, { i: "str", n: nn("Bb1"), d: 8, vel: 0.9 }); }
+        add(500, { i: "cymSwell", d: 20 });
+        add(520, { i: "crash" }); add(520, { i: "boom" }); chordAt(add, 520, "brassStabL", N("Bb2 Bb3 Db4 F4 Bb4"), 3, { vel: 1.2 }); add(520, { i: "deep", n: nn("Bb0"), d: 4 });
+        for (var c = 4; c < 20; c += 4) chordAt(add, 520 + c, "strC", N("Bb2 Eb4 G4 Bb4"), 3, { vel: 0.8 });
+      });
+      var mb2 = secP("figIV", 10, 20, 166, function (add, N) {
+        var CH = [["Bb2 Bb2 Bb2 Bb2 Eb3", "Db4 F4 Bb4"], ["Ab2 Ab2 Gb2 Ab2 Ab2", "C4 Eb4 Ab4"], ["B2 B2 B2 B2 B2", "D4 F#4 B4"], ["Bb2 Bb2 Bb2 Bb2 Eb3", "Db4 F4 Bb4"], ["Ab2 Ab2 Gb2 Ab2 Ab2", "C4 Eb4 Ab4"],
+                  ["B2 B2 B2 Bb2 B2", "D4 F#4 B4"], ["G2 G2 F#2 G2 G#2", "D4 G4 Bb4"], ["A2 A2 A2 A2 A2", "D4 F#4 A4"], ["A2 A2 A2 A2 A2", "D4 F#4 A4"], ["G#2 G#2 G#2 A2 A2", "E4 G#4 C#5"]];
+        CH.forEach(function (c, b) { N(c[0]).forEach(function (n, k) { add(b * 20 + k * 4, { i: "pluck", n: n, d: 3, vel: 0.9 }); chordAt(add, b * 20 + k * 4, "strC", N(c[1]), 3, { vel: 0.55 }); }); });
+        var T1 = "0:D4:4 4:D4:4 8:D4:4 12:D4:1.33 13.33:C#4:1.33 14.67:D4:1.33 16:D4:1.33 17.33:C4:1.33 18.67:D4:1.33";
+        var T2 = "20:F4:8 28:D4:3 31:D4:1 32:F4:4 36:D4:4 40:D4:14 54:D4:2";
+        [0, 60].forEach(function (at) { notes(add, T1 + " " + T2, "hbrass", { at: at }); notes(add, T1 + " " + T2, "brass", { at: at, tr: 12, ex: { vel: 0.5 } }); });
+        var TR = "0:B4:1.33 1.33:B4:1.33 2.67:B4:1.33 4:A4:1.33 5.33:B4:1.33 6.67:C5:1.33 8:D5:1.33 9.33:B4:1.33 10.67:G4:1.33 12:E4:8";
+        [40, 100].forEach(function (at) { notes(add, TR, "brass", { at: at, ex: { vel: 0.7 } }); notes(add, TR, "brass", { at: at, tr: -4, ex: { vel: 0.5 } }); });
+        "G4 A4 Bb4 C5 D5 Eb5 F5 F#5".split(" ").forEach(function (n, k) { add(132 + k * 0.5, { i: "strShort", n: nn(n) + 12, d: 0.6, vel: 0.8 }); add(132 + k * 0.5, { i: "wood", n: nn(n) + 12, d: 0.6, vel: 0.5 }); });
+        var TUNE = "140:F#5:4 144:F#5:4 148:F#5:4 152:F#5:1.33 153.33:E#5:1.33 154.67:F#5:1.33 156:F#5:1.33 157.33:E5:1.33 158.67:F#5:1.33 160:A5:8 168:F#5:3 171:F#5:1 172:A5:8 180:C#6:12 192:E6:4 196:C#6:4";
+        notes(add, TUNE, "cstr", { ex: { vel: 0.9 } }); notes(add, TUNE, "wood", { ex: { vel: 0.6 } }); notes(add, TUNE, "brass", { tr: -12, ex: { vel: 0.4 } });
+        add(140, { i: "timp", n: nn("A2") }); add(160, { i: "timp", n: nn("A2"), vel: 0.7 });
+      });
+      var mb3 = secP("fanfare", 7, 20, 166, function (add, N) {
+        for (var b = 0; b < 7; b++) { ost(add, b * 20, 0.9); R.forEach(function (r) { add(b * 20 + r[0], { i: "sn", vel: 0.3 }); }); hammer(add, b * 20, N("D4 G4"), 0.45); }
+        notes(add, "0:Bb3:4 4:Bb3:4 8:Bb3:4 12:Bb3:1.33 13.33:A3:1.33 14.67:Bb3:1.33 16:Bb3:1.33 17.33:A3:1.33 18.67:Bb3:1.33 20:Db4:8 28:Bb3:3 31:Bb3:1 32:Db4:4 36:Bb3:4", "hbrass");
+        ["40", "60", "80"].forEach(function (a) { notes(add, "0:G3:3 3:G3:1 4:Bb3:8 12:G3:3 15:G3:1 16:Bb3:4", "hbrass", { at: +a }); });
+        ["100", "120"].forEach(function (a) { notes(add, "0:A3:3 3:A3:1 4:C4:8 12:A3:3 15:A3:1 16:C4:4", "hbrass", { at: +a }); });
+        var TP = "20:G4:4 24:G4:4 28:G4:4 32:G4:1.33 33.33:F#4:1.33 34.67:G4:1.33 36:G4:1.33 37.33:F#4:1.33 38.67:G4:1.33 " +
+                 "40:Bb4:8 48:G4:3 51:G4:1 52:Bb4:4 56:G4:4 60:Bb4:8 68:G4:3 71:G4:1 72:Bb4:4 76:G4:4 80:B4:8 88:G4:3 91:G4:1 92:B4:4 96:G4:4 " +
+                 "100:C5:8 108:G4:3 111:G4:1 112:C5:4 116:G4:4 120:C5:8 128:G4:3 131:G4:1 132:C5:4 136:G4:4";
+        notes(add, TP, "brass", { ex: { vel: 0.85 } }); notes(add, TP, "brass", { tr: 12, ex: { vel: 0.35 } });
+        chordAt(add, 0, "brassC", N("D4 G4 Bb4"), 20, { vel: 0.5 });
+      });
+      var mb4 = secP("figX", 7, 20, 166, function (add, N) {
+        var WX = ["0:C#5:6 6:D5:2 8:Eb5:6 14:F5:2 16:F5:4", "0:F5:2 2:G5:2 4:Ab5:6 10:G5:2 12:F5:6 18:E5:2", "0:D#5:6 6:E5:2 8:F5:6 14:G5:2 16:G5:4",
+                  "0:G5:2 2:A5:2 4:Bb5:6 10:A5:2 12:G5:6 18:F5:2", "0:Ab5:6 6:Ab5:2 8:Bb5:6 14:Bb5:2 16:Cb6:4", "0:Bb5:6 6:Bb5:2 8:C6:6 14:B5:2 16:Db6:4", "0:Bb5:6 6:Ab5:2 8:Bb5:6 14:C6:2 16:Db6:4"];
+        WX.forEach(function (s, b) {
+          waver(add, b * 20, s, "cstr", 0.9); waver(add, b * 20, s, "wood", 0.6);
+          mel(s).forEach(function (m) { chordAt(add, b * 20 + m[0], "brassC", [m[1] - 12, m[1] - 8, m[1] - 5], m[2], { vel: 0.4 }); });
+          for (var q = 0; q < 20; q += 4) add(b * 20 + q, { i: "pluck", n: nn("G2"), d: 3, tick: true, vel: 0.8 });
+          if (b) { chordAt(add, b * 20 + 12, "brassStabL", N("Db4 F4 Ab4"), 6, { vel: 1 }); if (b < 6) chordAt(add, b * 20 + 20, "brassStabL", N("C4 E4 G4"), 2, { vel: 1 }); }
+        });
+        add(0, { i: "str", n: nn("G1"), d: 140, vel: 1 }); add(0, { i: "deep", n: nn("G1"), d: 140, vel: 0.5 });
+        for (var q2 = 0; q2 < 20; q2++) add(120 + q2, { i: "timp", n: nn("G2"), vel: 0.3 + q2 * 0.03 });
+        add(120, { i: "cymSwell", d: 20 });
+      });
+      var mb5 = secP("fiveTwo", 4, 20, 83, function (add, N) {
+        add(0, { i: "crash" }); add(0, { i: "boom" });
+        chordAt(add, 0, "brassC", N("Eb4 Gb4 Bb4 Eb5"), 48, { vel: 1 }); chordAt(add, 0, "strC", N("Eb4 Gb4 Bb4 Eb5 Gb5"), 48, { vel: 0.9 });
+        notes(add, "0:C2:48", "lbrass"); add(0, { i: "deep", n: nn("C1"), d: 60, vel: 0.7 });
+        for (var q = 0; q < 48; q++) add(q, { i: "timp", n: nn("C2"), vel: 0.25 });
+        chordAt(add, 48, "brassC", N("C#4 E4 G#4 C#5"), 12, { vel: 0.7 }); chordAt(add, 48, "strC", N("C#4 E4 G#4 C#5"), 12, { vel: 0.8 });
+        chordAt(add, 60, "brassC", N("Db4 Gb4 Bb4"), 20, { vel: 0.7 }); chordAt(add, 60, "strC", N("Db4 Gb4 Bb4 Db5"), 20, { vel: 0.7 });
+        notes(add, "60:C2:20", "lbrass");
+      });
+      var mb6 = secP("figXI", 5, 12, 250, function (add, N) {
+        var S = "A5 G#5 F#5 E5 D#5 E5 F#5 G#5 A5 B5 C6 B5".split(" ");
+        for (var b = 0; b < 5; b++) S.forEach(function (n, k) { add(b * 12 + k, { i: "strShort", n: nn(n) - (b % 2) * 12, d: 0.8, vel: 0.5 + b * 0.08 }); if (b > 1) add(b * 12 + k, { i: "wood", n: nn(n), d: 0.8, vel: 0.3 }); });
+        add(0, { i: "str", n: nn("G1"), d: 60, vel: 0.8 });
+        for (var q = 0; q < 60; q += 2) add(q, { i: "timp", n: nn("G2"), vel: 0.2 + q * 0.006 });
+        chordAt(add, 12, "brassC", N("C#4 E4 A4"), 48, { vel: 0.35 }); add(36, { i: "cymSwell", d: 24 });
+      });
+      return { intro: [], loop: [ma1, ma2, mb1, mb2, mb3, mb4, mb5, mb6, ma3] };
+    }
+  };
+  (function () {
+    var E = {
+      Dm: [38, "D4 F4 A4 D5"], Bb: [34, "D4 F4 Bb4 D5"], F: [41, "C4 F4 A4 C5"], C: [36, "C4 E4 G4 C5"], Gm: [43, "D4 G4 Bb4 D5"],
+      Asus: [33, "D4 E4 A4 D5"], A: [33, "C#4 E4 A4 C#5"], Csus: [36, "C4 F4 G4 C5"], FA: [45, "C4 F4 A4 C5"],
+      Em: [40, "E4 G4 B4 E5"], Cx: [36, "E4 G4 C5 E5"], G: [43, "D4 G4 B4 D5"], D: [38, "D4 F#4 A4 D5"], Esus: [40, "E4 A4 B4 E5"], EM: [40, "E4 G#4 B4 E5"]
+    };
+    Object.keys(E).forEach(function (k) { CH["t_" + k] = { b: E[k][0], v: E[k][1].split(" ").map(nn) }; });
+  })();
+  var EPIC2 = {
+    open: { bars: 4, lv: 0.75, ch: ["Dm", "Dm", "Bb", "Asus"], impact: [0], organ: [0, 1, 2, 3], choir: [0, 1, 2, 3], timp: [2, 3] },
+    build: { bars: 8, lv: 0.8, ch: ["Dm", "Bb", "F", "C", "Dm", "Bb", "Gm", "A"], organ: [0, 1, 2, 3, 4, 5, 6, 7], taikoA: [0, 1, 2, 3], taikoB: [4, 5, 6, 7],
+      spic: [2, 3, 4, 5, 6, 7], choirHits: [4, 5, 6, 7], roll: 7, rise: true },
+    climax: { bars: 8, lv: 1.15, ch: ["Dm", "Bb", "F", "C", "Gm", "Bb", "Csus", "A"], impact: [0, 4], organ: [0, 1, 2, 3, 4, 5, 6, 7], choir: [0, 1, 2, 3, 4, 5, 6, 7],
+      drive: true, spic: [0, 1, 2, 3, 4, 5, 6, 7], answers: [1, 3, 5],
+      mel: "0:D4:4 4:A4:4 8:D5:8 16:C5:6 22:Bb4:2 24:F4:8 32:F4:4 36:C5:4 40:F5:6 46:E5:2 48:D5:4 52:C5:4 56:G4:8 64:G4:4 68:D5:4 72:G5:8 80:F5:6 86:D5:2 88:Bb4:8 96:C5:4 100:F5:4 104:E5:8 112:D5:8 120:C#5:8",
+      counter: "0:A5:16 16:F5:16 32:A5:16 48:G5:16 64:Bb5:16 80:F5:16 96:G5:16 112:A5:16" },
+    breath: { bars: 4, lv: 0.55, ch: ["Bb", "FA", "Gm", "Asus"], organ: [0, 1, 2, 3], choir: [1, 2, 3], swell: 3 },
+    final: { bars: 8, lv: 1.25, ch: ["Em", "Cx", "G", "D", "Cx", "D", "Esus", "EM"], impact: [0, 4], organ: [0, 1, 2, 3, 4, 5, 6, 7], choir: [0, 1, 2, 3, 4, 5, 6, 7],
+      drive: true, spic: [0, 1, 2, 3, 4, 5, 6], answers: [1, 3, 5],
+      mel: "0:E4:4 4:B4:4 8:E5:8 16:D5:6 22:C5:2 24:G4:8 32:G4:4 36:D5:4 40:G5:6 46:F#5:2 48:E5:4 52:D5:4 56:A4:8 64:C5:4 68:G5:4 72:E5:8 80:F#5:6 86:E5:2 88:D5:8 96:A4:4 100:B4:4 104:E5:8 112:E5:16",
+      counter: "0:B5:16 16:G5:16 32:B5:16 48:A5:16 64:G5:16 80:A5:16 96:A5:16 112:G#5:16" }
+  };
+  function compileEpic2(sec) {
+    var ev = {}, add = function (step, e) { (ev[step] = ev[step] || []).push(e); }, lv = sec.lv;
+    var melodyOn = !!sec.mel;
+    for (var b = 0; b < sec.bars; b++) {
+      var c = CH["t_" + sec.ch[b]], s0 = b * 16, prev = b ? sec.ch[b - 1] : null, rise = sec.rise ? 0.7 + 0.45 * b / (sec.bars - 1) : 1;
+      if (sec.ch[b] !== prev) {
+        var len = 1; while (b + len < sec.bars && sec.ch[b + len] === sec.ch[b]) len++;
+        add(s0, { i: "esub", n: c.b - 12 >= 26 ? c.b - 12 : c.b, d: len * 16 });
+        if (sec.choir && sec.choir.indexOf(b) >= 0) add(s0, { i: "choirT", v: c.v, d: len * 16, vel: lv * (melodyOn ? 0.7 : 1) });
+      } else if (sec.choir && sec.choir.indexOf(b) >= 0 && sec.choir.indexOf(b - 1) < 0) add(s0, { i: "choirT", v: c.v, d: 16, vel: lv });
+      if (sec.organ && sec.organ.indexOf(b) >= 0) for (var a = 0; a < 16; a += 2) add(s0 + a, { i: "oarp", n: c.v[[0, 2, 3, 2][(a / 2) % 4]] + 12, d: 2, vel: (melodyOn ? 0.5 : 0.75) * rise * (a % 8 === 0 ? 1.2 : 1) });
+      if (sec.spic && sec.spic.indexOf(b) >= 0) for (var q = 0; q < 16; q++) add(s0 + q, { i: "spic", n: c.v[[0, 1, 2, 1][q % 4]], d: 1, vel: (q % 4 === 0 ? 1.3 : 0.8) * rise * (melodyOn ? 0.8 : 1) });
+      if (sec.impact && sec.impact.indexOf(b) >= 0) { add(s0, { i: "boom" }); add(s0, { i: "taiko", vel: 1.4 }); add(s0, { i: "crash" }); }
+      if (sec.timp && sec.timp.indexOf(b) >= 0) { add(s0, { i: "timp", n: c.b, vel: 0.9 }); add(s0 + 8, { i: "timp", n: c.b, vel: 0.6 }); }
+      if (sec.taikoA && sec.taikoA.indexOf(b) >= 0) "x...x...x..x.x..".split("").forEach(function (ch2, z) { if (ch2 === "x") add(s0 + z, { i: "taiko", vel: (z === 0 ? 1.1 : 0.75) * rise }); });
+      if (sec.taikoB && sec.taikoB.indexOf(b) >= 0) { for (var z = 0; z < 16; z += 2) add(s0 + z, { i: "taiko", vel: (z % 8 === 0 ? 1.2 : 0.8) * rise }); [6, 14].forEach(function (z) { add(s0 + z, { i: "tm", n: z, vel: 1.1 }); }); }
+      if (sec.choirHits && sec.choirHits.indexOf(b) >= 0) [0, 3, 6, 10].forEach(function (z) { add(s0 + z, { i: "choirHit", v: c.v, d: 2, vel: rise }); });
+      if (sec.roll === b) for (var r = 0; r < 16; r++) add(s0 + r, { i: "sn", vel: 0.3 + r * 0.06 });
+      if (sec.drive) {
+        for (var z2 = 0; z2 < 16; z2 += 2) add(s0 + z2, { i: "taiko", vel: z2 % 8 === 0 ? 1.1 : 0.7 });
+        [6, 14].forEach(function (z) { add(s0 + z, { i: "tm", n: z % 3, vel: 1.2 }); });
+        "x.xxx.xxx.xxx.xx".split("").forEach(function (ch2, z) { if (ch2 === "x") add(s0 + z, { i: "sn", vel: z % 4 === 0 ? 0.9 : 0.35 }); });
+      }
+      if (sec.answers && sec.answers.indexOf(b) >= 0) [12, 14].forEach(function (z) { add(s0 + z, { i: "brassStabL", v: c.v, d: 1.5, vel: 1.2 }); });
+      if (sec.swell === b) add(s0, { i: "cymSwell", d: 16 });
+    }
+    if (sec.mel) mel(sec.mel).forEach(function (m, k) { add(m[0], { i: "brassMel", n: m[1], d: m[2], vel: lv * (m[0] % 16 === 0 ? 1.2 : 1) }); });
+    if (sec.counter) mel(sec.counter).forEach(function (m) { add(m[0], { i: "cstr", n: m[1], d: m[2], vel: lv }); });
+    return ev;
+  }
+  var SONGS = {};
+  function songs(id) {
+    if (SONGS[id]) return;
+    var mkE = function (parts) { return parts.map(function (n) { return { name: n, bars: EPIC2[n].bars, spb: 16, stepT: BASE_STEP, ev: compileEpic2(EPIC2[n]) }; }); };
+    if (id === "epic") SONGS.epic = { intro: [], loop: mkE(["open", "build", "climax", "breath", "final"]) };
+    else SONGS[id] = HOLST[id]();
+  }
+  function secSteps(x) { return x.bars * (x.spb || 16); }
+  function eventsAt(song, p) {
+    var introSteps = song.intro.reduce(function (t, s) { return t + secSteps(s); }, 0), list = song.intro, q = p;
+    if (p >= introSteps) { list = song.loop; var loopSteps = song.loop.reduce(function (t, s) { return t + secSteps(s); }, 0); q = (p - introSteps) % loopSteps; }
+    for (var i = 0; i < list.length; i++) { var n = secSteps(list[i]); if (q < n) return { sec: list[i].name, ev: list[i].ev[q] || [], q: q, spb: list[i].spb || 16, stepT: list[i].stepT || BASE_STEP }; q -= n; }
+    return { sec: "", ev: [], q: 0, spb: 16, stepT: BASE_STEP };
+  }
+  var verb = null, dly = null;
+  function fx() {
+    if (verb) return;
+    verb = ac.createConvolver();
+    var len = Math.floor(ac.sampleRate * 2.2), ir = ac.createBuffer(2, len, ac.sampleRate);
+    for (var ch = 0; ch < 2; ch++) { var d = ir.getChannelData(ch); for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+    verb.buffer = ir; var vg = gainNode(0.32); verb.connect(vg); vg.connect(music);
+    dly = ac.createDelay(1); dly.delayTime.value = STEP * 3; var fb = gainNode(0.32), dl = filter("lowpass", 2200); dly.connect(dl); dl.connect(fb); fb.connect(dly); var dg = gainNode(0.5); dl.connect(dg); dg.connect(music);
+  }
+  function send(node, rv, dl) { if (rv) { var a = gainNode(rv); node.connect(a); a.connect(verb); } if (dl) { var b = gainNode(dl); node.connect(b); b.connect(dly); } }
+  function note(t, dur, f, type, peak, a, r, dest, cut, q, detune, rv, dl, fenv) {
+    var o = ac.createOscillator(), g = gainNode(0), end = t + Math.max(a + 0.01, dur);
+    o.type = type; o.frequency.value = f; if (detune) o.detune.value = detune;
+    var src = o;
+    if (cut) { var fl = filter("lowpass", cut, q || 0.8); if (fenv) { fl.frequency.setValueAtTime(cut * fenv, t); fl.frequency.exponentialRampToValueAtTime(cut, t + Math.min(0.3, dur)); } o.connect(fl); src = fl; }
+    src.connect(g); g.connect(dest); send(g, rv, dl);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a);
+    g.gain.setValueAtTime(peak, end); g.gain.exponentialRampToValueAtTime(0.0001, end + r);
+    o.start(t); o.stop(end + r + 0.05);
+    return end + r;
+  }
+  function hit(dest, t, type, f, peak, dur, rv) {
+    var s = noiseSrc(), fl = filter(type, f, 0.9), g = gainNode(0); s.connect(fl); fl.connect(g); g.connect(dest); send(g, rv, 0);
+    g.gain.setValueAtTime(peak, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.start(t, Math.random()); s.stop(t + dur + 0.02);
+  }
+  function thump(dest, t, f0, f1, peak, dur) {
+    var o = ac.createOscillator(), g = gainNode(0);
+    o.frequency.setValueAtTime(Math.min(f0, f1 * 1.6), t); o.frequency.setTargetAtTime(f1, t, 0.012);
+    o.connect(g); g.connect(dest);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+  function membrane(dest, t, f, peak, dur, noiseF) {
+    thump(dest, t, f * 1.2, f, peak, dur);
+    var o = ac.createOscillator(), g = gainNode(0); o.type = "triangle"; o.frequency.value = f * 1.5;
+    o.connect(g); g.connect(dest); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak * 0.25, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.5); o.start(t); o.stop(t + dur * 0.5 + 0.02);
+    hit(dest, t, "bandpass", noiseF || 900, peak * 0.35, 0.05);
+  }
+  var TOMS = [50, 45, 43, 38];
+  function play1(tr, t, e) {
+    var D = (e.d || 1) * STEP;
+    switch (e.i) {
+      case "sn": var sv = e.vel || 1; hit(tr.drums, t, "bandpass", 1900, 0.2 * sv, 0.15, 0.25); thump(tr.drums, t, 240, 185, 0.11 * sv, 0.09); break;
+      case "boom": thump(tr.drums, t, 70, 46, 0.7, 0.9); hit(tr.drums, t, "lowpass", 700, 0.3, 0.7, 0.5); break;
+      case "tm": membrane(tr.drums, t, midi(TOMS[(e.n || 0) % 4]), 0.26 * (e.vel || 1), 0.4, 700); break;
+      case "crash": hit(tr.drums, t, "highpass", 5000, 0.12, 1.8, 0.4); break;
+      case "soar": soar(tr, t, e); break;
+      case "wood": note(t, D, midi(e.n), "triangle", 0.042 * (e.vel || 1), 0.03, 0.25, tr.g, 3200, 0.8, 0, 0.25); note(t, D, midi(e.n) * 2, "sine", 0.006 * (e.vel || 1), 0.03, 0.2, tr.g); break;
+      case "pluck": note(t, Math.min(D, 0.3), midi(e.n), "triangle", (tr.name === "mars" ? 0.035 : 0.05) * (e.vel || 1), 0.003, 0.25, tr.g, 2000, 1, 0, 0.2); if (e.tick) hit(tr.g, t, "bandpass", 2600, 0.05 * (e.vel || 1), 0.03); break;
+      case "celesta": note(t, Math.min(D, 0.25), midi(e.n + 12), "sine", 0.022 * (e.vel || 1), 0.002, 0.6, tr.g, 0, 0, 0, 0.35, 0.2); note(t, 0.1, midi(e.n + 12) * 4, "sine", 0.004, 0.002, 0.3, tr.g); break;
+      case "str": [-7, 7].forEach(function (dt) { note(t, D, midi(e.n), "sawtooth", 0.014 * (e.vel || 1), 0.18, 0.6, tr.padBus, 2200, 0.5, dt, 0.3); }); break;
+      case "strShort": note(t, D, midi(e.n), "sawtooth", 0.012 * (e.vel || 1), 0.005, 0.08, tr.g, 2600, 0.6); break;
+      case "strC": e.v.forEach(function (n) { [-7, 7].forEach(function (dt) { note(t, D, midi(n), "sawtooth", 0.011 * (e.vel || 1), 0.25, 0.8, tr.padBus, 2000, 0.5, dt, 0.35); }); }); break;
+      case "brassC": e.v.forEach(function (n) { [-8, 8].forEach(function (dt) { note(t, D, midi(n), "sawtooth", 0.022 * (e.vel || 1), 0.4, 0.9, tr.g, 1300, 1, dt, 0.35, 0, 1.6); }); }); break;
+      case "brassStabL": e.v.forEach(function (n) { [-9, 9].forEach(function (dt) { note(t, D, midi(n), "sawtooth", 0.02 * (e.vel || 1), 0.008, 0.2, tr.g, 1100, 2, dt, 0.2, 0, 3); }); }); break;
+      case "harpC": e.v.forEach(function (n, k) { note(t + k * 0.035, Math.min(D, 0.5), midi(n), "triangle", 0.035 * (e.vel || 1), 0.002, 0.9, tr.g, 2600, 0.7, 0, 0.35); }); break;
+      case "choirT": e.v.concat([e.v[0] - 12]).forEach(function (n) { [650, 1080].forEach(function (fm) { var o = ac.createOscillator(), bp = filter("bandpass", fm, 5), g = gainNode(0), end = t + D, pk = 0.06 * (e.vel || 1);
+          o.type = "sawtooth"; o.frequency.value = midi(n); o.connect(bp); bp.connect(g); g.connect(tr.padBus); send(g, 0.5, 0);
+          g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(pk, t + 0.35); g.gain.setValueAtTime(pk, end); g.gain.exponentialRampToValueAtTime(0.0001, end + 1.2); o.start(t); o.stop(end + 1.3); }); }); break;
+      case "choirHit": e.v.forEach(function (n) { [650, 1080].forEach(function (fm) { var o = ac.createOscillator(), bp = filter("bandpass", fm, 5), g = gainNode(0), pk = 0.07 * (e.vel || 1);
+          o.type = "sawtooth"; o.frequency.value = midi(n); o.connect(bp); bp.connect(g); g.connect(tr.g); send(g, 0.4, 0);
+          g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(pk, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35); o.start(t); o.stop(t + 0.4); }); }); break;
+      case "spic": note(t, D * 0.6, midi(e.n), "sawtooth", 0.013 * (e.vel || 1), 0.004, 0.07, tr.g, 2400, 0.8, 0, 0.12); break;
+      case "brassMel": [[0, -8], [0, 8], [-12, -5], [-12, 5]].forEach(function (pr) { note(t, D, midi(e.n + pr[0]), "sawtooth", 0.03 * (e.vel || 1), 0.035, 0.45, tr.g, 1700, 1.3, pr[1], 0.35, 0, 2.2); }); break;
+      case "cstr": [-6, 6].forEach(function (dt) { note(t, D, midi(e.n), "sawtooth", 0.012 * (e.vel || 1), 0.3, 0.9, tr.padBus, 3000, 0.5, dt, 0.45); }); break;
+      case "deep": note(t, D, midi(e.n), "sine", 0.11 * (e.vel || 1), 0.02, 0.18, tr.pump); note(t, D, midi(e.n), "triangle", 0.03 * (e.vel || 1), 0.02, 0.15, tr.pump, 160, 0.7); break;
+      case "esub": note(t, D, midi(e.n), "sine", 0.15, 0.6, 1.4, tr.pump); break;
+      case "oarp": note(t, D, midi(e.n), "square", 0.011 * (e.vel || 1), 0.004, 0.18, tr.g, 1800, 1, 0, 0.35, 0.25); note(t, D, midi(e.n - 12), "sine", 0.012 * (e.vel || 1), 0.004, 0.2, tr.g); break;
+      case "timp": var tf = midi(e.n); while (tf < 73) tf *= 2; while (tf > 147) tf /= 2;
+        membrane(tr.drums, t, tf, 0.42 * (e.vel || 1), 1.3, 500); break;
+      case "taiko": var tv = e.vel || 1; thump(tr.drums, t, 85, 62, 0.5 * tv, 0.45); hit(tr.drums, t, "lowpass", 1100, 0.2 * tv, 0.12, 0.35); break;
+      case "cymSwell": var cs = noiseSrc(), cf = filter("highpass", 4500), cg = gainNode(0); cs.connect(cf); cf.connect(cg); cg.connect(tr.drums); send(cg, 0.5, 0);
+        cg.gain.setValueAtTime(0.0001, t); cg.gain.exponentialRampToValueAtTime(0.06, t + D); cg.gain.exponentialRampToValueAtTime(0.0001, t + D + 0.6); cs.start(t); cs.stop(t + D + 0.7); break;
+      case "lbrass": [-8, 8].forEach(function (dt) { note(t, D, midi(e.n), "sawtooth", 0.045, 0.5, 0.9, tr.g, 700, 1.2, dt, 0.4, 0, 1.8); }); break;
+      case "hbrass": [-8, 0, 8].forEach(function (dt) { note(t, D, midi(e.n), "sawtooth", 0.026, 0.12, 0.7, tr.g, 1500, 1.4, dt, 0.4, 0, 2.2); }); note(t, D, midi(e.n - 12), "sawtooth", 0.02, 0.15, 0.7, tr.g, 900, 1); break;
+      case "brass": [-9, 9].forEach(function (dt) { note(t, D, midi(e.n), "sawtooth", 0.03 * (e.vel || 1), 0.03, 0.25, tr.g, 1400, 2, dt, 0.25, 0, 2.5); }); break;
+    }
+  }
+  function soar(tr, t, e) {
+    var total = 0; e.list.forEach(function (m) { total = Math.max(total, (m[0] + m[2]) * STEP); });
+    var g = gainNode(0), lp = filter("lowpass", e.soft ? 1300 : 2400, 0.7), peak = e.soft ? 0.022 : 0.035, end = t + total;
+    lp.connect(g); g.connect(tr.g); send(g, 0.45, e.soft ? 0.25 : 0.15);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + 0.25);
+    g.gain.setValueAtTime(peak, end - 0.05); g.gain.exponentialRampToValueAtTime(0.0001, end + 1.2);
+    var vib = ac.createOscillator(), vg = gainNode(0); vib.frequency.value = 5.2; vib.connect(vg);
+    vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(4, t + 0.6);
+    [-1, 1].forEach(function (side) {
+      var o = ac.createOscillator(), pn = ac.createStereoPanner ? ac.createStereoPanner() : null;
+      o.type = e.soft ? "triangle" : "sawtooth"; o.detune.value = side * 7; vg.connect(o.detune);
+      e.list.forEach(function (m, k) {
+        var f = midi(m[1]), at = t + m[0] * STEP, leap = k && Math.abs(m[1] - e.list[k - 1][1]) >= 5;
+        if (e.glide && leap) o.frequency.setTargetAtTime(f, at, 0.025); else o.frequency.setValueAtTime(f, at);
+      });
+      if (pn) { pn.pan.value = side * 0.6; o.connect(pn); pn.connect(lp); } else o.connect(lp);
+      o.start(t); o.stop(end + 1.3);
+    });
+    vib.start(t); vib.stop(end + 1.3);
+  }
+  var tracks = {}, seq = null, LOG = null;
+  var SECTION_MIX = { "epic:breath": { oarp: 1.35, choirT: 0.55 } };
+  var DRUM_LV = { home: 0.7, epic: 0.6, flight: 0.6, mercury: 0.35, mars: 0.4, jupiter: 0.5, saturn: 0.5, uranus: 0.5, neptune: 0.5, venus: 0.5 };
+  function mkTrack(name, level) {
+    var g = gainNode(0), pump = gainNode(1), padBus = filter("lowpass", 4000, 0.3);
+    padBus.connect(pump); pump.connect(g); g.connect(music);
+    var dist = ac.createWaveShaper(), curve = new Float32Array(256);
+    for (var ci = 0; ci < 256; ci++) { var xx = ci / 128 - 1; curve[ci] = Math.tanh(xx * 3); }
+    dist.curve = curve; dist.connect(pump);
+    var drums = gainNode(DRUM_LV[name] || 0.5); drums.connect(g);
+    tracks[name] = { name: name, g: g, pump: pump, padBus: padBus, dist: dist, drums: drums, level: level, on: false, step: 0, nextT: 0, stopAt: 0, bright: 1, song: SONGS[name] };
+    return tracks[name];
+  }
+  function schedule() {
+    if (!ac) return;
+    Object.keys(tracks).forEach(function (name) {
+      var tr = tracks[name];
+      if (!tr.on) return;
+      if (tr.stopAt && now() > tr.stopAt) { tr.on = false; return; }
+      while (tr.nextT < now() + 0.25) {
+        var at = eventsAt(tr.song, tr.step);
+        STEP = at.stepT;
+        var mixFix = SECTION_MIX[name + ":" + at.sec];
+        at.ev.forEach(function (e) {
+          var t = tr.nextT + (e.off || 0) * STEP;
+          if (mixFix && mixFix[e.i]) { var c2 = {}; for (var kk in e) c2[kk] = e[kk]; c2.vel = (e.vel || 1) * mixFix[e.i]; e = c2; }
+          play1(tr, t, e); if (LOG) LOG.push([name, tr.step, at.sec, e.i, e.n || "", +t.toFixed(3), +((e.d || 1) * STEP).toFixed(3)]); });
+        tr.step++; tr.nextT += at.stepT;
+      }
+      STEP = BASE_STEP;
+    });
+  }
+  var LEVEL = { epic: 0.48, mercury: 1.5, mars: 1.15 };
+  function build() {
+    noiseBuf = makeNoise();
+    var comp = ac.createDynamicsCompressor();
+    master = gainNode(muted ? 0 : 0.55);
+    master.connect(comp); comp.connect(ac.destination);
+    music = gainNode(1.6); music.connect(master);
+  }
+  function unlock() {
+    if (!ac) {
+      try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return false; }
+      build();
+    }
+    if (ac.state === 'suspended' && !document.hidden && !muted) ac.resume();
+    return true;
+  }
+  function start() {
+    if (!ac || !songId || !want || muted) return;
+    songs(songId); fx();
+    var tr = tracks[songId] || mkTrack(songId, LEVEL[songId] || 1), fade = Math.max(2.5, BASE_STEP * 8);
+    if (tr.on && !tr.stopAt) return;
+    var t0 = now() + 0.06;
+    if (!tr.on) { tr.on = true; tr.step = 0; tr.nextT = t0; }
+    tr.stopAt = 0;
+    tr.g.gain.cancelScheduledValues(now()); tr.g.gain.setValueAtTime(tr.g.gain.value, now());
+    tr.g.gain.setValueAtTime(tr.g.gain.value, t0); tr.g.gain.linearRampToValueAtTime(tr.level, t0 + fade);
+    if (!seq) seq = setInterval(schedule, 50);
+  }
+  function halt() {
+    var tr = ac && tracks[songId];
+    if (!tr || !tr.on || tr.stopAt) return;
+    tr.g.gain.cancelScheduledValues(now()); tr.g.gain.setValueAtTime(tr.g.gain.value, now());
+    tr.g.gain.linearRampToValueAtTime(0.0001, now() + 0.8);
+    tr.stopAt = now() + 0.9;
+  }
+  function typing(t) { return t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || '')); }
+  function gesture(e) {
+    if (e.type === 'keydown' && ((e.key || '').toLowerCase() === 'h' || e.metaKey || e.ctrlKey || e.altKey)) return;
+    if (muted) return;
+    if (unlock()) start();
+  }
+  ['pointerdown', 'keydown', 'touchstart'].forEach(function (t) { document.addEventListener(t, gesture, true); });
+  document.addEventListener('visibilitychange', function () {
+    if (!ac) return;
+    if (document.hidden) ac.suspend(); else if (!muted) ac.resume();
+  });
+  window.addEventListener('pagehide', function () { if (ac) ac.suspend(); });
+  var ICON_ON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+  var ICON_OFF = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M3 3l18 18"/></svg>';
+  function paint() {
+    btns.forEach(function (b) {
+      b.innerHTML = muted ? ICON_OFF : ICON_ON;
+      b.setAttribute('aria-pressed', muted ? 'true' : 'false');
+      b.setAttribute('aria-label', muted ? 'Music off' : 'Music on');
+      b.title = muted ? 'Music off' : 'Music on';
+      b.classList.toggle('muted', muted);
+    });
+  }
+  function lsKey() { return 'gamemusic.' + game + '.muted'; }
+  function bridgeSave() {
+    if (opts.bridge === false) return;
+    var o = saved && typeof saved === 'object' ? saved : {};
+    o.music = { muted: muted }; saved = o;
+    try { if (parent && parent !== window) parent.postMessage({ type: 'game-save', game: game, data: JSON.stringify(o) }, '*'); } catch (e) {}
+  }
+  function bridgeLoad() {
+    if (opts.bridge === false) return;
+    try { if (!parent || parent === window) return; } catch (e) { return; }
+    var reqId = 'gm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    function onMsg(e) {
+      var m = e.data;
+      if (!m || m.type !== 'game-load-res' || m.reqId !== reqId) return;
+      window.removeEventListener('message', onMsg);
+      var d = null;
+      try { d = typeof m.data === 'string' && m.data ? JSON.parse(m.data) : null; } catch (err) { d = null; }
+      if (!d || typeof d !== 'object') return;
+      saved = d;
+      if (!touched && d.music && typeof d.music.muted === 'boolean') setMuted(d.music.muted, true);
+    }
+    window.addEventListener('message', onMsg);
+    if (window.SXR) SXR.hold(reqId); try { parent.postMessage({ type: 'game-load', game: game, reqId: reqId }, '*'); } catch (e) {}
+    setTimeout(function () { window.removeEventListener('message', onMsg); }, 15000);
+  }
+  /* silent: apply a saved value without saving it again */
+  function setMuted(m, silent) {
+    m = !!m;
+    var changed = m !== muted;
+    muted = m;
+    if (!silent) {
+      touched = true;
+      try { window.localStorage.setItem(lsKey(), m ? '1' : '0'); } catch (e) {}
+      bridgeSave();
+      if (opts.onChange) try { opts.onChange(m); } catch (e) {}
+    }
+    paint();
+    if (!changed) return;
+    if (m) {
+      if (ac) { ramp(master.gain, 0, 0.15); var a = ac; setTimeout(function () { if (muted && a.state === 'running') a.suspend(); }, 600); }
+    } else if (!silent || ac) {
+      if (unlock()) { ramp(master.gain, 0.55, 0.15); start(); }
+    }
+  }
+  function ramp(p, v, t) { p.cancelScheduledValues(now()); p.setTargetAtTime(v, now(), t); }
+  function init(id, o) {
+    songId = id; opts = o || {}; game = opts.game || 'game';
+    var v = null;
+    try { v = window.localStorage.getItem(lsKey()); } catch (e) { v = null; }
+    if (v === '1' || v === '0') muted = v === '1';
+    if (opts.button) bind(opts.button);
+    if (opts.key) document.addEventListener('keydown', function (e) {
+      if ((e.key === 'm' || e.key === 'M') && !e.metaKey && !e.ctrlKey && !e.altKey && !typing(e.target)) setMuted(!muted);
+    });
+    bridgeLoad();
+    paint();
+  }
+  function bind(b) {
+    if (typeof b === 'string') b = document.getElementById(b);
+    if (!b) return;
+    btns.push(b);
+    b.addEventListener('click', function () {
+      if (opts.pop) { b.classList.remove(opts.pop); void b.offsetWidth; b.classList.add(opts.pop); }
+      setMuted(!muted);
+    });
+    paint();
+  }
+  return {
+    init: init, bind: bind,
+    play: function () { want = true; if (ac && ac.state !== 'closed') { unlock(); start(); } },
+    stop: function () { want = false; halt(); },
+    setMuted: setMuted, isMuted: function () { return muted; },
+    state: function () { return { ctx: ac ? ac.state : 'none', song: songId, playing: !!(ac && tracks[songId] && tracks[songId].on && !tracks[songId].stopAt), step: ac && tracks[songId] ? tracks[songId].step : 0, muted: muted }; }
+  };
+})();
+GameMusic.init('mercury', { game: 'poker', button: 'bMusic', key: true, pop: 'pop' }); GameMusic.play();
+</script>
+</body>
+</html>

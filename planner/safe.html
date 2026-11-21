@@ -3609,6 +3609,20 @@ html.pg-open:not(.splash-on):has(:is(#games,#desmos,#sugg,#roles,#rewards) :is(.
 #games .gm-bar{height:14px;border-radius:999px;background:var(--line)}
 #games .gm-bar i{border-radius:999px;background:var(--pri)}
 #games .gm-intro{background:rgba(19,31,36,.55)}
+/* the game loading screen: the game's own artwork, blurred, full screen; its name big in the bottom left corner (Big Shoulders Display, SIL OFL, 800, basic Latin only);
+   a thin progress line under it and a small status. Same elements as before (.gm-load, .gm-bar, .gm-lsub), so the stages, Book Run and the fade-out work unchanged */
+@font-face{font-family:'Sx Big Shoulders';font-weight:800;font-style:normal;font-display:swap;src:url(data:font/woff2;base64,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) format('woff2')}
+#games .gm-load:not(.tr-intro){display:block;background:#15222c;color:#fff;overflow:hidden}
+#games .gm-load .gl-art{position:absolute;inset:-6%;background-size:cover;background-position:center;filter:blur(24px) saturate(1.15)}
+#games .gm-load .gl-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,18,24,.4) 0%,rgba(10,18,24,.12) 28%,rgba(10,18,24,.55) 62%,rgba(10,18,24,.92) 100%)}
+#games .gm-load.gl-plain{background:linear-gradient(160deg,#2b6fc2 0%,#15222c 70%)}
+#games .gm-load .gl-copy{position:absolute;left:0;right:0;bottom:0;padding:0 32px max(44px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:flex-start}
+#games .gm-load .gm-lname{margin:0 0 22px;max-width:100%;overflow-wrap:anywhere;font:800 clamp(56px,11vw,150px)/.88 'Sx Big Shoulders','Arial Narrow','Roboto Condensed',sans-serif;letter-spacing:.03em;text-transform:none;color:#fff;text-shadow:0 8px 36px rgba(0,0,0,.45)}
+#games .gm-load .gm-barw{width:min(100%,420px)}
+#games .gm-load .gm-bar{width:100%;height:4px;border-radius:999px;background:rgba(255,255,255,.22)}
+#games .gm-load .gm-bar i{border-radius:999px;background:var(--pri)}
+#games .gm-load .gm-lsub{position:static;transform:none;margin:12px 0 0;opacity:1;white-space:normal;font:700 14px/1 'Sx Big Shoulders','Arial Narrow','Roboto Condensed',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.78)}
+@media (max-width:640px){#games .gm-load .gl-copy{padding:0 16px max(32px,env(safe-area-inset-bottom))}#games .gm-load .gm-lname{margin-bottom:16px}}
 #games .gi{background:var(--bg);color:var(--fg);border:2px solid var(--line);border-bottom-width:4px;border-radius:var(--r)}
 #games .gi h2{font-family:var(--display);font-weight:700;font-size:30px;text-transform:none;color:var(--pri)}
 /* Metrica's worlds: the same tiles */
@@ -8340,7 +8354,8 @@ async function loadData(pre){
     const gen=writeGen;
     const d=pre||await api('/api/data');lastLoad=Date.now();
     /* nothing changed since the last load: the server only says so */
-    if(d&&d.same){if(state.user&&'mpLock' in d){const was=mpLocked();state.user.mpLock=!!d.mpLock;state.user.mpUnlocked=d.mpUnlocked!==false;
+    if(d&&d.same){if(d.rt&&!RT_INFO)try{rtStart(d.rt);}catch(_){}   /* the realtime ticket came with the reply: no separate ticket call */
+      if(state.user&&'mpLock' in d){const was=mpLocked();state.user.mpLock=!!d.mpLock;state.user.mpUnlocked=d.mpUnlocked!==false;
       if(was!==mpLocked()){const g=document.getElementById('games');if(g&&!g.hidden&&g.querySelector('.gm-pick'))gmRenderPick();}}return true;}
     /* someone is typing in a box or has a menu open: load again once they're done, so nothing is redrawn under them */
     if(!pre&&uiBusy()){await uiIdle();return loadData();}
@@ -12452,12 +12467,21 @@ function memeGet(i){
     return memeMore.p[i]||(memeMore.p[i]=memeFetch(i).then(m=>{if(m)memeMore.m[i]=m;return m;}).finally(()=>{delete memeMore.p[i];}));}
   if(memeGot&&memeGot.day===memeDay())return Promise.resolve(memeGot.m);
   if(memeP)return memeP;
+  /* today's meme already on this device: shown now, checked with the server in the background (it may have more pictures by now) */
+  {const c=memeCached();if(c&&c.m.date===memeDay()){memeGot={m:c.m,day:memeDay()};memeP=memeFetch().finally(()=>{memeP=null;});memeP.catch(()=>{});return Promise.resolve(c.m);}}
   return memeP=memeFetch().finally(()=>{memeP=null;});
 }
+/* today's first meme is kept on this device (sx-meme0): shown at once on a reload, and the server is asked with the copy's key, so an unchanged meme comes back as a few bytes ({same:true}) instead of the whole picture */
+const memeHaveKey=m=>m&&m.date?m.date+'|'+String(m.title||'').slice(0,80)+'|0':'';
+function memeCached(){try{const c=JSON.parse(localStorage.getItem('sx-meme0')||'null');return c&&c.m&&typeof c.m.dataUrl==='string'&&/^data:image\/(png|jpeg|gif|webp);base64,/.test(c.m.dataUrl)&&c.k===memeHaveKey(c.m)?c:null;}catch(_){return null;}}
 function memeFetch(i){i=i||0;
-  const call=GS?gsCall('rpcDailyMeme',i):fetch('/api/meme?i='+i,{cache:'no-store'}).then(r=>r.json()).then(o=>o&&o.meme);
+  const c=i?null:memeCached(),have=c&&c.m.date===memeDay()?c.k:'';
+  const call=GS?(have?gsCall('rpcDailyMeme',i,have):gsCall('rpcDailyMeme',i)):fetch('/api/meme?i='+i,{cache:'no-store'}).then(r=>r.json()).then(o=>o&&o.meme);
   return Promise.race([call,new Promise(r=>setTimeout(()=>r(null),20000))])
-    .then(m=>{m=m&&typeof m.dataUrl==='string'&&/^data:image\/(png|jpeg|gif|webp);base64,/.test(m.dataUrl)?m:null;if(m&&!i)memeGot={m,day:memeDay()};if(!m&&!i)memeMiss=Date.now();return m;})
+    .then(m=>{if(m&&m.same&&c)m=Object.assign({},c.m,{n:m.n||c.m.n});
+      m=m&&typeof m.dataUrl==='string'&&/^data:image\/(png|jpeg|gif|webp);base64,/.test(m.dataUrl)?m:null;
+      if(m&&!i){memeGot={m,day:memeDay()};try{if(m.dataUrl.length<900000)localStorage.setItem('sx-meme0',JSON.stringify({k:memeHaveKey(m),m}));}catch(_){}}
+      if(!m&&!i)memeMiss=Date.now();return m;})
     .catch(()=>{if(!i)memeMiss=Date.now();return null;});
 }
 let memeBusy=false;
@@ -13158,7 +13182,7 @@ if(window.SX_REF)sxRefArrived(window.SX_REF);
     const pre=window.__sxData&&window.__sxDataKey===passKey?window.__sxData:null;window.__sxData=null;
     const gen0=writeGen;
     const fetchP=pre?pre.then(d=>{
-        if(d&&d.same){if(warm&&d.__dv&&d.__dv===DATA_VER){lastLoad=Date.now();return true;}return loadData();}
+        if(d&&d.same){if(warm&&d.__dv&&d.__dv===DATA_VER){lastLoad=Date.now();if(d.rt&&!RT_INFO)try{rtStart(d.rt);}catch(_){}return true;}return loadData();}
         if(d&&(!warm||(!writing&&writeGen===gen0&&!uiBusy())))return loadData(d);
         return loadData();}):loadData();
     if(warm&&GS)fetchP.then(()=>{if(!RT_INFO&&state.user)gsCallSafe('rpcRtTicket').then(rtStart).catch(()=>{});});
@@ -13989,10 +14013,13 @@ const NEWS_LGS=[['nfl','NFL'],['nba','NBA'],['mlb','MLB'],['nhl','NHL'],['epl','
 const NEWS={};
 function newsGet(kind,what){
   const key=kind+'/'+what,c=NEWS[key];if(c)return c.d;
-  NEWS[key]={d:null,p:true};
+  /* the last copy kept on this device is shown at once; one under 5 minutes old is not asked for again, an older one is refreshed behind it */
+  const pk='news:'+key,pc=pcGet(pk),have=pc&&pc.d&&pc.d.ok?pc.d:null;
+  if(have&&Date.now()-pc.t<5*60000){NEWS[key]={d:have};return have;}
+  NEWS[key]={d:have,p:true};
   const ask=GS?gsCall('rpcNews',passKey||'',kind,what):fetch('/api/news?kind='+kind+'&what='+what).then(x=>x.json());
-  ask.then(o=>{NEWS[key]={d:o&&o.ok?o:{ok:false}};},()=>{NEWS[key]={d:{ok:false}};}).then(()=>{if(state.view==='news')render();});
-  return null;
+  ask.then(o=>{if(o&&o.ok){NEWS[key]={d:o};try{pcPut(pk,o);}catch(_){}}else NEWS[key]={d:have||{ok:false}};},()=>{NEWS[key]={d:have||{ok:false}};}).then(()=>{if(state.view==='news')render();});
+  return have;
 }
 const newsAgo=t=>{if(!t)return '';const m=Math.max(0,Math.round((Date.now()-t)/60000));return m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago';};
 function renderNews(){
@@ -14751,6 +14778,13 @@ function gmLockPanel(){
 const GAME_THUMB={};
 const thumbSrc=id=>GAME_THUMB[id]?'data:image/webp;base64,'+GAME_THUMB[id].replace(/-/g,'+').replace(/_/g,'/'):'';
 const gameSrc={};
+/* the static copies: saxon-live/g/<id>.<hash>.html (tools/publish-web.sh writes them). When one fails (down, missing, or not the expected content) this device skips them for 3 minutes and uses the server, so a broken CDN costs one short wait, not one per game */
+const GAME_CDN='https:'+SLASH2+'cdn.jsdelivr.net/gh/yuzhe-chen/saxon-live@main/g/';
+const gcdnBad=set=>{try{if(set)sessionStorage.setItem('sx-gcdn-bad',String(Date.now()));else return Date.now()-(+sessionStorage.getItem('sx-gcdn-bad')||0)<180000;}catch(_){}return false;};
+async function gameCdn(id){const v=GAME_VER[id];if(!v||gcdnBad())return null;
+  try{const ctl=typeof AbortController==='function'?new AbortController():null,to=setTimeout(()=>{try{ctl&&ctl.abort();}catch(_){}},2500);
+    const r=await fetch(GAME_CDN+id+'.'+v+'.html',ctl?{signal:ctl.signal}:{});clearTimeout(to);if(!r.ok)throw new Error(r.status);
+    const t=await r.text();if(await gfHash(t)!==v)throw new Error('hash');return t;}catch(_){gcdnBad(true);return null;}}
 /* a game id that opens another game's file: Mixed is the Classic file, told which world it is by window.MX_ENTRY */
 const GAME_FILE={'metrica-mixed':'geodash'};
 const gameSrcP={};
@@ -14758,8 +14792,9 @@ async function loadGame(id){
   if(gameSrc[id])return gameSrc[id];
   if(GAME_FILE[id])return gameSrc[id]=await loadGame(GAME_FILE[id]);
   /* one request per game even when a prefetch is already on its way */
-  if(!gameSrcP[id])gameSrcP[id]=gfGet(id).then(c=>c!=null?c:(GS?new Promise((res,rej)=>google.script.run.withSuccessHandler(res).withFailureHandler(rej).rpcGetGame(id))
-    :fetch('/games/'+id+'.html').then(r=>r.text())).then(t=>{gfPut(id,t);return t;})).then(t=>(gameSrc[id]=t),e=>{delete gameSrcP[id];throw e;});
+  /* the game's file comes from the device, else from the static copy on jsDelivr (named by its content hash, checked against GAME_VER), else from the server */
+  if(!gameSrcP[id])gameSrcP[id]=gfGet(id).then(c=>c!=null?c:gameCdn(id).then(t=>t!=null?t:(GS?new Promise((res,rej)=>google.script.run.withSuccessHandler(res).withFailureHandler(rej).rpcGetGame(id))
+    :fetch('/games/'+id+'.html').then(r=>r.text()))).then(t=>{gfPut(id,t);return t;})).then(t=>(gameSrc[id]=t),e=>{delete gameSrcP[id];throw e;});
   return gameSrcP[id];
 }
 /* game files kept on this device (IndexedDB sx-game), so a game opens at once from the second time. The build stamps
@@ -15053,6 +15088,11 @@ function dashPaint(){
     return `<div class="db-sr"><b class="db-sn">${esc(nm)}</b>${has?c(o.today)+c(o.d7)+c(o.d30)+c(o.all):'<span class="db-sx">Not collected yet</span>'}</div>`;}).join('');
   const otherCard=!DBO?none('Loading...'):DBO.error?none('Can\'t reach the visit counts right now'):card('Other websites','Sent by each site, counts only. The big number is how many different browsers came; the line under it is how many times the site was opened. Days are UTC.',
     `<div class="db-st2"><div class="db-sr hd"><span></span><span>Today</span><span>7 days</span><span>30 days</span><span>All time</span></div>${siteRows}</div>`);
+  /* the backend: calls the Apps Script server answered each recent hour, from a sample of one in DB.backend.every (shown scaled up) */
+  const backend=(()=>{const B=DB.backend;if(!B||!B.hours||!B.hours.length)return card('Backend','Counts start after the next server update; each hour shows once it has calls.',none('Nothing measured yet'));
+    const rows=B.hours.slice().reverse().map(h=>`<div class="db-sr"><b class="db-sn">${h.ago===0?'This hour':h.ago+' hour'+(h.ago===1?'':'s')+' ago'}</b><span class="db-sc"><b>${nf(h.calls)}</b><small>calls</small></span><span class="db-sc"><b>${nf(h.avgMs)}</b><small>avg ms</small></span><span class="db-sc"><b>${nf(h.errors)}</b><small>errors</small></span><span class="db-sc"><b>${nf(h.slow)}</b><small>over 3 s</small></span></div>`).join('');
+    const last=B.hours[B.hours.length-1],top=(last.top||[]).map(t=>`<div class="db-note">${esc(t[0].replace(/^rpc/,''))}: ${nf(t[1])} calls, ${nf(t[2])} ms each</div>`).join('');
+    return card('Backend by hour',`Estimated from a sample of one call in ${B.every}; hours with no calls are left out.`,`<div class="db-st2">${rows}</div>`)+card('Busiest calls, latest hour','',top||none());})();
   const sites=`${card('Addresses','Accounts that opened the planner from each address, counted once for every address an account used. Visits through atoll.web.app count as atoll from Nov 19; before that they show under saxon-planner.',hostHTML)}
     ${otherCard}`;
   const assignments=`${kpis([kpi(nf(T.done||0),'Completed',{big:1}),kpi(nf(T.week||0),'Completed this week'),kpi(T.timed?Math.round(T.onTime/T.timed*100)+'%':'-','Finished on time',{s:nf(T.onTime||0)+' on time, '+nf(T.late||0)+' late'}),kpi(nf(Math.max(0,(T.open||0)-(T.overdue||0))),'Still to do'),kpi(nf(T.overdue||0),'Overdue, not done'),kpi(nf(T.people||0),'Students crossing off',{s:nf(T.cleared||0)+' cleared in bulk'})])}
@@ -15061,14 +15101,14 @@ function dashPaint(){
   const classes=DB.classes?`${kpis([kpi(nf(DB.classes.accounts),'Accounts with classes',{big:1}),kpi(nf(DB.classes.total),'Classes in all'),kpi(DB.classes.accounts?(DB.classes.total/DB.classes.accounts).toFixed(1):'-','Classes per student'),kpi(nf(DB.classes.ical),'Linked Schoology',{s:pct(DB.classes.ical,DB.classes.accounts)+' of accounts with classes'}),DB.classes.real!=null?kpi(nf(DB.classes.real),'Using it for real',{s:'classes plus assignments or a Schoology link'}):''].filter(Boolean))}
     ${DB.classes.grades?card('Estimated grade','Guessed from class names (English 11, Algebra 2, APUSH and so on). It needs two recognised classes and a clear lead, so some accounts stay unknown.',barsV(['9','10','11','12','?'].map(k=>DB.classes.grades[k]||0),{lab:i=>['Grade 9','Grade 10','Grade 11','Grade 12','Not sure'][i],tip:(i,n)=>n+' accounts'})):''}
     ${card('Most common classes','',list(DB.classes.names||{},top(DB.classes.names||{},12)))}`:none();
-  const SEC=[['overview','Overview'],['signups','Sign-ups'],['referrals','Referrals'],['visits','Activity'],['newcomers','Newcomers'],['players','Players'],['games','Games'],['sites','Sites'],['assignments','Assignments'],['classes','Classes']];
+  const SEC=[['overview','Overview'],['signups','Sign-ups'],['referrals','Referrals'],['visits','Activity'],['newcomers','Newcomers'],['players','Players'],['games','Games'],['sites','Sites'],['assignments','Assignments'],['classes','Classes'],['backend','Backend']];
   const nav=`<nav class="db-nav" aria-label="Dashboard sections">${SEC.map(([k,n])=>`<button type="button" class="kbtn db-nl${DBP.sec===k?' on':''}" data-db-go="${k}"${DBP.sec===k?' aria-current="true"':''}>${n}</button>`).join('')}</nav>`;
   const sec=(k,h,body)=>`<section class="db-sec" id="db-${k}"><h2 class="db-h">${h}</h2>${body}</section>`;
   const gTot=Object.values(U.g||{}).reduce((a,b)=>a+b,0);
   const body=[sec('overview','Overview',overview),sec('signups','Sign-ups',signups),sec('referrals','Referrals',referrals),sec('visits','Activity',activity),sec('newcomers','Newcomers',newcomers),
     sec('players','Players',dashPlayers().replace(/^\s*<h2 class="db-h">Players<\/h2>/,'')),
     sec('games','Games',card('Most played',gTot?nf(gTot)+' game opens in all.':'',list(U.g,tg,gname))),
-    sec('sites','Sites',sites),sec('assignments','Assignments',assignments),sec('classes','Classes',classes)].join('');
+    sec('sites','Sites',sites),sec('assignments','Assignments',assignments),sec('classes','Classes',classes),sec('backend','Backend',backend)].join('');
   d.innerHTML=`<div class="docs-in db-in">${head}
     <p class="db-note db-upd">${dbFresh?(upd?'Updated '+esc(upd)+'. Refreshes every minute.':''):'Updating...'}</p>
     <div class="db-lay">${nav}<div class="db-main">${body}</div></div></div>`;
@@ -15808,7 +15848,9 @@ const GM_STAGES={wrap:.12,frame:.25,file1:.4,file2:.55,asked:.68,replied:.92};
 const GAME_BYTES={};
 const lsJSON=k=>{try{return JSON.parse(localStorage.getItem(k)||'{}')||{};}catch(_){return {};}};
 const lsPut=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(_){}};
-function gmStage(f,k){const st=f&&f._gr;if(!st||st.shown)return;st.stage=Math.max(st.stage||0,GM_STAGES[k]||0);gmPaint(f);}
+const GM_SAY={wrap:'Opening...',frame:'Starting...',file1:'Loading...',file2:'Loading...',asked:'Loading your progress...',replied:'Almost ready...'};
+function gmStage(f,k){const st=f&&f._gr;if(!st||st.shown)return;const up=(GM_STAGES[k]||0)>(st.stage||0);st.stage=Math.max(st.stage||0,GM_STAGES[k]||0);
+  if(up&&GM_SAY[k]){const t=document.querySelector('#games .gm-load .gm-lsub');if(t)t.textContent=GM_SAY[k];}gmPaint(f);}
 function gmBytes(f,m){const st=f&&f._gr;if(!st)return;
   /* after the game is showing, downloads still arriving mean a black frame: the Book Run watcher reads lastB */
   if(st.shown){if((+m.loaded||0)>(st.bytes||0)||+m.unity>(st.unity||0))st.lastB=Date.now();st.unity=Math.max(st.unity||0,+m.unity||0);st.bytes=Math.max(st.bytes||0,+m.loaded||0);return;}
@@ -15872,7 +15914,7 @@ function playGame(id,sure){if(SAFE)return;
   gamePrefetchSave(id);try{localStorage.setItem('sx-glast',id);}catch(_){}
   /* a loading screen covers the frame until the game has started */
   /* Torah Runner opens on its own titles instead of the loading screen (trIntro) */
-  g.innerHTML=(NV_INTRO[id]?trIntroHtml(id):`<div class="gm-load">${bookFlip('gm-llogo')}<div class="gm-lname">${esc((gm?gm.name:id).toLowerCase())}</div><div class="gm-barw"><div class="gm-bar"><i></i></div><div class="gm-lsub">${esc(loadTip())}</div></div></div>`)+`
+  g.innerHTML=(NV_INTRO[id]?trIntroHtml(id):`<div class="gm-load${thumbSrc(id)?'':' gl-plain'}">${thumbSrc(id)?`<div class="gl-art" style="background-image:url(${thumbSrc(id)})"></div>`:''}<div class="gl-scrim"></div><div class="gl-copy"><div class="gm-lname">${esc((gm?gm.name:id).toLowerCase())}</div><div class="gm-barw"><div class="gm-bar"><i></i></div><div class="gm-lsub">Opening...</div></div></div></div>`)+`
     <iframe class="gm-frame" allow="fullscreen; gamepad; autoplay" title="${esc(id)}"></iframe>${gm&&!gm.labels.includes('Embed')?'<button class="gm-side" data-gm-side aria-label="Games" title="Games"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>':''}`;
   if(NV_INTRO[id])trIntro(g,id);
   loadGame(id).then(src=>{const f=g.querySelector('.gm-frame');if(!f)return;
