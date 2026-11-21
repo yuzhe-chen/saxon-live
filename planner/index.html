@@ -3642,6 +3642,9 @@ html #v-home .hm-btns:not(.hm-tutonly)>.hm-btn:not(#hm-asg){flex:1 1 auto;paddin
 html #v-home .hm-btns:not(.hm-tutonly) .hm-stk .hm-btn{width:100%;box-sizing:border-box}
 @media (max-width:430px){html #v-home .hm-btns:not(.hm-tutonly)>.hm-btn:not(#hm-asg){padding-left:5px;padding-right:5px;letter-spacing:0}}
 .hm-stk .hm-btn{text-align:center;justify-content:center;text-decoration:none}
+@keyframes tutblink{0%,100%{filter:none}50%{filter:brightness(1.22) saturate(1.1)}}
+#v-home .hm-btn.hm-tutbig{animation:tutblink 1.5s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){#v-home .hm-btn.hm-tutbig{animation:none}}
 html #v-home .hm-btn.hm-hl,html.pg2 #v-home .hm-btn.hm-hl{background:var(--gold-hi);color:#4b3600;border-color:var(--gold-dark);display:inline-flex;align-items:center;gap:6px}
 #v-home .hm-btn.hm-hl svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 /* secondary buttons carry blue text, as ProfeGPT's do; option groups (tabs) stay gray until chosen */
@@ -4374,7 +4377,9 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
       var fns = [], ws = null, left = false, tries = 0, queue = [];
       /* the dedicated rooms Worker (S.cfg.rurl) first; if it does not open within WS_OPEN_MS, or fails all its retries, the hub
          Worker (S.cfg.url) takes the room, and below that the page keeps its Firebase and Apps Script paths */
-      var viaRooms = !!(S && S.cfg && typeof S.cfg.rurl === 'string' && /^https:\/\//.test(S.cfg.rurl)), everOpened = false;
+      /* this device remembers when the rooms Worker failed to open (30 minutes) and goes straight to the hub meanwhile: nothing is tried in order or raced */
+      var rBad = function (set) { try { if (set === 1) localStorage.setItem('sx-rurl-bad', String(Date.now())); else if (set === 0) localStorage.removeItem('sx-rurl-bad'); else return Date.now() - (+localStorage.getItem('sx-rurl-bad') || 0) < 1800000; } catch (e) {} return false; };
+      var viaRooms = !!(S && S.cfg && typeof S.cfg.rurl === 'string' && /^https:\/\//.test(S.cfg.rurl)) && !rBad(), everOpened = false;
       var R = { ok: !!(S && S.mode === 'ws'), ready: null,
         send: function (data, to, except) {
           var m = JSON.stringify({ d: data, to: to || undefined, ex: except || undefined });
@@ -4394,7 +4399,7 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
         w.onmessage = function (e) {
           var m; try { m = JSON.parse(e.data); } catch (x) { return; }
           if (m.k === 'rs') {
-            opened = true; everOpened = true; clearTimeout(to); tries = 0; ws = w;
+            opened = true; everOpened = true; clearTimeout(to); tries = 0; ws = w; if (viaRooms) rBad(0);
             queue.splice(0).forEach(function (q) { try { w.send(q); } catch (x) {} });
             if (resolve) { resolve(true); resolve = null; }
             emit({ type: 'peers', peers: (m.peers || []).map(function (p) { return { pid: p.p, user: p.u }; }) });
@@ -4407,9 +4412,9 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
         w.onclose = function () {
           clearTimeout(to); if (ws === w) ws = null;
           if (left || !S) return;
-          if (viaRooms && !everOpened) { viaRooms = false; connect(resolve); return; }   /* the rooms Worker never opened: the hub, at once */
+          if (viaRooms && !everOpened) { viaRooms = false; rBad(1); connect(resolve); return; }   /* the rooms Worker never opened: the hub, at once */
           if (++tries > 3 || S.mode !== 'ws') {
-            if (viaRooms && S.mode === 'ws') { viaRooms = false; tries = 0; connect(resolve); return; }   /* its retries are used up: the hub */
+            if (viaRooms && S.mode === 'ws') { viaRooms = false; rBad(1); tries = 0; connect(resolve); return; }   /* its retries are used up: the hub */
             R.ok = false; if (resolve) resolve(false); emit({ type: 'down' }); return; }
           setTimeout(function () { if (!left && S) connect(resolve); }, 1000 * tries);
         };
@@ -8393,6 +8398,10 @@ async function hostedDeepSync(){
 }
 let pageV=null;
 function uiBusy(){return !!document.querySelector('.view.on [contenteditable="true"].editing,.tk-cls.open,.xdd.on,.ccard.cdrop,.ccard.cdragging,#su-p4ask')||tDragging;}
+/* load spreading: periodic background calls are jittered (+-20%) so a classroom that opened the site on the same bell does not hit the backend
+   on the same second, and background refreshes after a tab switch start after a short random delay. Never used for anything a player waits on. */
+const jit=(ms,p)=>Math.round(ms*(1+(Math.random()*2-1)*(p==null?.2:p)));
+const lateRun=(fn,maxMs)=>setTimeout(fn,Math.round(Math.random()*(maxMs||1500)));
 function uiIdle(){const t0=Date.now();return new Promise(res=>{const t=setInterval(()=>{if(!uiBusy()||Date.now()-t0>45000){clearInterval(t);res();}},300);});}
 let lastLoad=0;
 /* ---------- live updates (realtime.js, window.SXRT): the Cloudflare Worker pushes "something changed for you" so the
@@ -8624,7 +8633,8 @@ function applyData(d,cached){
     /* remembered for the next reload, so Home can show at once before the data arrives */
     try{if(state.user)localStorage.setItem('sx-boot',JSON.stringify({u:state.user,hc:!!state.settings.hideChat,hg:!!state.settings.hideGames}));}catch(_){}
     /* a new account starts on the class setup screen */
-    if(!COURSES.length&&!HOME_PICK){if(!state.setup)state.setupAuto=true;state.setup=true;}
+    /* (a new account whose tutorial is still to come lands on Home, never on Your Classes or the Schoology page: the Tutorial button, blinking, invites it) */
+    if(!COURSES.length&&!HOME_PICK&&!state.settings.tutorialNew){if(!state.setup)state.setupAuto=true;state.setup=true;}
     /* the device copy had no classes (so Your Classes showed) but the server's data has them: back to the page, not stuck there */
     else if(COURSES.length&&state.setupAuto){state.setup=false;state.suPhase=null;}
     if(COURSES.length)state.setupAuto=false;
@@ -8635,7 +8645,7 @@ function applyData(d,cached){
     /* spinning resync button until the watcher finishes a requested sync */
     state.syncPending=GS?!!state.hostedSync:!!(d.syncRequested&&(!d.syncedAt||d.syncedAt<d.syncRequested));
     clearTimeout(syncPollT);
-    if(state.syncPending)syncPollT=setTimeout(loadData,15000);
+    if(state.syncPending)syncPollT=setTimeout(loadData,jit(15000));
   }
 }
 /* switching accounts on this computer: the previous account's objects are marked stale, so a save still queued
@@ -12864,7 +12874,7 @@ function dataWait(){const on=!!(state.user&&!settingsLoaded)&&!document.document
   if(on&&!d){d=document.createElement('div');d.id='dataload';d.setAttribute('role','status');d.innerHTML=resRunHTML()+'<div class="dl-sub">'+esc(loadTip())+'</div>';document.body.appendChild(d);
     d._t=setTimeout(()=>{const s=d.querySelector('.dl-sub');if(s&&document.body.contains(d))s.textContent='still loading, trying again...';},12000);
     /* a slow start-up request (a cold server) is raced by a fresh one every 7 s, so the page never waits on one stuck call */
-    d._r=setInterval(()=>{if(!document.body.contains(d)||settingsLoaded){clearInterval(d._r);return;}if(passKey&&!document.hidden)try{loadData();}catch(_){}},7000);}
+    d._r=setInterval(()=>{if(!document.body.contains(d)||settingsLoaded){clearInterval(d._r);return;}if(passKey&&!document.hidden)try{loadData();}catch(_){}},jit(7000));}
   if(!on&&d){clearTimeout(d._t);clearInterval(d._r);d.remove();}}
 /* ---------- clock page: analog + digital time and the current class from the bell schedule ---------- */
 let ckRaf=0,ckLastSec=-1;
@@ -13063,9 +13073,9 @@ function render(){
   const h=location.hash.replace('#','');if(['calendar','courses','advisory','assignments','resources'].includes(h))state.view=h;
   /* drawn once the whole script has run, so every view's helpers exist and the log in form is already wired */
   queueMicrotask(()=>{try{render();}catch(err){console.error(err);}});
-  setInterval(()=>{if(passKey)loadData();},300000);
+  (function every5(){setTimeout(()=>{if(passKey)loadData();every5();},jit(300000));})();
   /* coming back to the tab reloads only when the data is over a minute old (students switch tabs a lot) */
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&passKey&&Date.now()-lastLoad>60000)loadData();});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&passKey&&Date.now()-lastLoad>60000)lateRun(()=>{if(!document.hidden&&passKey&&Date.now()-lastLoad>60000)loadData();},2000);});
 })();
 
 /* strict scrolling: as the pointer or a finger comes onto a box, every box under it that really overflows up and down gets
@@ -13306,7 +13316,8 @@ if(window.SX_REF)sxRefArrived(window.SX_REF);
     state.view='home';try{localStorage.setItem('sx-tab','home');}catch(_){}
     /* a new account: the FAQ button blinks until its "I Can Read" */
     /* and it lands on Home, where the tutorial starts once the login page is gone (Your Classes comes in the tutorial) */
-    const su=signup,newAcct=()=>{if(su){state.settings.faqNew=true;state.settings.tutorialNew=true;saveSettings();}};
+    const su=signup;if(su)HOME_PICK=true;   /* a new account goes straight to Home */
+    const newAcct=()=>{if(su){state.settings.faqNew=true;state.settings.tutorialNew=true;saveSettings();}};
     /* the data usually came with the reply (r.data), so it is in hand at once; the clock plays either way */
     const dataP=loadData(r.data).then(ok=>{if(ok)newAcct();return ok;});
     if(matchMedia('(prefers-reduced-motion: reduce)').matches){
@@ -13619,7 +13630,7 @@ var tipSeen=k=>(state.settings.seenTips||[]).includes(k);
 var ptHere=k=>PG_TOURS[k].here?PG_TOURS[k].here():PG_TOURS[k].ov?!document.getElementById('games').hidden&&!!document.querySelector(PG_TOURS[k].ov):!state.setup&&state.view===k&&!pgOpenNow();
 /* the page just drawn (or Tools / Games opened): its tour, once per account */
 function tipMaybe(k){
-  if(PT||!PG_TOURS||!PG_TOURS[k]||!state.user||!settingsLoaded||!COURSES.length||state.setup||tipSeen(k))return;
+  if(PT||!PG_TOURS||!PG_TOURS[k]||!state.user||!settingsLoaded||!COURSES.length||state.setup||tipSeen(k)||state.settings.tutorialNew)return;   /* a new account is not interrupted: the blinking Tutorial button invites it */
   if(document.documentElement.classList.contains('splash-on')||document.getElementById('meme')||document.querySelector('.gm-intro'))return;
   if(!ptHere(k))return;
   setTimeout(()=>{if(PT||tipSeen(k)||!ptHere(k)||document.getElementById('meme')||document.querySelector('.qov'))return;ptStart(k);},PG_TOURS[k].ov?350:k==='home'?900:450);
@@ -13833,7 +13844,7 @@ function chatShow(){
     CH.tabs.forEach(chFromCache);}
   if(!CH.timer)chatSchedule(300);
 }
-function chatSchedule(ms){clearTimeout(CH.timer);CH.timer=setTimeout(chatPoll,ms);}
+function chatSchedule(ms){clearTimeout(CH.timer);CH.timer=setTimeout(chatPoll,ms>=3000?jit(ms):ms);}
 /* live updates (realtime.js): on when connected over the Worker (WebSocket or long-poll) or Firebase, off otherwise */
 const chLive=()=>!!(window.SXRT&&SXRT.mode&&/^(ws|http|rtdb)$/.test(SXRT.mode()));
 /* the list (sidebar) knows of a message newer than any the open conversation shows. Both come from the server, but by separate
@@ -14942,7 +14953,7 @@ async function resync(){
   if(state.user&&state.user.owner){
     if(GS){hostedDeepSync();return;}
     try{await api('/api/sync-request',{method:'POST',body:'{}'});}catch(_){}
-    clearTimeout(syncPollT);syncPollT=setTimeout(loadData,15000);return;
+    clearTimeout(syncPollT);syncPollT=setTimeout(loadData,jit(15000));return;
   }
   state.syncPending=false;
   if(res&&!(Number(res.added)||Number(res.events)||(res.created&&(res.created.length||Number(res.created))))){render();noteToast('Schoology is up to date');return;}
@@ -15119,7 +15130,7 @@ async function loadGame(id){
    kept under id|hash and used only when the page asks for that same hash. A fetched file is stored only when its own
    hash matches what the page expects, so an updated game is never served from an old copy. Up to GF_KEEP characters
    in all, the least recently opened go first. Without IndexedDB or a stamp it simply fetches, as before */
-const GAME_VER={"lander":"1684804b21","pipworks":"79e1238ce5","solitaire":"8c505f28ec","geohunter":"1fcd87b8d6","chess":"5c078efb55","gartic":"6f22b9c960","guessbuild":"ec4193b106","imposter":"2c7f34720b","poker":"6c5dc0b563","soundboard":"e07aefc27d","capitalist":"73fea6408d","tinyfishing":"708c08b431","krillion":"0afecc5ecc","geodash":"f1196aa413","appel":"80dd5f0087","metrica-wave":"c3df75a336","voteout":"7f793110c6","getaway":"9dda126d83","tag":"8bc7736018","crossyroad":"da8570d413","drivemad":"127bf09cfc","gladihoppers":"87d1b808b0","monkeymart":"4ce25762a3","ovo":"f564966222","stickmanhook":"a5c495f4f5","paperio":"8198023f59","smashkarts":"806875291a","yohoho":"24208763a5","basketballrandom":"175bedac55","houseofhazards":"7b313f0931","snake":"c5420e56c9","torahrunner":"999330d0cd","knessetcombat":"40048a6819","doom":"4f3b061ac7","papaspizzeria":"ded7417f7e","papasburgeria":"aedcee9463","papaswingeria":"b9b6139c9d","papastacomia":"5f69931ad8","papaspancakeria":"4baa264d88","pakistanrunner":"f31a76e05b","departed":"a354fdc1d9","retrobowl":"d7ddcc1688","subwaysurfers":"c332af6b02","tunnelrush":"dec240f546","driftboss":"71fad4f513","fnae":"9844ce377d","meditation":"56847adf1b","crashout":"59eaa18662","snowrider":"a692396710","retrobowlcollege":"3ad9da6ab9","powerlineio":"a874292b22","janissarybattles":"6da0602eb4","tag2":"cda72138aa","cookieclicker":"7422c6501f","idlebreakout":"57034162f4","farflung":"2dc945985c","cards":"759a40fee2","jamborine":"6b3031482b","stonks":"00e653f0c7","scrapyard":"6ae157e457","tanukisunset":"f43650a20f","extraplot":"8c6176690d"};
+const GAME_VER={"lander":"1684804b21","pipworks":"79e1238ce5","solitaire":"8c505f28ec","geohunter":"1fcd87b8d6","chess":"196ceee016","gartic":"6f22b9c960","guessbuild":"ec4193b106","imposter":"2c7f34720b","poker":"6c5dc0b563","soundboard":"e07aefc27d","capitalist":"73fea6408d","tinyfishing":"708c08b431","krillion":"f512748a77","geodash":"f1196aa413","appel":"80dd5f0087","metrica-wave":"c3df75a336","voteout":"7f793110c6","getaway":"9dda126d83","tag":"8bc7736018","crossyroad":"da8570d413","drivemad":"127bf09cfc","gladihoppers":"87d1b808b0","monkeymart":"4ce25762a3","ovo":"f564966222","stickmanhook":"a5c495f4f5","paperio":"8198023f59","smashkarts":"806875291a","yohoho":"24208763a5","basketballrandom":"175bedac55","houseofhazards":"7b313f0931","snake":"c5420e56c9","torahrunner":"999330d0cd","knessetcombat":"40048a6819","doom":"4f3b061ac7","papaspizzeria":"ded7417f7e","papasburgeria":"aedcee9463","papaswingeria":"b9b6139c9d","papastacomia":"5f69931ad8","papaspancakeria":"4baa264d88","pakistanrunner":"f31a76e05b","departed":"a354fdc1d9","retrobowl":"d7ddcc1688","subwaysurfers":"c332af6b02","tunnelrush":"dec240f546","driftboss":"71fad4f513","fnae":"9844ce377d","meditation":"56847adf1b","crashout":"59eaa18662","snowrider":"a692396710","retrobowlcollege":"3ad9da6ab9","powerlineio":"a874292b22","janissarybattles":"6da0602eb4","tag2":"cda72138aa","cookieclicker":"7422c6501f","idlebreakout":"57034162f4","farflung":"2dc945985c","cards":"759a40fee2","jamborine":"6b3031482b","stonks":"00e653f0c7","scrapyard":"6ae157e457","tanukisunset":"f43650a20f","extraplot":"8c6176690d"};
 const GF_KEEP=24e6;let gfDbP=null;
 function gfDb(){if(gfDbP)return gfDbP;gfDbP=new Promise((res,rej)=>{try{const q=indexedDB.open('sx-game',1);
   q.onupgradeneeded=()=>{q.result.createObjectStore('f');q.result.createObjectStore('m');};q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);q.onblocked=()=>rej(0);}catch(e){rej(e);}});
@@ -15240,7 +15251,7 @@ function trackSend(){
   if(!TRK.n||!GS)return;const body={c:TRK.c,g:TRK.g};TRK.c={};TRK.g={};TRK.n=0;TRK.last=Date.now();
   gsCall('rpcTrack',passKey||'',body).catch(()=>{});
 }
-setInterval(()=>{if(Date.now()-TRK.last>=10*60*1000)trackSend();},60*1000);
+(function trkTick(){setTimeout(()=>{if(Date.now()-TRK.last>=10*60*1000)trackSend();trkTick();},jit(60*1000));})();
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&Date.now()-TRK.last>=60*1000)trackSend();});
 /* ---------- Dashboard (the owner only): how many accounts there are and how many signed in lately ---------- */
 let DB=null,dbTimer=0,dbFresh=false,DBO=null;const DBP={g:false,s:false,sort:'last',n:30,sec:'overview'};
@@ -16260,7 +16271,7 @@ function deviceId(){
    stream per room with its own seq; the game's polls are answered from that stream. Players without a channel
    go through the server. Player lists and state snapshots still come from the server (snapshots also ride the
    channels for speed). Rooms are left and channels closed when the game closes. */
-const ROOM_OPS=['create','join','send','poll','leave','state'];
+const ROOM_OPS=['create','join','send','poll','leave','state','clock'];
 const RTC_CFG={iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
 const roomStats={server:0,polls:0,dcIn:0,dcOut:0};window.__roomStats=roomStats;
 const rooms=new Map(); /* code -> session, for the game now in the frame */
@@ -16281,7 +16292,7 @@ const rmid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
 const isObj=v=>v&&typeof v==='object'&&!Array.isArray(v);
 function roomSession(code,token,me,rch,game){
   const s={code,token,me,rch:typeof rch==='string'&&/^[a-f0-9]{32}$/.test(rch)&&ROOM_DB_GAMES.includes(game)?rch:'',db:null,dbAt:0,dbFails:0,dbRetry:0,dbHid:0,dbT:[],dbN:0,dbSeq:0,dbLive:new Map(),dbStQ:null,dbStAt:0,dbStT:0,players:[],host:false,since:0,seq:0,ev:[],state:undefined,stSeq:0,stKey:null,stN:0,
-    peers:new Map(),seen:new Set(),outN:{},inN:{},buf:{},ackIn:{},ackSent:{},ackAt:0,mq:[],stAt:0,stT:0,err:'',lastPoll:0,inflight:null,timer:null,closed:false,
+    peers:new Map(),seen:new Set(),outN:{},inN:{},buf:{},ackIn:{},ackSent:{},ackAt:0,mq:[],stAt:0,stT:0,clk:{off:0,err:1e9,ok:false,ref:'',smp:[],n:0,at:0},err:'',lastPoll:0,inflight:null,timer:null,closed:false,
     lw:false,stQ:null,stBusy:0,stOver:false,stLast:null,wakeT:0,rs:null,rsUp:false,rsPeers:new Map(),rsRetry:0,rsT:[],rsN:0,rsSlow:0};
   rooms.set(code,s);roomSockOpen(s);roomServerPoll(s);roomTick(s);return s;
 }
@@ -16336,6 +16347,32 @@ function roomPoke(s){
   const others=roomOthers(s),direct=others.filter(id=>roomOpen(s,id));
   for(const id of direct)roomDc(s,id,{t:'k'});
   if(others.length>direct.length)roomSockSend(s,{t:'k'},null,direct);
+}
+/* A shared clock for the players of a room, for games where a few milliseconds matter (Krillion's Race start, Chess's clocks).
+   The host is the reference. Each other player measures its offset to the host the way NTP does: it sends {t:'cp', t1}, the
+   host answers {t:'cr', t1, t2, t3} (t2 when it got it, t3 when it answers), the player has t4 on arrival; the offset is
+   ((t2 - t1) + (t3 - t4)) / 2 and the round trip minus the host's own time is the delay; the error can not be more than half
+   of that delay. The best (shortest delay) of the last samples is kept. Only over a data channel or the Worker socket: through
+   the server the delay is seconds and the clock would be worth nothing, so then ok stays false and games use their old way.
+   A game asks with roomOp('clock'): {ok, off, err, host}; the host's time is Date.now() + off. Times here are fractional
+   milliseconds on the same wall clock as Date.now(), kept steady by performance.now(). */
+const CLK0=Date.now()-performance.now(),clkNow=()=>CLK0+performance.now();
+function roomCtl(s,id,obj){if(roomOpen(s,id))return roomDc(s,id,obj);if(roomSock(s,id))return roomSockSend(s,obj,id);return false;}
+function roomClockTick(s){
+  const h=s.players.find(p=>p.host);if(!h)return;
+  if(s.host){if(!s.clk.ok||s.clk.ref!==s.me)s.clk={off:0,err:0,ok:true,ref:s.me,smp:[],n:0,at:0};return;}
+  if(s.clk.ref!==h.id)s.clk={off:0,err:1e9,ok:false,ref:h.id,smp:[],n:0,at:0};
+  const now=clkNow();if(now-s.clk.at<(s.clk.n<8?400:15000))return;
+  if(roomCtl(s,h.id,{t:'cp',t1:now})){s.clk.at=now;s.clk.n++;}
+}
+function roomClockIn(s,from,m){
+  if(m.t==='cp'){if(s.host&&typeof m.t1==='number'){const t2=clkNow();roomCtl(s,from,{t:'cr',t1:m.t1,t2,t3:clkNow()});}return;}
+  if(m.t!=='cr'||s.host||from!==s.clk.ref||typeof m.t1!=='number'||typeof m.t2!=='number'||typeof m.t3!=='number')return;
+  const t4=clkNow(),delay=(t4-m.t1)-(m.t3-m.t2);if(!(delay>=0)||delay>5000)return;
+  const c=s.clk;c.smp.push({off:((m.t2-m.t1)+(m.t3-t4))/2,delay,at:t4});
+  c.smp=c.smp.filter(x=>t4-x.at<90000).slice(-12);
+  const b=c.smp.reduce((a,x)=>x.delay<a.delay?x:a);
+  c.off=b.off;c.err=b.delay/2;c.ok=true;
 }
 function roomAckIn(s,from,a){if(!isObj(a))return;const v=Number(a[s.me]);if(v>(s.ackIn[from]||0))s.ackIn[from]=v;}
 function roomAckTick(s){
@@ -16443,7 +16480,7 @@ function roomTick(s){
   const now=Date.now();
   for(const f of Object.keys(s.buf))if(now-s.buf[f].at>5000)roomFlush(s,f,true);
   roomPeers(s);
-  roomMirrorTick(s);roomAckTick(s);
+  roomMirrorTick(s);roomAckTick(s);roomClockTick(s);
   /* long polls (s.lw) run back to back; while every player has a channel (a data channel, the Worker or Firebase) the server is only a heartbeat for the player list, a short poll every 3 s (so a player joining or leaving still shows within about 3 s), so a room that is running smoothly holds no Apps Script run (they are few and shared by everyone); it is back to normal the moment any player loses its channel */
   const gap=Object.keys(s.buf).length>0; /* a message is missing: its server copy comes within MIRROR_WAIT, so ask every second */
   const every=gap?1000:roomFast(s)?3000:s.lw?(document.hidden?1500:0):document.hidden?3000:1000;
@@ -16487,6 +16524,7 @@ function roomWire(s,p,pc,dc){
     else if(m.t==='st'&&isObj(m.k)&&s.players.some(x=>x.id===p.id&&x.host))roomState(s,m.k,m.d,'dc',m.at);
     else if(m.t==='a')roomAckIn(s,p.id,m.a);
     else if(m.t==='k'){if(!s.inflight)roomServerPoll(s);}
+    else if(m.t==='cp'||m.t==='cr')roomClockIn(s,p.id,m);
   };
 }
 function roomArm(s,p,gen,ms){clearTimeout(p.t);p.t=setTimeout(()=>{if(p.gen===gen&&!p.open)roomDrop(s,p);},ms);}
@@ -16581,6 +16619,7 @@ function roomSockIn(s,ev){
   else if(d.t==='st'&&isObj(d.k)&&pl.host)roomState(s,d.k,d.d,'ws',d.at);
   else if(d.t==='a')roomAckIn(s,f,d.a);
   else if(d.t==='k'){if(!s.inflight)roomServerPoll(s);}
+  else if(d.t==='cp'||d.t==='cr')roomClockIn(s,f,d);
 }
 /* last resort, Firebase RTDB (firebaseio.com gets through the school filter when *.workers.dev and WebRTC don't): only
    after this page's Worker room socket has failed, only while some other player has neither a data channel nor the
@@ -16690,6 +16729,7 @@ async function roomOp(op,args){
   }
   if(!mine)return roomCall(op,args);
   if(op==='leave'){roomClose(s,false);return roomCall('leave',args);}
+  if(op==='clock')return {ok:true,result:{ok:s.clk.ok,off:s.clk.off,err:s.clk.err,host:!!s.host}};
   if(op==='poll'){
     const since=args.since===undefined?0:args.since;
     if(typeof since!=='number'||Math.floor(since)!==since||since<0)return {ok:false,error:'bad'};
