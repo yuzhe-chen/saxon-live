@@ -626,6 +626,18 @@ section.view{display:none}
 @keyframes sgfly{0%{transform:translate(0,0) rotate(0) scale(.6);opacity:0}12%{opacity:1;transform:translate(40px,-20px) rotate(-8deg) scale(1)}
   55%{transform:translate(360px,-150px) rotate(6deg) scale(1)}100%{transform:translate(820px,-420px) rotate(-14deg) scale(.7);opacity:0}}
 @media (prefers-reduced-motion: reduce){.sg-fly{display:none}}
+/* the administrators' view of the suggestions (View suggestions): two columns, Claude's messages on top */
+#sugg .docs-in.sg-admin{max-width:1180px;overflow:visible}
+#sugg .sg-admin .rl-rep{min-height:0;margin:10px 0 0}
+#sugg .sg-admin .kbtn{min-height:42px;box-sizing:border-box}
+#sugg .sg-admin .sg-row{margin:0 0 18px;flex-wrap:wrap}
+#sugg .sg-cols .rl-sgh{min-height:46px;align-items:center}
+.sg-cms{display:flex;flex-direction:column;gap:10px;margin:0 0 22px}
+.sg-cm{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:12px 14px;border:2px solid var(--line);border-bottom-width:4px;border-radius:var(--r);background:var(--panel)}
+.sg-cmt{flex:1 1 280px;min-width:0;font-size:14px;line-height:1.45;overflow-wrap:anywhere}
+.sg-cmt b{color:var(--pri);margin-right:6px}
+.sg-cms2{flex:1 1 100%;order:3;font-size:12px;color:var(--fg2);overflow-wrap:anywhere}
+.sg-saved{color:var(--fg2);font-size:13px}
 #sugg .sg-warn{z-index:5}
 #sugg .sg-warn .qbox{width:420px}
 #sugg .sg-warn .gw-row{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px}
@@ -14644,17 +14656,21 @@ document.addEventListener('visibilitychange',chBackOn);addEventListener('focus',
 
 /* ---------- suggestions: from the opening screen, a bug report or an idea; they go to the owner's review list ---------- */
 let suggKind='idea',suggFocus=null;
+const isAdminUser=()=>{const u=state.user;return !!(u&&(u.owner||(Array.isArray(u.roles)&&u.roles.includes('game-admin'))));};
+let suggView='write',SGL=null,SGM=[],SGBUSY=false;
+const suggHead=c=>`<div class="docs-in${c||''}"><button class="hbtn navbtn res-x" data-sugg-close title="Close" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="res-head"><div class="rh-text"><span class="rh-art">${art('bulb')}</span><span class="rc">Saxon Planner</span><span class="rt">Suggestions</span></div></div>
+    `;
 function suggHTML(sent){
-  return `<div class="docs-in"><button class="hbtn navbtn res-x" data-sugg-close title="Close" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="res-head"><div class="rh-text"><span class="rh-art">${art('bulb')}</span><span class="rc">Saxon Planner</span><span class="rt">Suggestions</span></div></div>
-    <div class="hgroup"><button class="hbtn ${suggKind==='idea'?'on':''}" data-sugg-kind="idea">Suggestion</button><button class="hbtn ${suggKind==='bug'?'on':''}" data-sugg-kind="bug">Bug</button></div>
+  if(suggView==='review'&&isAdminUser())return suggAdminHTML();
+  return suggHead()+`<div class="hgroup"><button class="hbtn ${suggKind==='idea'?'on':''}" data-sugg-kind="idea">Suggestion</button><button class="hbtn ${suggKind==='bug'?'on':''}" data-sugg-kind="bug">Bug</button></div>
     <textarea id="sugg-t" maxlength="2000" aria-label="${suggKind==='bug'?'Bug':'Suggestion'}"></textarea>
-    <div class="sg-row"><button class="kbtn" data-sugg-send>Send</button><span class="sg-msg" role="status"${sent?' data-sugg-sent':''}>${sent?'Sent':''}</span></div>
+    <div class="sg-row"><button class="kbtn" data-sugg-send>Send</button>${isAdminUser()?'<button class="kbtn" type="button" data-sugg-view>View suggestions</button>':''}<span class="sg-msg" role="status"${sent?' data-sugg-sent':''}>${sent?'Sent':''}</span></div>
     ${sent?`<div class="sg-fly" aria-hidden="true">${art('plane')}</div>`:''}</div>`;
 }
 function openSugg(){
   const d=document.getElementById('sugg');
   if(!d.hidden){closeSugg();return;}
-  suggFocus=document.activeElement;d.innerHTML=suggHTML(false);d.hidden=false;d.tabIndex=-1;
+  suggFocus=document.activeElement;suggView='write';d.innerHTML=suggHTML(false);d.hidden=false;d.tabIndex=-1;
   const t=document.getElementById('sugg-t');if(t)t.focus({preventScroll:true});
 }
 /* closing with text still in the box asks first */
@@ -14689,6 +14705,61 @@ async function sendSugg(){
     const t2=document.getElementById('sugg-t'),m2=d.querySelector('.sg-msg');if(t2){t2.value=text;t2.focus({preventScroll:true});}if(m2)m2.textContent=why;};
   if(!d.hidden&&d.querySelector('[data-sugg-sent]')&&!(document.getElementById('sugg-t')||{}).value)back();else chFail(why,back);
 }
+/* the administrators' view: pending suggestions on the left, accepted ones (waiting for Claude, each with a note to Claude) on the right.
+   Accept keeps the suggestion and tells its sender (with the optional message typed first); Decline tells them too; Remove tells nobody.
+   Both Decline and Remove make it disappear at once. Claude's messages (a suggestion finished) wait on top for the owner. */
+const SG_PEND=new Set();
+const sgWhen=t=>t?new Date(t).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+function suggAdminHTML(){
+  const list=(SGL||[]).filter(x=>!SG_PEND.has(x.id)),mine=state.user&&state.user.owner;
+  const who=s=>s.user==='guest'&&s.device?'guest '+s.device.slice(0,8):s.user||'guest';
+  const pend=list.filter(x=>x.status!=='accepted').filter(x=>rlSK==='all'||(x.kind==='bug'?'bug':'idea')===rlSK);
+  const acc=list.filter(x=>x.status==='accepted').sort((a,b)=>(b.an||0)-(a.an||0));
+  const kb=(k,l)=>`<button class="hbtn ${rlSK===k?'on':''}" data-sg-sk="${k}">${l}</button>`;
+  const top=s=>`<div class="rl-sh"><span class="rl-k ${s.kind==='bug'?'bug':''}">${s.kind==='bug'?'Bug':'Suggestion'}</span><span class="m">${esc([who(s),sgWhen(s.created)].filter(Boolean).join(', '))}</span></div><div class="rl-st">${esc(s.text)}</div>`;
+  const pq=pend.map(s=>`<div class="rl-q rl-sg">${top(s)}
+    ${s.user==='guest'?'':`<textarea class="rl-rep" data-sg-rep="${esc(s.id)}" maxlength="600" rows="2" placeholder="Message to ${esc(s.user)} (optional, sent with Accept or Decline)" aria-label="Message to ${esc(s.user)}"></textarea>`}
+    <div class="rl-acts"><button class="kbtn acc" data-sg-act="accept" data-id="${esc(s.id)}">${s.kind==='bug'?'Fixed':'Accept'}</button><button class="kbtn" data-sg-act="decline" data-id="${esc(s.id)}">Decline</button>
+      <button class="kbtn" data-sg-act="silent" data-id="${esc(s.id)}" title="Remove without telling them">Remove</button></div></div>`).join('');
+  const aq=acc.map(s=>`<div class="rl-q rl-sg">${top(s)}
+    <textarea class="rl-rep" data-sg-note="${esc(s.id)}" maxlength="1000" rows="3" placeholder="Note for Claude: what to do, or what to change" aria-label="Note for Claude">${esc(s.cn||'')}</textarea>
+    <div class="rl-acts"><button class="kbtn" data-sg-save="${esc(s.id)}">Save note</button><span class="sg-saved" role="status" data-sg-said="${esc(s.id)}"></span></div></div>`).join('');
+  const msgs=mine&&SGM.length?`<div class="sg-cms">${SGM.map(m=>`<div class="sg-cm"><div class="sg-cmt"><b>Claude</b> ${esc(m.m||'Done')}</div><div class="sg-cms2">${esc(m.s||'')}</div><button class="kbtn" data-sg-dismiss="${m.t}">Dismiss</button></div>`).join('')}</div>`:'';
+  return suggHead(' sg-admin')+`<div class="sg-row"><button class="kbtn" type="button" data-sugg-write>Write one</button><span class="sg-msg" role="status" id="sg-amsg"></span></div>${msgs}
+    <div class="rl-grid two sg-cols"><div class="rl-col"><div class="rl-sgh"><h3>Suggestions</h3><div class="hgroup">${kb('all','All')}${kb('idea','Suggestion')}${kb('bug','Bug')}</div></div>${SGL?pq||'<div class="rl-none">Nothing here</div>':'<div class="rl-none">Loading...</div>'}</div>
+      <div class="rl-col"><div class="rl-sgh"><h3>Accepted</h3></div>${SGL?aq||'<div class="rl-none">Nothing accepted yet</div>':''}</div></div></div>`;
+}
+const sgApi=body=>api('/api/roles',{method:'POST',body:JSON.stringify(body)});
+function sgPaint(keep){const d=document.getElementById('sugg');if(!d||d.hidden||suggView!=='review')return;
+  const typing=d.querySelector('textarea:focus');if(typing&&!keep)return;
+  const vals={};d.querySelectorAll('textarea').forEach(x=>{if(x.value)vals[x.dataset.sgRep?'r'+x.dataset.sgRep:'n'+x.dataset.sgNote]=x.value;});
+  const sc=d.scrollTop;d.innerHTML=suggAdminHTML();
+  d.querySelectorAll('textarea').forEach(x=>{const k=x.dataset.sgRep?'r'+x.dataset.sgRep:'n'+x.dataset.sgNote;if(vals[k]!==undefined)x.value=vals[k];});d.scrollTop=sc;}
+async function sgLoad(){
+  let r=null;try{r=await sgApi({op:'suggestions'});}catch(_){r=null;}
+  if(!r||!r.ok){const m=document.getElementById('sg-amsg');if(m)m.textContent='Couldn’t load, try again';return;}
+  SGL=r.suggestions||[];SGM=r.msgs||[];sgPaint();}
+function sgMsg(t){const m=document.getElementById('sg-amsg');if(m)m.textContent=t||'';}
+/* answering one: it leaves (or moves) at once, the server follows in the background; a failure brings it back with what was typed */
+async function sgAct(id,how){
+  const ta=document.querySelector(`#sugg [data-sg-rep="${CSS.escape(id)}"]`),note=ta?ta.value.trim():'';
+  const item=(SGL||[]).find(x=>x.id===id);if(!item)return;
+  const before=SGL.slice();
+  if(how==='accept')SGL=SGL.map(x=>x.id===id?Object.assign({},x,{status:'accepted',an:Date.now()}):x);else SGL=SGL.filter(x=>x.id!==id);
+  sgPaint(true);sgMsg(how==='accept'?(item.user==='guest'?'Accepted':'Accepted, sent to their inbox'):how==='decline'?'Declined':'Removed');
+  let r=null;try{r=how==='accept'?await sgApi({op:'suggAccept',id,note}):await sgApi({op:'suggDone',ids:[id],how:'decline',note,silent:how==='silent'});}catch(_){r={error:'conn'};}
+  if(r&&r.ok){SGL=r.suggestions||SGL;if(r.msgs)SGM=r.msgs;sgPaint(true);return;}
+  SGL=before;sgPaint(true);const t2=document.querySelector(`#sugg [data-sg-rep="${CSS.escape(id)}"]`);if(t2&&note)t2.value=note;sgMsg('Couldn’t send that, try again');
+}
+async function sgSaveNote(id){
+  const ta=document.querySelector(`#sugg [data-sg-note="${CSS.escape(id)}"]`),said=document.querySelector(`#sugg [data-sg-said="${CSS.escape(id)}"]`);if(!ta)return;
+  const note=ta.value.trim();if(said)said.textContent='Saving...';
+  let r=null;try{r=await sgApi({op:'suggNote',id,note});}catch(_){r=null;}
+  const s2=document.querySelector(`#sugg [data-sg-said="${CSS.escape(id)}"]`);
+  if(r&&r.ok){SGL=(SGL||[]).map(x=>x.id===id?Object.assign({},x,{cn:note||undefined}):x);if(s2)s2.textContent='Saved';}else if(s2)s2.textContent='Not saved, try again';
+}
+async function sgDismiss(t){SGM=SGM.filter(x=>String(x.t)!==String(t));sgPaint(true);try{await sgApi({op:'cmsgDismiss',t:Number(t)});}catch(_){}}
+document.addEventListener('focusout',e=>{const n=e.target&&e.target.dataset&&e.target.dataset.sgNote;if(n&&e.target.isConnected&&!SG_PEND.has(n)){const it=(SGL||[]).find(x=>x.id===n);if(it&&(it.cn||'')!==e.target.value.trim())sgSaveNote(n);}});
 document.addEventListener('click',e=>{
   if(e.target.closest('[data-act-sugg]')){e.stopPropagation();openSugg();return;}
   if(!e.target.closest('#sugg'))return;
@@ -14700,7 +14771,13 @@ document.addEventListener('click',e=>{
   const k=e.target.closest('[data-sugg-kind]');
   if(k){suggKind=k.dataset.suggKind;document.querySelectorAll('#sugg [data-sugg-kind]').forEach(x=>x.classList.toggle('on',x===k));
     const t=document.getElementById('sugg-t');if(t){t.setAttribute('aria-label',suggKind==='bug'?'Bug':'Suggestion');t.focus();}return;}
-  if(e.target.closest('[data-sugg-send]'))sendSugg();
+  if(e.target.closest('[data-sugg-send]')){sendSugg();return;}
+  if(e.target.closest('[data-sugg-view]')&&isAdminUser()){suggView='review';document.getElementById('sugg').innerHTML=suggHTML(false);sgLoad();return;}
+  if(e.target.closest('[data-sugg-write]')){suggView='write';const d=document.getElementById('sugg');d.innerHTML=suggHTML(false);const t=document.getElementById('sugg-t');if(t)t.focus({preventScroll:true});return;}
+  const sk=e.target.closest('[data-sg-sk]');if(sk){rlSK=sk.dataset.sgSk;sgPaint(true);return;}
+  const ac=e.target.closest('[data-sg-act]');if(ac){sgAct(ac.dataset.id,ac.dataset.sgAct);return;}
+  const sv=e.target.closest('[data-sg-save]');if(sv){sgSaveNote(sv.dataset.sgSave);return;}
+  const dm=e.target.closest('[data-sg-dismiss]');if(dm){sgDismiss(dm.dataset.sgDismiss);return;}
 },true);
 document.addEventListener('keydown',e=>{const d=document.getElementById('sugg');if(!d||d.hidden)return;
   if(e.key==='Escape'){e.stopPropagation();if(d.querySelector('.sg-warn'))suggWarn(false);else closeSugg();return;}
@@ -15234,18 +15311,9 @@ function rolesPaint(msg){
   if(!RL||RL.error){d.innerHTML=`<div class="docs-in"><button class="hbtn navbtn res-x" data-rl-close title="Close" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="rl-retry"><div class="rl-none">Can't load Administration</div><button class="kbtn" data-rl-retry>Try again</button></div></div>`;return;}
   const ed=RL.canEdit,dt=t=>t?new Date(t).toLocaleDateString([],{month:'short',day:'numeric'}):'';
   const box=(n,kind)=>`<div class="rl-box ${kind}"><span class="nm">${esc(n)}</span><span class="tg">${kind==='admin'?'Admin':'Moderator'}</span>${kind==='mod'&&ed?`<button data-rl-unmod="${esc(n)}" title="Remove moderator" aria-label="Remove moderator">×</button>`:''}</div>`;
-  const sg=RLS?RLS.filter(s=>!SG_PEND.has(s.id)).filter(s=>rlSK==='all'||(s.kind==='bug'?'bug':'idea')===rlSK):[];
-  const sw=t=>t?new Date(t).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
-  const sq=sg.map(s=>`<div class="rl-q rl-sg"><div class="rl-sh"><span class="rl-k ${s.kind==='bug'?'bug':''}">${s.kind==='bug'?'Bug':'Suggestion'}</span>
-    <span class="m">${esc([s.user==='guest'&&s.device?'guest '+s.device.slice(0,8):s.user||'guest',sw(s.created)].filter(Boolean).join(', '))}</span>
-    </div><div class="rl-st">${esc(s.text)}</div>
-    ${s.user==='guest'?'':`<textarea class="rl-rep" data-rl-rep="${esc(s.id)}" maxlength="600" rows="2" placeholder="Message to ${esc(s.user)} (optional)" aria-label="Message to ${esc(s.user)}"></textarea>`}
-    <div class="rl-acts"><button class="kbtn acc" data-rl-done="${esc(s.id)}" data-how="accept">${s.kind==='bug'?'Fixed':'Accept'}</button><button class="kbtn" data-rl-done="${esc(s.id)}" data-how="decline">Decline</button>
-      <button class="kbtn" data-rl-done="${esc(s.id)}" data-how="silent" title="Remove without telling them">Remove</button></div></div>`).join('');
-  const kb=(k,l)=>`<button class="hbtn ${rlSK===k?'on':''}" data-rl-sk="${k}">${l}</button>`;
   d.innerHTML=`<div class="docs-in"><button class="hbtn navbtn res-x" data-rl-close title="Close" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     <div class="res-head"><div class="rh-text"><span class="rc">Saxon Planner</span><span class="rt">Administration</span></div></div>
-    <div class="rl-grid${RLS?'':' two'}">
+    <div class="rl-grid two">
       <div class="rl-col"><h3>Administrators</h3>${RL.admins.map(n=>box(n,'admin')).join('')||'<div class="rl-none">None</div>'}
         <h3>Moderators</h3>${RL.moderators.map(n=>box(n,'mod')).join('')||'<div class="rl-none">None</div>'}
         ${ed?`<form class="rl-add" autocomplete="off"><input type="text" id="rl-name" placeholder="Username" maxlength="24" spellcheck="false" aria-label="Username"><button class="kbtn" type="submit">Add moderator</button></form>`:''}
@@ -15269,8 +15337,6 @@ function rolesPaint(msg){
           <div class="rl-sys-msg" role="status"></div>`:''}
         ${isGameAdmin()?``:''}</div>
       <div class="rl-col rl-recent">${rlRecentHTML()}</div>
-      ${RLS?`<div class="rl-col"><div class="rl-sgh"><h3>Suggestions</h3><div class="hgroup">${kb('all','All')}${kb('idea','Suggestion')}${kb('bug','Bug')}</div></div>
-        ${sq||'<div class="rl-none">Nothing here</div>'}</div>`:''}
     </div></div>`;
   /* a redraw keeps See all open */
   if(RLA)rlAllPaint();
@@ -15323,25 +15389,6 @@ async function rolesMp(name,unlock){
   if(r&&r.ok){RL=Object.assign(r,{open:RL&&RL.open});pcPut('roles',{RL,RLS});rolesPaint();return;}
   RL=was;rolesPaint();const m=document.querySelector('#roles .rl-mpmsg');if(m)m.textContent=r&&r.error==='nouser'?'No account named '+name:'Couldn\u2019t change it';
 }
-/* answering a suggestion: accept or decline sends the verdict and the typed message to the sender's inbox; remove sends nothing.
-   It leaves the list at once and is sent in the background (Apps Script takes a few seconds); if that fails it comes back */
-const SG_PEND=new Set();
-async function suggDone(id,how){
-  SG_PEND.add(id);
-  const ta=document.querySelector(`#roles [data-rl-rep="${CSS.escape(id)}"]`),note=ta?ta.value.trim():'';
-  const keep={};document.querySelectorAll('#roles [data-rl-rep]').forEach(x=>{if(x.value&&x.dataset.rlRep!==id)keep[x.dataset.rlRep]=x.value;});
-  const restore=()=>Object.keys(keep).forEach(k=>{const x=document.querySelector(`#roles [data-rl-rep="${CSS.escape(k)}"]`);if(x&&!x.value)x.value=keep[k];});
-  const item=(RLS||[]).find(x=>x.id===id),at=(RLS||[]).indexOf(item);
-  if(RLS)RLS=RLS.filter(x=>x.id!==id);
-  rolesPaint(how==='silent'?'Removed':'Sent to their inbox');restore();
-  let r=null;try{r=await api('/api/roles',{method:'POST',body:JSON.stringify({op:'suggDone',ids:[id],how:how==='decline'?'decline':'accept',note,silent:how==='silent'})});}catch(_){r={error:'conn'};}
-  SG_PEND.delete(id);
-  if(r&&r.ok){pcPut('roles',{RL,RLS});return;}
-  /* failed: put it back where it was, with the message that was typed */
-  document.querySelectorAll('#roles [data-rl-rep]').forEach(x=>{if(x.value)keep[x.dataset.rlRep]=x.value;});
-  if(item&&RLS&&!RLS.some(x=>x.id===id)){RLS.splice(Math.max(0,at),0,item);}
-  keep[id]=note;rolesPaint('Couldn\u2019t send that, try again');restore();
-}
 document.addEventListener('click',e=>{
   if(e.target.closest('[data-act-roles]')){e.stopPropagation();openRoles();return;}
   const d=document.getElementById('roles');if(!d||d.hidden||!d.contains(e.target))return;
@@ -15355,7 +15402,6 @@ document.addEventListener('click',e=>{
   if(b.dataset.rlMod){rolesSet(b.dataset.rlMod,false);return;}
   if(b.dataset.rlUnmod){rolesSet(b.dataset.rlUnmod,true);return;}
   if(b.dataset.rlSk){rlSK=b.dataset.rlSk;rolesPaint();return;}
-  if(b.dataset.rlDone){suggDone(b.dataset.rlDone,b.dataset.how);return;}
   if(b.dataset.rlMplock){rolesMp(b.dataset.rlMplock,false);return;}
   if(b.dataset.rlGasx){rolesGas(b.dataset.rlGasx,true);return;}
   if(b.dataset.rlConvx){rolesConv(b.dataset.rlConvx,true);return;}
