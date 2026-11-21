@@ -949,7 +949,7 @@ input.lib-q{width:calc(100% + 2 * var(--reach));margin:0 calc(-1 * var(--reach))
 /* the class picker in an assignment being edited */
 .task .tt .cn.cn-pick{display:inline-flex;align-items:center;gap:6px;cursor:pointer;max-width:100%}
 .task .tt .cn.cn-pick .car{font-size:10px;flex:none}
-.tk-cls{display:none;flex-direction:column;position:absolute;z-index:30;max-height:260px;overflow-y:auto;padding:4px 0;
+.tk-cls{display:none;flex-direction:column;position:fixed;z-index:1100;max-height:460px;overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;padding:4px 0;
   background:color-mix(in srgb,var(--panel) 52%,transparent);-webkit-backdrop-filter:blur(18px) saturate(1.8);backdrop-filter:blur(18px) saturate(1.8);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 0 0 1px rgba(255,255,255,.18),0 10px 30px rgba(0,0,0,.18)}
 [data-theme="dark"] .tk-cls{background:color-mix(in srgb,var(--panel) 45%,transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 0 0 1px rgba(255,255,255,.06),0 10px 30px rgba(0,0,0,.45)}
@@ -957,6 +957,9 @@ input.lib-q{width:calc(100% + 2 * var(--reach));margin:0 calc(-1 * var(--reach))
 .tk-cls .tk-hd{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--fg2);padding:8px 14px 6px}
 .tk-cls .cdd-item{background:transparent}
 .tk-cls.open{display:flex}
+/* a popup over the page (position fixed, placed from the class name; never clipped by the card), its rows never squashed */
+.tk-cls>*{flex:none}
+.tk-cls .cdd-item{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tk-cls .cdd-item{display:flex;align-items:center;gap:8px;text-align:left}
 .tk-cls .cdd-item{display:block}
 /* card headers: every card in a row is the same width; a long class name wraps to a second line, then ellipsis */
@@ -10858,8 +10861,14 @@ function startEdit(el){
       (state.settings.hideChat?'':`<div class="tk-hd">Share</div><button type="button" class="cdd-item tk-share" data-share="1">Send to a friend</button>`);
     cn.after(menu);
     /* mousedown keeps the text focused, so the edit stays open */
-    const place=()=>{const tr=el.getBoundingClientRect(),cr=cn.getBoundingClientRect(),gap=Math.max(8,cr.left-tr.left);
-      menu.style.left=gap+'px';menu.style.right=gap+'px';menu.style.top=(cr.bottom-tr.top+4)+'px';};
+    /* a popup menu: fixed on the page under the class name (above it when there is no room below), as wide as the name or 240 px, scrolling inside when the list is long */
+    const place=()=>{const cr=cn.getBoundingClientRect(),vw=innerWidth,vh=innerHeight,w=Math.min(Math.max(240,cr.width),vw-24);
+      menu.style.width=w+'px';menu.style.left=Math.min(Math.max(12,cr.left),vw-w-12)+'px';menu.style.right='auto';menu.style.maxHeight='';
+      const below=vh-cr.bottom-12,above=cr.top-12,want=Math.min(460,menu.scrollHeight+8);
+      if(below>=want||below>=above){menu.style.top=(cr.bottom+4)+'px';menu.style.bottom='auto';menu.style.maxHeight=Math.min(460,Math.max(120,below))+'px';}
+      else{menu.style.bottom=(vh-cr.top+4)+'px';menu.style.top='auto';menu.style.maxHeight=Math.min(460,Math.max(120,above))+'px';}};
+    const rp=()=>{if(!menu.isConnected){removeEventListener('scroll',rp,true);removeEventListener('resize',rp);return;}if(menu.classList.contains('open'))place();};
+    addEventListener('scroll',rp,true);addEventListener('resize',rp);
     cn.addEventListener('mousedown',ev=>{ev.preventDefault();ev.stopPropagation();menu.classList.toggle('open');place();fitPickers();});
     cn.addEventListener('click',ev=>ev.stopPropagation());
     menu.addEventListener('mousedown',ev=>{ev.preventDefault();ev.stopPropagation();
