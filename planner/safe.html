@@ -478,9 +478,16 @@ html.faq-open,html.faq-open body,html.faq-open .wrap{overflow:hidden!important;o
 /* the title shares a line with the close button: its margin moves to the row, and its bottom padding (the button's 4 px ledge minus its 2 px top border) puts the text on the middle of the button's light face, where the X sits */
 .qbox .faq-top .qhd{margin-bottom:0;padding-bottom:2px}
 .faq-top{margin-bottom:12px}
-.abs-box{max-width:560px;width:100%;display:flex;flex-direction:column;gap:10px}
 .abs-row{display:flex;flex-wrap:wrap;gap:8px}
-.abs-box .fl{margin:6px 0 0}
+.ab-wrap{max-width:760px;margin:0 auto;padding:24px 20px 60px;display:flex;flex-direction:column;gap:18px}
+.ab-card{display:flex;flex-direction:column;gap:10px;padding:18px 20px;background:var(--box);border:2px solid var(--line);border-bottom-width:4px;border-radius:16px}
+.ab-card .fl{margin:6px 0 0}
+.ab-h{margin:0;font:800 17px var(--font-ui);color:var(--fg)}
+.ab-day{display:flex;flex-direction:column;gap:6px;padding-top:10px;border-top:2px solid var(--line)}
+.ab-day:first-of-type{border-top:0;padding-top:0}
+.ab-dh{display:flex;align-items:center;justify-content:space-between;gap:10px;font:800 14px var(--font-ui);color:var(--fg2)}
+.ab-it{display:flex;align-items:center;gap:10px;font:700 15px var(--font-ui);color:var(--fg);min-height:44px}
+.ab-why{display:block;font:600 13px var(--font-ui);color:var(--fg2)}
 .abs-note{width:100%}
 .abs-act{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:10px;margin-top:8px}
 .faq-x{font-size:18px;line-height:1;padding:4px 10px}
@@ -1551,6 +1558,9 @@ html.home-on body::before{opacity:1}
 #games .tr-intro .tr-by{font-size:clamp(18px,2.6vw,26px);color:#cfcfd4;letter-spacing:.02em}
 #games .tr-intro .tr-name{font-size:clamp(40px,7vw,76px);color:#f1e3bd}
 #games .tr-intro.pr .tr-name{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:800;letter-spacing:-.01em;color:#d8eccf}
+#games .tr-intro.so p{font-family:'Sx Big Shoulders','Big Shoulders Display',Impact,sans-serif;font-weight:800;text-transform:uppercase}
+#games .tr-intro.so .tr-by{font-size:clamp(14px,2vw,20px);letter-spacing:.32em;color:#9aa6b2}
+#games .tr-intro.so .tr-name{font-size:clamp(52px,10vw,120px);letter-spacing:.01em;line-height:.9;color:#fff}
 #games .tr-intro.go .tr-by{animation:trby 1.9s ease forwards}
 #games .tr-intro.go .tr-name{animation:trname .5s ease 2.1s forwards}
 @keyframes trby{0%{opacity:0}26%,79%{opacity:1}100%{opacity:0}}
@@ -2281,8 +2291,10 @@ nav.tabs .mmenu .mcolors button.kbtn:hover{background:var(--panel);color:var(--f
 #splash.clk{overflow:hidden;pointer-events:none}
 #splash.clk .sp-art{opacity:0;transition:opacity .3s ease}
 #splash.clk-out :is(.sp-mid,.sp-top,.sp-down){opacity:0;transform:translateY(-14px);transition:opacity .3s ease,transform .35s cubic-bezier(.5,0,.75,0)}
-#spclock{position:fixed;inset:0;z-index:1700;pointer-events:none;overflow:hidden}
-#spclock svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+#spclock{position:fixed;inset:0;z-index:1700;pointer-events:none;overflow:hidden;contain:strict;will-change:transform}
+#spclock svg{position:absolute;inset:0;width:100%;height:100%;display:block;will-change:transform}
+/* the picture has already faded out when the clock plays: the browser skips drawing it (smoother frames) */
+#splash.clk .sp-art{content-visibility:hidden}
 #spcover{position:fixed;inset:0;z-index:1700;background:#1cb0f6;pointer-events:none;transition:opacity .5s ease}
 #spcover.off{opacity:0}
 #spcover.wait::after{content:"";position:absolute;left:50%;top:50%;width:28px;height:28px;margin:-16px 0 0 -16px;
@@ -2776,6 +2788,7 @@ svg.bk-book .bk-p2{animation:bkp2 5s cubic-bezier(.5,0,.4,1) infinite}
 .nw-tbl th:first-child,.nw-tbl td:first-child{text-align:left}
 .nw-rk{display:inline-block;width:22px;color:var(--faint);font-weight:800}
 .nw-retry{display:flex;justify-content:center}
+.dl-price{align-self:flex-start;padding:3px 10px;border-radius:999px;background:var(--pri-wash);color:var(--green);font:800 14px var(--font-ui)}
 @media(max-width:560px){.nw-tbl{padding:12px 10px}.nw-tbl table{font-size:13px}.nw-tbl td,.nw-tbl th{padding:7px 3px}.nw-rk{width:18px}.nw-grid{grid-template-columns:1fr}.nw-list{grid-template-columns:1fr}.nw-wrap{padding:16px 14px 50px}}
 /* Appearance: hidden pages, and avatars */
 html.no-v-courses [data-v="courses"],html.no-v-courses #hm-courses,
@@ -2785,6 +2798,8 @@ html.no-v-assignments [data-v="assignments"],html.no-v-assignments #hm-assignmen
 html.no-v-resources [data-v="resources"],html.no-v-resources #hm-resources,
 html.no-v-chat [data-v="chat"],html.no-v-chat #hm-chat,
 html.no-v-news [data-v="news"],
+html.no-v-deals [data-v="deals"],
+html.no-v-absence [data-v="absence"],
 html.no-v-tasks [data-v="tasks"],html.no-v-tasks #hm-tasks,
 html.no-v-guide [data-v="guide"],html.no-v-guide #hm-guide,
 html.no-v-guide [data-act-docs]{display:none!important}
@@ -3603,6 +3618,7 @@ html.pg-open:not(.splash-on):has(:is(#games,#desmos,#sugg,#roles,#rewards) :is(.
 #games .gm-tags i[data-l="Multiplayer"]{background:color-mix(in srgb,var(--purple) 22%,var(--bg));color:#9b4fd0}
 #games .gm-tags i[data-l="Social"]{background:var(--gold-bg);color:var(--gold)}
 #games .gm-tags i[data-l="Online"]{background:var(--pri-wash);color:var(--green)}
+#games .gm-tags i[data-l="Original"]{background:var(--pri);color:#fff}
 :root[data-theme="dark"] #games .gm-tags i[data-l="Singleplayer"]{color:var(--blue-light)}
 :root[data-theme="dark"] #games .gm-tags i[data-l="Multiplayer"]{color:#e3bbff}
 #games .gm-plain{background:var(--panel)}
@@ -4045,6 +4061,7 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
 #v-clock .ck-card{display:flex;align-items:center;gap:40px;max-width:860px;margin:24px auto;padding:32px 40px;background:var(--panel);
   border:2px solid var(--line);border-bottom-width:4px;border-radius:var(--r)}
 #v-clock .ck-face{flex:0 0 auto;width:300px;height:300px}
+#v-clock .ck-tm{max-width:860px;margin:0 auto 24px}
 #v-clock .ck-face svg{display:block;width:100%;height:100%}
 #v-clock .ck-rim{fill:var(--panel2);stroke:var(--line);stroke-width:4}
 #v-clock .ck-in{fill:var(--panel)}
@@ -4537,14 +4554,14 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
 <li><b>Week</b> shows Monday to Friday, with the classes that meet each day and their periods. Anything on Saturday or Sunday is listed under Weekend.</li>
 <li><b>Month</b> shows up to 4 items a day, with a count of the rest. Click a day to open its week with that day highlighted. Items in Month can be dragged to another day but not edited there; open the week to change them. A school event opens School Events on the To-Do page.</li>
 <li>Under every view, the <b>Send to next month</b> strip takes anything dropped on it to the 1st of next month.</li>
-<li><b>+</b> on a day adds items to that date: pick a class, type one item per line, then choose Assignment, Exam, Optional, In-Class, Absence, Parent Needed or Advisory. With No course, or with Advisory, the lines become To-Do notes for that date instead, and show on the calendar as Advisory.</li>
+<li><b>+</b> on a day adds items to that date: pick a class, type one item per line, then choose Assignment, Exam, Optional, In-Class or Advisory. With No course, or with Advisory, the lines become To-Do notes for that date instead, and show on the calendar as Advisory.</li>
 <li><b>Mode</b> filters to All, Assignments, Exams, Not Due (optional and in-class) or Notes (absences and parent needed). It applies to the calendar and Courses, and this computer remembers it.</li>
 <li><b>Advisory</b> lists your To-Do notes. Press Send assignment, then click an assignment, and it becomes a note with its class.</li>
 </ul>
 
 <h3>Assignments and tasks</h3>
 <ul>
-<li>Each task shows its class in the class color, with a label for Exam, Optional, In-Class, Absent or Parent Needed. Labels can't be changed afterwards: delete the task and add it again.</li>
+<li>Each task shows its class in the class color, with a label for Exam, Optional, In-Class or Absent. Labels can't be changed afterwards: delete the task and add it again.</li>
 <li>Click a task to edit it in place. The first line is the title; <kbd>Shift</kbd>+<kbd>Enter</kbd> adds lines for details. While editing, click the class name to move the task to another class.</li>
 <li>Drag a task to another day to move it. On Courses, drag a task onto another class's card to move it to that class.</li>
 <li>Delete a task with its ×, a double click, or by pressing and holding it.</li>
@@ -4565,6 +4582,9 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
 <li>With no Schoology link and no picture password, a <b>No way to reset your password</b> notice sits at the top with Add Schoology link and Set picture password buttons.</li>
 </ul>
 
+<h3>Absence</h3>
+<p>Absence, in the top bar (under More on a small screen, and the Absence button on Courses), is where you mark days you miss. Pick the day, tick the classes you miss and add a reason if you like; <b>Mark absent</b> puts an Absent note on that day for each class (they show under Mode, Notes, and clear themselves a couple of days later). Turn on <b>Ask a classmate for the work</b> and pick a friend (friends in the same classes come first): they get a request for each class and can send you the assignments, which you add to your planner with one click. Under the form, <b>Your absences</b> lists the recent ones; remove one with its ×, or press <b>Ask for the work</b> to ask again.</p>
+
 <h3>To-Do</h3>
 <ul>
 <li><b>+</b> adds a sticky note. Click a note to edit it. The first line is the bold title and the lines under it are the body.</li>
@@ -4575,6 +4595,9 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
 <li><b>School Events</b>: pick a date, add an optional time and a title, then press Add. Times are read between 7 AM and 6 PM, so 8:10 means 8:10 AM and 3 means 3:00 PM. Upcoming events are listed here and show on the calendar.</li>
 </ul>
 
+<h3>Deals</h3>
+<p>Deals, in the top bar (under More on a small screen), lists sales from public deal sites, refreshed every 15 minutes. The chips at the top (All, Electronics, Computers, Gaming and toys, Clothing, School supplies, Books and music, Sports, Beauty, Home) narrow the list; a card opens the deal on the store's own page in a new tab. Anything adult or age restricted is left out. Deals can be hidden under Settings, Appearance, Hide pages.</p>
+
 <h3>Tools</h3>
 <p>Tools, in the top bar, is a screen of tools. The menu bar hides while one fills the screen; the arrow on the left edge brings you back.</p>
 <ul>
@@ -4582,8 +4605,7 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
 <li><b>GPA Calculator</b>: list every class you have taken with its level, credit and letter grade; Honors adds 0.5 and AP, AV, DE and IB add 1, as FCPS does. <b>Add my classes</b> fills in your current classes. The options button next to the grade holds the credit (1 or 0.5), <b>Expunge</b> (leaves a class out) and <b>Pass/Fail</b> (leaves it out unless the grade is F). The totals show Weighted GPA, Unweighted and Credits counted. <b>Add by year</b> sorts classes into Middle school and 9th to 12th grade with a Current year picker and a Subject for each row; rows can be dragged between years. Classes after your current year are prospective (enter the grade you expect) and add a Projected weighted GPA, and the Standard and Advanced Studies diploma credits show below as Fulfilled, On track or Not yet.</li>
 <li><b>Soundboard</b>: sound effects at the press of a button.</li>
 <li><b>Desmos</b>: the Desmos graphing calculator.</li>
-<li><b>Clock</b>: a full-screen clock with the current class or lunch and how many minutes until it ends, or when the next period starts. It follows the Green and Gold schedule and early release days.</li>
-<li><b>Timer</b>: <b>Focus and break</b> rounds (set the focus and break minutes; Skip to break jumps ahead) or a plain <b>Countdown</b> from 5 to 60 minutes. It keeps going while you use other pages, chimes when time is up, and can also send a notification if you allow it.</li>
+<li><b>Clock and Timer</b>: a full-screen clock with the current class or lunch and how many minutes until it ends, or when the next period starts. It follows the Green and Gold schedule and early release days. Under the clock is the <b>Timer</b>: <b>Focus and break</b> rounds (set the focus and break minutes; Skip to break jumps ahead) or a plain <b>Countdown</b> from 5 to 60 minutes. It keeps going while you use other pages, chimes when time is up, and can also send a notification if you allow it.</li>
 <li><b>Meditation</b>: calm scenes that change every minute (or pick one), a breathing guide with Calm, Box and Sleep patterns, a session timer of 1 to 20 minutes or open, and optional soft sound. The controls fade when you leave them alone.</li>
 <li><b>Jumpscare</b>: a dark page that asks Is someone there? Afterwards, Again replays it and Leave goes back.</li>
 
@@ -5065,7 +5087,9 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
       <button data-v="tools">Tools</button>
       <button data-v="tasks" hidden>Tasks</button>
       <button data-v="chat">Chat<i class="tdot" hidden></i></button>
+      <button data-v="absence">Absence</button>
       <button data-v="news">News</button>
+      <button data-v="deals">Deals</button>
       <div class="morewrap" id="morewrap" hidden>
         <button id="morebtn">More <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
         <div class="mdd" id="moredd"></div>
@@ -5136,7 +5160,9 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
 <section class="view" id="v-resources"></section>
 <section class="view" id="v-chat"></section>
 <section class="view" id="v-tasks"></section>
+<section class="view" id="v-absence"></section>
 <section class="view" id="v-news"></section>
+<section class="view" id="v-deals"></section>
 <section class="view" id="v-tools"></section>
 <section class="view" id="v-clock"></section>
 <section class="view" id="v-scare"></section>
@@ -8569,7 +8595,7 @@ let sweepBusy=false;
 async function weekSweep(){
   if(!state.user||sweepBusy)return;
   const cut=addDays(todayStr(),-7),old=Date.now()-7*864e5;
-  const ts=state.tasks.filter(t=>t.kind==='inclass'&&t.date&&t.date<cut),ns=(state.advisory||[]).filter(n=>n.created&&n.created<old);
+  const ts=state.tasks.filter(t=>(t.kind==='inclass'&&t.date&&t.date<cut)||(t.kind==='absent'&&t.date&&t.date<addDays(todayStr(),-2))),ns=(state.advisory||[]).filter(n=>n.created&&n.created<old);
   if(!ts.length&&!ns.length)return;
   sweepBusy=true;
   const ti=new Set(ts.map(t=>t.id)),ni=new Set(ns.map(n=>n.id));
@@ -8601,7 +8627,7 @@ const color=cid=>vivid(state.settings.colors[cid])||'#888';
 const taskMode=t=>{
   if(t.exam||t.kind==='exam')return'exam';
   if(t.kind==='optional'||t.kind==='inclass')return'notdue';
-  if(t.kind==='absent'||t.kind==='parent')return'notes';
+  if(t.kind==='absent')return'notes';
   return'hw';
 };
 const modeOk=t=>state.mode==='all'||taskMode(t)===state.mode;
@@ -8622,7 +8648,7 @@ function parseTime(s){
   else if(h>=1&&h<=6)h+=12;
   return pad(h)+':'+pad(mm);
 }
-const KIND_TAG={exam:'EXAM',optional:'OPTIONAL',inclass:'IN-CLASS',absent:'ABSENT',parent:'PARENT NEEDED'};
+const KIND_TAG={exam:'EXAM',optional:'OPTIONAL',inclass:'IN-CLASS',absent:'ABSENT'};
 const kindTag=t=>KIND_TAG[t.kind]||(t.exam?'EXAM':'');
 function taskHTML(t,showDate){const c=courseById(t.course),col=color(t.course);
   const tint=`background:color-mix(in srgb, ${esc(col)} 16%, var(--panel));border-color:${esc(col)}`;
@@ -10088,12 +10114,13 @@ const FAQ=[
   ['An assignment is missing. Where is it?',
    'Press <b>Resync</b> (the circular arrows) to import from your Schoology link again. Only Schoology calendar items come in: this week\'s and next week\'s assignments, and tests up to 4 weeks out. Homework posted only in Course Materials or Updates can\'t be imported. Also check <b>Unassigned</b> on the Assignments page, and that your Schoology link is saved on Your Classes. You can always add it yourself in the class\'s Add assignments box.'],
   ['An assignment has the wrong label (Exam, Optional, In-Class...). How do I fix it?',
-   'A label can\'t be changed on an item that\'s already there. Delete it (its ×, or double-click it) and add it again in its class\'s Add assignments box with the right button: Assignment, Exam, Optional, In-Class, Absence or Parent Needed. Imported titles with words like test, quiz or exam come in as Exams on their own.'],
+   'A label can\'t be changed on an item that\'s already there. Delete it (its ×, or double-click it) and add it again in its class\'s Add assignments box with the right button: Assignment, Exam, Optional or In-Class. Imported titles with words like test, quiz or exam come in as Exams on their own.'],
   ['Why does a class show up on the wrong days?',
    'Classes meet by period: periods 1, 3, 5 and 7 on Green days, 2, 4, 6 and 8 on Gold days. If a class lands on the wrong days, its period is wrong or missing. Fix it with <b>Edit classes</b>.']];
-/* Absence (Courses header): pick a school day near today and the classes you miss; each gets an Absent note on that day
-   (kind 'absent', shown under Mode, Notes). Saved at once, like any other note. */
-const ABS={ds:'',on:null,note:''};
+/* ---------- Absence: a page of its own. Pick a school day near today and the classes you miss; each gets an Absent note on that
+   day (kind 'absent', shown under Mode, Notes). One switch asks a classmate for the work (a Catch me up card to them in Chat).
+   Below, your recent absences: remove one, or ask for the work again. Saved at once, like any other note. ---------- */
+const ABS={ds:'',on:null,note:'',ask:false,to:''};
 function absDays(){const t=todayStr(),out=[];let d=t,g=0;
   for(let n=0;n<2&&g++<30;){d=addDays(d,-1);if(isSchoolDay(d)){out.unshift(d);n++;}}
   if(isSchoolDay(t))out.push(t);
@@ -10101,37 +10128,66 @@ function absDays(){const t=todayStr(),out=[];let d=t,g=0;
   return out;}
 const absLabel=ds=>ds===todayStr()?'Today':new Date(ds+'T12:00:00').toLocaleDateString(undefined,{weekday:'short'})+' '+(+ds.slice(5,7))+'/'+(+ds.slice(8,10));
 const absClasses=ds=>COURSES.filter(c=>state.settings.periods[c.id]&&courseMeets(c.id,ds));
-function openAbsence(){
-  closeAbsence();const days=absDays();if(!days.length)return;
-  if(!days.includes(ABS.ds))ABS.ds=days.includes(todayStr())?todayStr():days.find(d=>d>todayStr())||days[days.length-1];
-  ABS.on=new Set(absClasses(ABS.ds).map(c=>c.id));ABS.note='';
-  const o=document.createElement('div');o.className='qov abs-ov';o.id='absence';document.body.appendChild(o);paintAbsence();
-  o.addEventListener('mousedown',e=>{if(e.target===o)closeAbsence();});
-  o.addEventListener('click',e=>{const b=e.target.closest('[data-abs]');if(!b)return;const a=b.dataset.abs;
-    if(a==='x')closeAbsence();
-    else if(a==='day'){ABS.ds=b.dataset.ds;ABS.on=new Set(absClasses(ABS.ds).map(c=>c.id));paintAbsence();}
-    else if(a==='c'){const id=b.dataset.c;ABS.on.has(id)?ABS.on.delete(id):ABS.on.add(id);paintAbsence();}
-    else if(a==='go'||a==='gocu')absSave(a==='gocu');});
-  o.addEventListener('input',e=>{if(e.target.id==='abs-note')ABS.note=e.target.value;});
+function absInit(){const days=absDays();if(!days.length)return false;
+  if(!days.includes(ABS.ds)||!ABS.on){ABS.ds=days.includes(todayStr())?todayStr():days.find(d=>d>todayStr())||days[days.length-1];ABS.on=new Set(absClasses(ABS.ds).map(c=>c.id));}
+  return true;}
+function absLoadFriends(){
+  if(!cuOk())return;
+  if(!CH.state)Promise.resolve(chatApi('sync',{})).then(r=>{if(r&&r.state&&!CH.state)chApplyState(r.state);if(state.view==='absence')render();},()=>{});
+  if(!CU.mates||Date.now()-CU.t>60000)Promise.resolve(chatApi('classmates',{keys:COURSES.map(y=>SX.courseKey(y.name)).filter(Boolean)}))
+    .then(r=>{if(r&&r.ok&&r.mates){CU.mates=r.mates;CU.t=Date.now();if(state.view==='absence')render();}},()=>{});
 }
-function paintAbsence(){const o=document.getElementById('absence');if(!o)return;
-  const cls=absClasses(ABS.ds),f=document.activeElement&&document.activeElement.id==='abs-note';
-  o.innerHTML=`<div class="qbox abs-box" role="dialog" aria-modal="true" aria-labelledby="abs-h"><div class="faq-top"><div class="qhd" id="abs-h">Absence</div><button class="hbtn navbtn faq-x" data-abs="x" title="Close" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
-    <label class="fl">Day</label><div class="abs-row">${absDays().map(d=>`<button type="button" class="kbtn${d===ABS.ds?' on':''}" data-abs="day" data-ds="${d}" aria-pressed="${d===ABS.ds}">${esc(absLabel(d))}</button>`).join('')}</div>
-    <label class="fl">Classes</label><div class="abs-row">${cls.length?cls.map(c=>`<button type="button" class="kbtn${ABS.on.has(c.id)?' on':''}" data-abs="c" data-c="${esc(c.id)}" aria-pressed="${ABS.on.has(c.id)}">${esc(cname(c))}</button>`).join(''):'<div class="sx-none">No classes that day</div>'}</div>
-    <input id="abs-note" class="abs-note" type="text" maxlength="120" placeholder="Reason (optional)" value="${esc(ABS.note)}">
-    <div class="abs-act"><button type="button" class="hbtn" data-abs="x">Cancel</button>${cuOk()?`<button type="button" class="hbtn" data-abs="gocu"${ABS.on.size?'':' style="opacity:.5"'}>Absent + catch me up</button>`:''}<button type="button" class="btn" data-abs="go"${ABS.on.size?'':' style="opacity:.5"'}>Mark absent</button></div></div>`;
-  if(f){const i=document.getElementById('abs-note');i.focus();i.setSelectionRange(i.value.length,i.value.length);}
+function renderAbsence(){
+  const el=document.getElementById('v-absence');if(!el)return;
+  if(!absInit()){el.innerHTML='<div class="ab-wrap"><div class="empty">No school days to pick right now</div></div>';return;}
+  const cls=absClasses(ABS.ds),ok=cuOk(),td=todayStr();
+  let friends='';
+  if(ok&&ABS.ask){
+    absLoadFriends();
+    const st=CH.state,keys=[...ABS.on].map(courseById).filter(Boolean).map(c=>SX.courseKey(c.name)),mt=CU.mates||{},inC=n=>keys.some(k=>(mt[n]||[]).includes(k));
+    const fr=st?(st.friends||[]).slice().sort((a,b)=>(inC(b)?1:0)-(inC(a)?1:0)||(a<b?-1:1)):[];
+    friends=`<label class="fl">Who</label>`+(!st?'<div class="sx-none">Loading your friends...</div>':fr.length?`<div class="abs-row">${fr.map(n=>`<button type="button" class="kbtn${ABS.to===n?' on':''}" data-abs="to" data-n="${esc(n)}" aria-pressed="${ABS.to===n}">${esc(n)}${inC(n)?' <span class="chip fc-same">Same class</span>':''}</button>`).join('')}</div>`:'<div class="sx-none">No friends yet. Add some in Chat, People.</div>');
+  }
+  const recent=state.tasks.filter(t=>t.kind==='absent'&&t.date&&t.date>=addDays(td,-3)).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0),byDay={};
+  recent.forEach(t=>{(byDay[t.date]=byDay[t.date]||[]).push(t);});
+  const list=Object.keys(byDay).sort().map(d=>{const ts=byDay[d],ids=[...new Set(ts.map(t=>t.course))];
+    return `<div class="ab-day"><div class="ab-dh"><b>${esc(absLabel(d))}</b>${ok&&d<=td?`<button type="button" class="kbtn" data-abs="again" data-ds="${d}" data-c="${esc(ids.join(','))}">Ask for the work</button>`:''}</div>
+      ${ts.map(t=>{const c=courseById(t.course);return `<div class="ab-it"><span class="grow">${esc(c?cname(c):'Class')}${t.title&&t.title!=='Absent'?`<span class="ab-why">${esc(t.title)}</span>`:''}</span><button type="button" class="hbtn navbtn" data-abs="del" data-id="${esc(t.id)}" aria-label="Remove" title="Remove"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`;}).join('')}</div>`;}).join('');
+  el.innerHTML=`<div class="ab-wrap"><h2 class="nw-h">Absence</h2>
+    <div class="ab-card"><label class="fl">Day</label><div class="abs-row">${absDays().map(d=>`<button type="button" class="kbtn${d===ABS.ds?' on':''}" data-abs="day" data-ds="${d}" aria-pressed="${d===ABS.ds}">${esc(absLabel(d))}</button>`).join('')}</div>
+      <label class="fl">Classes</label><div class="abs-row">${cls.length?cls.map(c=>`<button type="button" class="kbtn${ABS.on.has(c.id)?' on':''}" data-abs="c" data-c="${esc(c.id)}" aria-pressed="${ABS.on.has(c.id)}">${esc(cname(c))}</button>`).join(''):'<div class="sx-none">No classes that day</div>'}</div>
+      <input id="abs-note" class="abs-note" type="text" maxlength="120" placeholder="Reason (optional)" value="${esc(ABS.note)}" aria-label="Reason">
+      ${ok?`<div class="sec-sw"><h3 class="ap-fh">Ask a classmate for the work</h3><input type="checkbox" class="switch" id="abs-ask" ${ABS.ask?'checked':''} aria-label="Ask a classmate for the work"></div>`:''}
+      ${friends}
+      <div class="abs-act"><button type="button" class="btn" data-abs="go"${ABS.on.size?'':' style="opacity:.5"'}>Mark absent</button></div></div>
+    ${list?`<div class="ab-card"><h3 class="ab-h">Your absences</h3>${list}</div>`:''}</div>`;
 }
-function closeAbsence(){const o=document.getElementById('absence');if(o)o.remove();}
-async function absSave(cu){
+/* a Catch me up card for each class, to one friend */
+function cuToFriend(cs,ds,n){
+  const id=SX.dmId(me(),n);noteToast('Asked '+n,3000);
+  cs.forEach(c=>{const x={t:'catchup',course:c.name,date:ds};chSend(id,chXText(x),null,x).then(m=>{if(m&&m.fail)chFail('Couldn\'t send it, try again',()=>{chSend(id,m.text,m.k);});});});
+}
+async function absGo(){
   if(!ABS.on||!ABS.on.size){noteToast('Pick a class');return;}
-  const ids=[...ABS.on],day=ABS.ds;
-  const title=ABS.note.trim()||'Absent',made=[...ABS.on].map(c=>({id:newId(),course:c,date:ABS.ds,title,details:'',done:false,kind:'absent',source:'manual',created:Date.now()}));
-  for(const t of made)state.tasks.push(t);closeAbsence();render();
-  if(cu)cuAsk(ids,day);else noteToast('Marked absent, '+absLabel(day).replace('Today','today'));
+  if(ABS.ask&&cuOk()&&!ABS.to){noteToast('Pick a friend');return;}
+  const cs=[...ABS.on].map(courseById).filter(Boolean),day=ABS.ds,to=ABS.ask&&cuOk()?ABS.to:'';
+  const title=ABS.note.trim()||'Absent',made=cs.map(c=>({id:newId(),course:c.id,date:day,title,details:'',done:false,kind:'absent',source:'manual',created:Date.now()}));
+  for(const t of made)state.tasks.push(t);
+  ABS.note='';ABS.ask=false;ABS.to='';ABS.on=new Set(absClasses(ABS.ds).map(c=>c.id));render();
+  if(to)cuToFriend(cs,day,to);else noteToast('Marked absent, '+absLabel(day).replace('Today','today'));
   await saveTasks(made);
 }
+document.addEventListener('click',e=>{
+  const b=e.target.closest&&e.target.closest('#v-absence [data-abs]');if(!b)return;const a=b.dataset.abs;
+  if(a==='day'){ABS.ds=b.dataset.ds;ABS.on=new Set(absClasses(ABS.ds).map(c=>c.id));render();}
+  else if(a==='c'){const id=b.dataset.c;ABS.on.has(id)?ABS.on.delete(id):ABS.on.add(id);render();}
+  else if(a==='to'){ABS.to=ABS.to===b.dataset.n?'':b.dataset.n;render();}
+  else if(a==='go')absGo();
+  else if(a==='again')cuAsk(b.dataset.c.split(','),b.dataset.ds);
+  else if(a==='del'){const id=b.dataset.id;state.tasks=state.tasks.filter(t=>t.id!==id);render();saveTasks([],[id]);}
+});
+document.addEventListener('input',e=>{if(e.target.id==='abs-note')ABS.note=e.target.value;});
+document.addEventListener('change',e=>{if(e.target.id!=='abs-ask')return;ABS.ask=e.target.checked;if(!ABS.ask)ABS.to='';render();});
 function openFaq(){
   closeFaq();
   const o=document.createElement('div');o.className='qov faq-ov';o.id='faq';
@@ -10161,6 +10217,8 @@ function renderSetdd(){
 
 /* ---------- calc section expansion ---------- */
 const parseCalcSections=input=>(input.match(/\d+\.\d+[a-z]?/gi)||[]).map(s=>s.toLowerCase());
+/* the calc shortcut's item title: section - pg.page: problems (the stored list says "p. 77: 3, 9, 23"), e.g. 1.1 - pg.77: 3, 9, 23 */
+const calcTitle=(sec,probs)=>{if(!probs)return sec;const m=/^p\.?\s*(\d+)\s*:\s*(.*)$/i.exec(String(probs).trim());return m?sec+' - pg.'+m[1]+': '+m[2]:sec+': '+probs;};
 
 /* small note under a tab when an account has no classes yet */
 let needT=0;
@@ -10245,7 +10303,7 @@ function fitHomeGuide(){
   const others=[...grid.querySelectorAll('.hm-card')].filter(c=>c!==gd&&!c.hidden).length;
   gd.hidden=false;gd.classList.toggle('hm-wide',cols>=2&&others%2===0);
 }
-/* a task's label (Exam, In-Class, Parent Needed...) that doesn't fit after the class name moves to a second line */
+/* a task's label (Exam, In-Class...) that doesn't fit after the class name moves to a second line */
 function fitTaskTags(){
   document.querySelectorAll('.task .cn.has-tag').forEach(cn=>{
     cn.classList.remove('two');const n=cn.querySelector('.cnn'),t=cn.querySelector('.cnt');if(!n||!t)return;
@@ -10371,7 +10429,7 @@ document.addEventListener('click',async e=>{
         const secs=parseCalcSections(line);
         if(secs.length&&line.replace(/\d+\.\d+[a-z]?/gi,'').replace(/[+,\s]|and/gi,'')===''){
           for(const s of secs){const probs=state.calcmap[s];
-            made.push({id:newId(),course:c,date:due,title:'§'+s+(probs?': '+probs:''),details:'',done:false,kind,source:'manual',created:Date.now()});}
+            made.push({id:newId(),course:c,date:due,title:calcTitle(s,probs),details:'',done:false,kind,source:'manual',created:Date.now()});}
           continue;}
       }
       made.push({id:newId(),course:c,date:due,title:line,details:'',done:false,kind,source:'manual',created:Date.now()});
@@ -10480,7 +10538,7 @@ document.addEventListener('click',async e=>{
     setupRows=Math.max(SETUP_MIN,m.length);renderSetup(m);
     if(m.some(x=>x.name.trim()))saveSetup(true,true);return;}
   if(act==='faq'){openFaq();return;}
-  if(act==='absence'){openAbsence();return;}
+  if(act==='absence'){state.view='absence';try{localStorage.setItem('sx-tab','absence');}catch(_){}render();scrollTo(0,0);return;}
   if(act==='oppsort'){state.oppSort=el.dataset.k;state.oppSortOpen=false;try{localStorage.setItem('sx-oppsort',state.oppSort);}catch(_){}render();return;}
   if(act==='oppsortopen'){state.oppSortOpen=!state.oppSortOpen;render();return;}
   if(act==='oppstaronly'){state.oppStarOnly=!state.oppStarOnly;render();return;}
@@ -10519,7 +10577,7 @@ document.addEventListener('click',async e=>{
         const secs=parseCalcSections(line);
         if(secs.length&&line.replace(/\d+\.\d+[a-z]?/gi,'').replace(/[+,\s]|and/gi,'')===''){
           for(const s of secs){const probs=state.calcmap[s];
-            made.push({id:newId(),course:c,date:due,title:'§'+s+(probs?': '+probs:''),details:'',done:false,kind,source:'manual',created:Date.now()});}
+            made.push({id:newId(),course:c,date:due,title:calcTitle(s,probs),details:'',done:false,kind,source:'manual',created:Date.now()});}
           continue;}
       }
       made.push({id:newId(),course:c,date:due,title:line,details:'',done:false,kind,source:'manual',created:Date.now()});
@@ -11031,15 +11089,14 @@ const TOOLS=[['phys','Table Formatter','Paste cells from Google Sheets and get a
   ['gpa','GPA Calculator','Weighted and unweighted GPA from every class you have taken'],
   ['soundboard','Soundboard','Sound effects at the press of a button'],
   ['desmos','Desmos','The Desmos graphing calculator'],
-  ['clock','Clock','The time, and how long until class ends'],
-  ['timer','Timer','Focus and break rounds, or a plain countdown'],
+  ['clock','Clock and Timer','The time, how long until class ends, and a focus timer'],
   ['meditation','Meditation','Calm scenes, breathing and a session timer'],
   ['crashout','Crashout','A squishy doll to knock around'],
   ['scare','Jumpscare','Is someone there?'],
   ['departed','Departed','A daily murder mystery on a train through time']];
 /* the game-free build has no Crashout and no Departed (it opens as a game) */
 if(SAFE)['crashout','departed'].forEach(id=>TOOLS.splice(TOOLS.findIndex(t=>t[0]===id),1));
-const TOOL_ART={cards:'cards',phys:'graph',gpa:'clipboard',soundboard:'speaker',desmos:'calc',clock:'clock',timer:'timer',meditation:'star',crashout:'controller',scare:'moon',departed:'train'};
+const TOOL_ART={cards:'cards',phys:'graph',gpa:'clipboard',soundboard:'speaker',desmos:'calc',clock:'clock',meditation:'star',crashout:'controller',scare:'moon',departed:'train'};
 var tlBack=false,tlDz=false;
 /* rewards: the referral tree count (everyone who signed up with your code, and everyone they referred, and so on);
    the owner has every reward */
@@ -11257,7 +11314,7 @@ function gpaTypYear(n){n=String(n||'');
 }
 function renderTools(){
   const el=document.getElementById('v-tools');if(!el)return;
-  const tab=state.toolTab==='gpa'?'gpa':state.toolTab==='timer'?'timer':'phys';
+  const tab=state.toolTab==='gpa'?'gpa':'phys';
   if(el.dataset.tab===tab&&el.querySelector('.tl-root')){
     /* classes saved on another device show up here unless one is being typed */
     if(tab==='gpa'&&el._gpa!==gpaRows()&&!GPA_DIRTY&&!el.contains(document.activeElement)){el._gpa=gpaRows();gpaRedraw();}
@@ -11265,9 +11322,9 @@ function renderTools(){
   el.dataset.tab=tab;
   const sb=tab==='phys'?`<button type="button" class="hbtn hb-box opp-sidebtn tl-sidebtn${tlSideShown()?' on':''}" data-tlside aria-controls="tl-side" aria-expanded="${tlSideShown()}" aria-label="Class resources" title="Class resources">${TL_DOC_ICON}</button>`:'';
   el.innerHTML=`<div class="tl-root${tab==='phys'?' wide':''}"><div class="cal-head tl-top" style="justify-content:flex-start">${sb}<button class="hbtn" data-tlback>Tools</button>
-      <span class="tl-title">${tab==='phys'?'Table Formatter':tab==='timer'?'Timer':'GPA Calculator'}</span></div>
-    ${tab==='phys'?`<div class="tl-body">${tlSideHTML()}<div class="tl-main">${tlPhysicsHTML()}${tlEqHTML()}</div></div>`:tab==='timer'?tmHTML():gpaHTML()}</div>`;
-  if(tab==='phys'){tlPaint();tlEqInit();}else if(tab==='timer')tmPaint();else{el._gpa=gpaRows();gpaSum();}
+      <span class="tl-title">${tab==='phys'?'Table Formatter':'GPA Calculator'}</span></div>
+    ${tab==='phys'?`<div class="tl-body">${tlSideHTML()}<div class="tl-main">${tlPhysicsHTML()}${tlEqHTML()}</div></div>`:gpaHTML()}</div>`;
+  if(tab==='phys'){tlPaint();tlEqInit();}else{el._gpa=gpaRows();gpaSum();}
 }
 /* ---------- Timer (a Tools tab): focus and break rounds, or a plain countdown. Time left always comes from the end
    timestamp, so it stays right on other pages, in a background tab and across reloads (kept on this device in
@@ -12165,7 +12222,7 @@ const AV_FR=[['g','Gold'],['s','Silver'],['r','Rainbow']];
 const avName=id=>{const m=/^([mac])(\d{1,2})(?:\.[gsr])?$/.exec(id||'');return m&&VO_AV_N[m[1]][+m[2]]||'';};
 let chAvs={};
 const AP_PAGES=[['courses','Courses'],['calendar','Calendar'],['advisory','To-Do'],['assignments','Assignments'],['resources','Resources'],['tools','Tools'],
-  ['tasks','Tasks'],['chat','Chat'],['news','News'],['games','Games'],['guide','Guide']];
+  ['tasks','Tasks'],['chat','Chat'],['absence','Absence'],['news','News'],['deals','Deals'],['games','Games'],['guide','Guide']];
 const hiddenPages=()=>{const h=new Set((state.settings&&state.settings.hidePages)||[]);if(state.settings&&state.settings.hideChat)h.add('chat');if(SAFE||state.settings&&state.settings.hideGames)h.add('games');return h;};
 const pageHidden=k=>!!state.user&&hiddenPages().has(k);
 /* the avatar pictures (Crown, Modern, Antiques) as tiles; shown in Settings, Appearance and in the picker from a pencil on your own picture in chat */
@@ -12401,7 +12458,7 @@ document.addEventListener('change',e=>{if(e.target.id!=='ap-foot'||!state.user)r
 /* Appearance, Home: what Home shows (homeView), and with Pages, which page cards (homePages; empty means every page
    that isn't hidden) */
 const HV_OPTS=[['mixed','Mixed'],['pages','Pages'],['resources','Resources'],['chat','Chat'],['assignments','Assignments'],['notepad','Notepad']];
-const hpPages=()=>{const a=AP_PAGES.filter(([k])=>k!=='news'&&(k!=='tasks'||(state.user&&state.user.owner)));
+const hpPages=()=>{const a=AP_PAGES.filter(([k])=>k!=='news'&&k!=='deals'&&k!=='absence'&&(k!=='tasks'||(state.user&&state.user.owner)));
   return a;};
 const hpOn=k=>hmShown().some(p=>p[0]===k);
 /* up to 8 boxes can be ticked: once 8 are, the others are greyed out until one is unticked */
@@ -12745,7 +12802,8 @@ function ckFace(){
 function renderClock(){
   const el=document.getElementById('v-clock');
   el.innerHTML=`<button class="ck-back" data-ck-back aria-label="Tools" title="Tools"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><div class="ck-card"><div class="ck-face">${ckFace()}</div>
-    <div class="ck-side"><div class="ck-time" id="ck-time"></div><div class="ck-date" id="ck-date"></div><div class="ck-now" id="ck-now"></div></div></div>`;
+    <div class="ck-side"><div class="ck-time" id="ck-time"></div><div class="ck-date" id="ck-date"></div><div class="ck-now" id="ck-now"></div></div></div><div class="tl-root ck-tm">${tmHTML()}</div>`;
+  tmPaint();
   ckLastSec=-1;cancelAnimationFrame(ckRaf);ckRaf=requestAnimationFrame(ckTick);}
 function ckTick(){
   const v=document.getElementById('v-clock');
@@ -12852,7 +12910,7 @@ function render(){
   AP_PAGES.forEach(([k])=>document.documentElement.classList.toggle('no-v-'+k,k!=='games'&&k!=='chat'&&pageHidden(k)));
   /* a view that throws falls back to the calendar instead of leaving the page stuck */
   if(state.view!=='settings')setCleanup();
-  const views={home:renderHome,calendar:renderCalendar,courses:renderCourses,advisory:renderAdvisory,assignments:renderAssignments,resources:renderResources,chat:renderChat,tools:renderTools,tasks:renderTasks,news:renderNews,clock:renderClock,scare:renderScare,settings:renderSettingsPage,setup:renderSetup};
+  const views={home:renderHome,calendar:renderCalendar,courses:renderCourses,advisory:renderAdvisory,assignments:renderAssignments,resources:renderResources,chat:renderChat,tools:renderTools,tasks:renderTasks,news:renderNews,deals:renderDeals,absence:renderAbsence,clock:renderClock,scare:renderScare,settings:renderSettingsPage,setup:renderSetup};
   try{if(v==='home')renderHome(!wasHome);else views[v]();}catch(err){
     console.error(err);
     if(v==='calendar'||v==='setup'){const s=document.getElementById('v-'+v);if(s)s.innerHTML='<div class="empty">Something went wrong showing this page. Reload to try again.</div>';return;}
@@ -12869,14 +12927,14 @@ function render(){
   if(focusId){const el=document.getElementById(focusId);if(el){el.focus();try{el.setSelectionRange(selS,selE);}catch(_){}}}
   pendApply();
   /* a page's own tour the first time it opens (the Timer has its own; seenTips keys are 3-12 lowercase letters) */
-  tipMaybe(v==='tools'&&state.toolTab==='timer'?'timer':v);
+  tipMaybe(v==='clock'?'timer':v);
 }
 (function boot(){
   {let th=null;try{th=localStorage.getItem('sx-theme');}catch(_){}document.documentElement.setAttribute('data-theme',th==='dark'?'dark':'light');}
   try{state.extended=localStorage.getItem('sx-extended')!=='0';}catch(_){}
   try{const md=localStorage.getItem('sx-mode');if(md&&['all','hw','exam','notdue','notes'].includes(md))state.mode=md;}catch(_){}
-  try{const t=localStorage.getItem('sx-tab');if(t&&['home','calendar','courses','advisory','assignments','resources','tools','chat','news','tasks','clock'].includes(t))state.view=t;}catch(_){}
-  try{const tt=localStorage.getItem('sx-tooltab');state.toolTab=tt==='gpa'||tt==='timer'?tt:'phys';}catch(_){}
+  try{const t=localStorage.getItem('sx-tab');if(t&&['home','calendar','courses','advisory','assignments','resources','tools','chat','absence','news','deals','tasks','clock'].includes(t))state.view=t;}catch(_){}
+  try{const tt=localStorage.getItem('sx-tooltab');state.toolTab=tt==='gpa'?tt:'phys';}catch(_){}
   try{const o=localStorage.getItem('sx-oppsort');if(['deadline','prestige','difficulty','fit'].includes(o))state.oppSort=o;}catch(_){}
   {let v=null;try{v=localStorage.getItem('sx-oppside');}catch(_){}state.oppSide=v!=='0';state.oppSideM=false;}
   try{state.asgFilter=localStorage.getItem('sx-asgf')==='overdue'?'overdue':'all';}catch(_){}
@@ -13025,9 +13083,9 @@ if(window.SX_REF)sxRefArrived(window.SX_REF);
     document.querySelectorAll('#spclock,#spcover').forEach(x=>x.remove());
     let ok=null;dataP.then(v=>{ok=!!v;},()=>{ok=false;});
     if(!opts.center)sp.scrollTop=0;
-    const W=document.documentElement.clientWidth||innerWidth,H=document.documentElement.clientHeight||innerHeight,art=!opts.center&&sp.querySelector('.sp-art'),ar=art&&art.getBoundingClientRect();
+    const W=document.documentElement.clientWidth||innerWidth,H=document.documentElement.clientHeight||innerHeight,art=!opts.center&&(sp.querySelector('.sp-art svg')||sp.querySelector('.sp-art')),ar=art&&art.getBoundingClientRect();
     /* the clock sits where the picture was (centered on it), or mid-screen when the picture isn't on screen */
-    const onScr=false;/* the clock always starts from the center of the screen */
+    const onScr=!!ar&&ar.width>40&&ar.height>40&&ar.bottom>40&&ar.top<H-40&&ar.right>0&&ar.left<W;/* the picture is on screen: the clock grows out of it; else mid-screen */
     const bx=onScr?ar.left+ar.width/2:W/2,by=onScr?Math.max(ar.top,0)/2+Math.min(ar.bottom,H)/2:H/2;
     const bw=onScr?ar.width:Math.min(W*.86,560),bh=onScr?Math.min(ar.bottom,H)-Math.max(ar.top,0):Math.min(H*.6,440);
     const R=Math.max(64,Math.min(Math.min(bw,bh)*.38,190));
@@ -13438,9 +13496,9 @@ var PG_TOURS={
   chat:{steps:[{s:'#v-chat [data-ch="people"]',p:'Find your friends',at:'right'},{s:'#v-chat [data-ch="pad"]',p:'Your own notepad',at:'right'},{s:'#v-chat [data-ch="newgroup"]',p:'Start a group chat',at:'right'}]},
   settings:{steps:[{s:['#v-settings [data-act="setcat"][data-k="classes"]','#v-settings .opp-sidebtn'],p:'Classes and your Schoology link'},
     {s:'#v-settings [data-act="setcat"][data-k="appearance"]',p:'Colors, pages and Home'},{s:'#v-settings [data-act="setcat"][data-k="password"]',p:'Password and picture login'}]},
-  tools:{ov:'#games .tl-pick',steps:[{s:'#games .tl-pick [data-tool="timer"]',p:'Focus timer for studying'},{s:'#games .tl-pick [data-tool="gpa"]',p:'Work out your GPA'},{s:'#games .tl-pick [data-tool="desmos"]',p:'Graph with Desmos'}]},
-  timer:{here:()=>!state.setup&&state.view==='tools'&&state.toolTab==='timer'&&document.getElementById('games').hidden,
-    steps:[{s:ptUp('#v-tools [data-tm-mode="count"]'),p:'Focus and breaks, or a countdown'},{s:'#v-tools .tm-go',p:'Start and pause'},{s:'#v-tools .tm-set',p:'Set your minutes',at:'down'}]},
+  tools:{ov:'#games .tl-pick',steps:[{s:'#games .tl-pick [data-tool="clock"]',p:'Clock and focus timer for studying'},{s:'#games .tl-pick [data-tool="gpa"]',p:'Work out your GPA'},{s:'#games .tl-pick [data-tool="desmos"]',p:'Graph with Desmos'}]},
+  timer:{here:()=>!state.setup&&state.view==='clock'&&document.getElementById('games').hidden,
+    steps:[{s:ptUp('#v-clock [data-tm-mode="count"]'),p:'Focus and breaks, or a countdown'},{s:'#v-clock .tm-go',p:'Start and pause'},{s:'#v-clock .tm-set',p:'Set your minutes',at:'down'}]},
   games:{ov:'#games .gm-pick:not(.tl-pick)',steps:[{s:'#games #gm-q',p:'Search every game'},{s:'#games .gm-tile[data-game]',p:'Click one to play'}]}};
 var tipSeen=k=>(state.settings.seenTips||[]).includes(k);
 var ptHere=k=>PG_TOURS[k].here?PG_TOURS[k].here():PG_TOURS[k].ov?!document.getElementById('games').hidden&&!!document.querySelector(PG_TOURS[k].ov):!state.setup&&state.view===k&&!pgOpenNow();
@@ -14070,6 +14128,36 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',e=>{if(e.target.id!=='nw-sports')return;state.newsSports=e.target.checked;try{localStorage.setItem('sx-news-sports',e.target.checked?'1':'0');}catch(_){}render();});
 try{state.newsSports=localStorage.getItem('sx-news-sports')==='1';}catch(_){}
+/* Deals: current sales from public deal feeds (DealNews by category, Slickdeals front page). The server fetches them, drops
+   adult and age-restricted titles and caches them for 15 minutes; the page keeps what it was sent for the session. */
+const DEAL_CATS=[['all','All'],['electronics','Electronics'],['computers','Computers'],['gaming','Gaming and toys'],['clothing','Clothing'],['school','School supplies'],['books','Books and music'],['sports','Sports'],['beauty','Beauty'],['home','Home']];
+const DEALS={};
+function dealsGet(cat){
+  const c=DEALS[cat];if(c)return c.d;
+  const pk='deals:'+cat,pc=pcGet(pk),have=pc&&pc.d&&pc.d.ok?pc.d:null;
+  if(have&&Date.now()-pc.t<5*60000){DEALS[cat]={d:have};return have;}
+  DEALS[cat]={d:have,p:true};
+  const ask=GS?gsCall('rpcDeals',passKey||'',cat):fetch('/api/deals?cat='+cat).then(x=>x.json());
+  ask.then(o=>{if(o&&o.ok){DEALS[cat]={d:o};try{pcPut(pk,o);}catch(_){}}else DEALS[cat]={d:have||{ok:false}};},()=>{DEALS[cat]={d:have||{ok:false}};}).then(()=>{if(state.view==='deals')render();});
+  return have;
+}
+function renderDeals(){
+  const el=document.getElementById('v-deals'),cat=DEAL_CATS.some(x=>x[0]===state.dealCat)?state.dealCat:'all';
+  const chips=`<div class="rd-tabs nw-chips">${DEAL_CATS.map(([k,n])=>`<button type="button" class="hbtn${cat===k?' on':''}" data-dl="cat" data-k="${k}" aria-pressed="${cat===k}">${n}</button>`).join('')}</div>`;
+  const d=dealsGet(cat);
+  let body;
+  if(!d)body=ldHTML();
+  else if(!d.ok)body=`<div class="empty">Could not load this right now</div><div class="nw-retry"><button type="button" class="hbtn hb-box" data-dl="retry">Try again</button></div>`;
+  else body=d.items.length?`<div class="nw-list">${d.items.map(x=>`<a class="nw-card" href="${esc(x.l)}" target="_blank" rel="noopener noreferrer"><span class="nw-t">${esc(x.t)}</span>${x.p?`<span class="dl-price">${esc(x.p)}</span>`:''}<span class="nw-m">${esc(x.s)}${x.at?' '+esc(newsAgo(x.at)):''}</span></a>`).join('')}</div>`:'<div class="empty">No deals right now</div>';
+  el.innerHTML=`<div class="nw-wrap"><div class="nw-top"><h2 class="nw-h">Deals</h2></div>${chips}${body}</div>`;
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest&&e.target.closest('#v-deals [data-dl]');if(!b)return;
+  if(b.dataset.dl==='cat'){state.dealCat=b.dataset.k;try{localStorage.setItem('sx-dealcat',b.dataset.k);}catch(_){}}
+  else if(b.dataset.dl==='retry')delete DEALS[DEAL_CATS.some(x=>x[0]===state.dealCat)?state.dealCat:'all'];
+  render();
+});
+try{state.dealCat=localStorage.getItem('sx-dealcat')||'all';}catch(_){}
 function renderChat(){
   const v=document.getElementById('v-chat');
   if(!v.querySelector('.chp'))v.innerHTML=`<div class="chp"><aside class="chs">
@@ -14552,7 +14640,7 @@ function cuAsk(cid,ds){
   /* one class, or several from the Absence pop-up (one card per class, all to the same friend) */
   const cs=(Array.isArray(cid)?cid:[cid]).map(courseById).filter(Boolean);if(!cs.length||!cuOk())return;
   ds=ds||cuDay(cs[0].id);if(!ds)return;
-  const keys=cs.map(c=>SX.courseKey(c.name)),xs=cs.map(c=>({t:'catchup',course:c.name,date:ds}));
+  const keys=cs.map(c=>SX.courseKey(c.name));
   const {o,close}=cuPop('Catch me up',cuHead(cs.map(cname).join(', '),ds)+'<div class="ch-scroll ch-pick"></div>');
   /* friends in the class first (from their shared classes) */
   const paint=()=>{const pk=o.querySelector('.ch-pick');if(!pk)return;const st=CH.state;
@@ -14564,15 +14652,13 @@ function cuAsk(cid,ds){
   if(!CH.state)Promise.resolve(chatApi('sync',{})).then(r=>{if(r&&r.state&&!CH.state)chApplyState(r.state);paint();},()=>paint());
   if(!CU.mates||Date.now()-CU.t>60000)Promise.resolve(chatApi('classmates',{keys:COURSES.map(y=>SX.courseKey(y.name)).filter(Boolean)}))
     .then(r=>{if(r&&r.ok&&r.mates){CU.mates=r.mates;CU.t=Date.now();if(o.isConnected)paint();}},()=>{});
-  o.addEventListener('click',e=>{const b=e.target.closest('[data-cu-to]');if(!b)return;const n=b.dataset.cuTo,id=SX.dmId(me(),n);close();
-    noteToast('Asked '+n,3000);
-    xs.forEach(x=>chSend(id,chXText(x),null,x).then(m=>{if(m&&m.fail)chFail('Couldn\'t send it, try again',()=>{chSend(id,m.text,m.k);});}));});
+  o.addEventListener('click',e=>{const b=e.target.closest('[data-cu-to]');if(!b)return;const n=b.dataset.cuTo;close();cuToFriend(cs,ds,n);});
 }
 /* the friend's side: their assignments for that class from a week before to two weeks after, the week after ticked */
 function cuSend(id,m){
   const x=m.x,cid=chXCourse(x),c=courseById(cid);if(!c||!x.date)return;
   const lo=addDays(x.date,-7),hi=addDays(x.date,14),wk=addDays(x.date,7);
-  const list=state.tasks.filter(t=>t.course===cid&&t.date&&t.date>=lo&&t.date<=hi&&t.kind!=='absent'&&t.kind!=='parent').sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+  const list=state.tasks.filter(t=>t.course===cid&&t.date&&t.date>=lo&&t.date<=hi&&t.kind!=='absent').sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
   const rows=list.map((t,i)=>`<label class="ch-row"><input type="checkbox" value="${esc(t.id)}"${t.date>=x.date&&t.date<=wk&&i<20?' checked':''}><span class="grow">${esc(t.title)}</span><span class="cu-d">${esc(fmtShort(t.date))}</span></label>`).join('');
   const {o,close}=cuPop('Send assignments',cuHead(cname(c),x.date)+`<div class="ch-scroll ch-pick">${rows||'<div class="ch-none">Nothing around that day</div>'}</div>`+
     (rows?'<div class="ch-popft"><button type="button" class="kbtn" data-xs="x">Cancel</button><button type="button" class="kbtn ch-pri" data-cu-go>Send</button></div>':''));
@@ -15933,13 +16019,17 @@ function gmLearn(f){const st=f&&f._gr;if(!st||!st.t0)return;const id=f.title,el=
 /* Torah Runner's titles: black, "NicholiVirus presents...", then the name in the game's own font (Suez One), then the
    game fades in. They replace the loading screen, can't be skipped and last 5 seconds at most once the game is ready */
 /* Nicholi's games open on the same titles; Pakistan Runner's name is set in the game's own bold sans */
-const NV_INTRO={torahrunner:{name:'Torah Runner',font:'suez-one@5.1.0/400',face:'400 40px "Suez One"'},pakistanrunner:{name:'Pakistan Runner',cls:'pr'}};
-const trIntroHtml=id=>`<div class="gm-load tr-intro${NV_INTRO[id].cls?' '+NV_INTRO[id].cls:''}"><p class="tr-by">NicholiVirus presents...</p><p class="tr-name">${NV_INTRO[id].name}</p></div>`;
+const NV_INTRO={torahrunner:{name:'Torah Runner',font:'suez-one@5.1.0/400',face:'400 40px "Suez One"'},pakistanrunner:{name:'Pakistan Runner',cls:'pr'},
+  departed:{name:'Departed',cls:'so',by:'A Saxon Planner Original',face:'800 40px "Sx Big Shoulders"'},jamborine:{name:'Jamborine',cls:'so',by:'A Saxon Planner Original',face:'800 40px "Sx Big Shoulders"'},
+  stonks:{name:'Stonks',cls:'so',by:'A Saxon Planner Original',face:'800 40px "Sx Big Shoulders"'},scrapyard:{name:'Scrapyard',cls:'so',by:'A Saxon Planner Original',face:'800 40px "Sx Big Shoulders"'},
+  cards:{name:'Scrapyard Trading',cls:'so',by:'A Saxon Planner Original',face:'800 40px "Sx Big Shoulders"'}};
+const trIntroHtml=id=>`<div class="gm-load tr-intro${NV_INTRO[id].cls?' '+NV_INTRO[id].cls:''}"><p class="tr-by">${NV_INTRO[id].by||'NicholiVirus presents...'}</p><p class="tr-name">${NV_INTRO[id].name}</p></div>`;
 const trFonts={};
 function trIntro(g,id){
   const nv=NV_INTRO[id]||NV_INTRO.torahrunner;
   if(nv.font&&!trFonts[id]){const l=document.createElement('link');l.rel='stylesheet';l.href='https:'+SLASH2+'cdn.jsdelivr.net/npm/@fontsource/'+nv.font+'.css';document.head.appendChild(l);
     trFonts[id]=new Promise(r=>{l.onload=()=>{document.fonts.load(nv.face).then(r,r);};l.onerror=r;});}
+  if(!nv.font&&nv.face&&!trFonts[id])trFonts[id]=document.fonts.load(nv.face).catch(()=>{});
   const trFont=trFonts[id]||Promise.resolve();
   const el=g.querySelector('.tr-intro');if(!el)return;el._at=Date.now()+500;
   Promise.race([trFont,new Promise(r=>setTimeout(r,500))]).then(()=>{el._at=Date.now();el.classList.add('go');});
