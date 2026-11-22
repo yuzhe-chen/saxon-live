@@ -2082,8 +2082,8 @@ header.topbar .mmenu::-webkit-scrollbar{display:none}
   border:2px solid transparent;border-radius:var(--rs);background:none;color:var(--fg2);text-align:left;text-decoration:none;cursor:pointer;
   font:800 14.5px/1.2 var(--font-ui);letter-spacing:.8px;text-transform:uppercase;white-space:nowrap}
 .mmenu .mtab:hover,.mmenu .mm-row:hover,#splash .sp-menu>button:hover,#splash .sp-menu>a:hover{background:var(--panel2);color:var(--fg2)}
-.mmenu .mtab.on{background:var(--blue-wash);border-color:var(--blue-light);color:var(--blue-dark)}
-:root[data-theme="dark"] .mmenu .mtab.on{color:var(--blue-light);border-color:var(--blue-dark)}
+.mmenu .mtab.on,.mmenu .mm-row[data-v].on{background:var(--blue-wash);border-color:var(--blue-light);color:var(--blue-dark)}
+:root[data-theme="dark"] .mmenu .mtab.on,:root[data-theme="dark"] .mmenu .mm-row[data-v].on{color:var(--blue-light);border-color:var(--blue-dark)}
 .mmenu .mi,#splash .sp-menu .mi{width:30px;height:30px;flex:none;display:block}
 #splash .sp-menu .mi svg{width:100%;height:100%;display:block;stroke:none}
 .mmenu .mtab span,.mmenu .mm-row span,#splash .sp-menu span{min-width:0;overflow:hidden;text-overflow:ellipsis}
@@ -5159,8 +5159,6 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
       <button data-v="tasks" hidden>Tasks</button>
       <button data-v="chat">Chat<i class="tdot" hidden></i></button>
       <button data-v="absence">Absence</button>
-      <button data-v="news">News</button>
-      <button data-v="deals">Deals</button>
       <div class="morewrap" id="morewrap" hidden>
         <button id="morebtn">More <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
         <div class="mdd" id="moredd"></div>
@@ -5191,8 +5189,11 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
         <button class="mtab" data-v="tools"><i class="mi" data-art="calc"></i><span>Tools</span></button>
         <button class="mtab" data-v="tasks" hidden><i class="mi" data-art="trophy"></i><span>Tasks</span></button>
         <button class="mtab" data-v="chat"><i class="mi" data-art="chat"></i><span>Chat</span><i class="tdot" hidden></i></button>
+        <button class="mtab" data-v="absence"><i class="mi" data-art="notepad"></i><span>Absence</span></button>
       </div>
       <div class="mm-sep mm-psep"></div>
+      <button class="mm-row" data-v="news"><i class="mi" data-art="globe"></i><span>News</span></button>
+      <button class="mm-row" data-v="deals"><i class="mi" data-art="search"></i><span>Deals</span></button>
       <button class="mm-row" data-act-games><i class="mi" data-art="controller"></i><span>Games</span></button>
       <button class="mm-row" id="mgear" aria-expanded="false" aria-controls="mgear-l"><i class="mi" data-art="gear"></i><span>Settings</span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
       <div class="mm-other" id="mgear-l" hidden>
@@ -10525,7 +10526,7 @@ function measureTabs(){
   mMenu.querySelectorAll('.mtab').forEach(m=>m.classList.toggle('inbar',inBar.has(m.dataset.v)));
   if(typeof chatBadge==='function'&&CH)chatBadge();
   mMenu.classList.toggle('all-in',shown===tabs.length);
-  menuBtn.classList.toggle('on',tabs.slice(shown).some(t=>t.dataset.v===state.view));
+  menuBtn.classList.toggle('on',tabs.slice(shown).some(t=>t.dataset.v===state.view)||state.view==='news'||state.view==='deals');
   moreDD.innerHTML='';
 }
 function scheduleMeasure(){if(measureQueued)return;measureQueued=true;
