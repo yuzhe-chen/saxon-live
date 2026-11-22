@@ -14116,7 +14116,7 @@ function renderNews(){
   if(!d)body=ldHTML();
   else if(!d.ok)body=`<div class="empty">Could not load this right now</div><div class="nw-retry"><button type="button" class="hbtn hb-box" data-nw="retry">Try again</button></div>`;
   else if(sp)body=d.groups.length?`<div class="nw-grid">${d.groups.map(g=>`<div class="nw-tbl"><h3>${esc(g.name)}</h3><table><thead><tr><th>Team</th>${d.cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${g.rows.map((x,i)=>`<tr><td><span class="nw-rk">${i+1}</span>${esc(x.t)}</td>${x.v.map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`).join('')}</div>`:'<div class="empty">No standings right now</div>';
-  else body=d.items.length?`<div class="nw-list">${d.items.map(x=>`<a class="nw-card" href="${esc(x.l)}" target="_blank" rel="noopener noreferrer"><span class="nw-t">${esc(x.t)}</span>${x.d?`<span class="nw-d">${esc(x.d)}</span>`:''}<span class="nw-m">${esc(x.s)}${x.at?' '+esc(newsAgo(x.at)):''}</span></a>`).join('')}</div>`:'<div class="empty">No headlines right now</div>';
+  else body=d.items.length?`<div class="nw-list">${d.items.map(x=>`<a class="nw-card" href="${esc(x.l)}" target="_blank" rel="noopener noreferrer"><span class="nw-t">${esc(x.t)}</span>${x.d?`<span class="nw-d">${esc(x.d)}</span>`:''}<span class="nw-m">${x.at?esc(newsAgo(x.at)):''}</span></a>`).join('')}</div>`:'<div class="empty">No headlines right now</div>';
   el.innerHTML=`<div class="nw-wrap"><div class="nw-top"><h2 class="nw-h">${sp?'Standings':'News'}</h2><div class="nw-sw"><span>Sports</span><input type="checkbox" class="switch" id="nw-sports" ${sp?'checked':''} aria-label="Sports"></div></div>
     ${sp?chips(NEWS_LGS,lg,'lg'):chips(NEWS_SECS,sec,'sec')}${body}</div>`;
 }
