@@ -1010,6 +1010,9 @@ input.lib-q{width:calc(100% + 2 * var(--reach));margin:0 calc(-1 * var(--reach))
 .ical-steps{margin:0;padding-left:1.4em}.ical-steps li+li{margin-top:12px}
 .su-intro{background:var(--panel);padding:12px 18px;font-size:13.5px;line-height:1.5;margin-bottom:18px;box-shadow:inset 3px 0 0 var(--accent)}
 .su-step{background:var(--panel);padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-width:0;margin-bottom:18px}
+.su-school{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px}.su-school .su-sn{font-weight:800;font-size:15px}.su-school .fl{margin:0}
+.su-school #su-lunchc{width:150px}.su-pick{padding:10px;display:flex;flex-direction:column;gap:8px}.su-pick .su-pl{max-height:320px;overflow:auto;display:flex;flex-direction:column}
+.su-pick .cdd-item{text-align:left;flex:none}.su-pick .cdd-item .sx-none{display:inline;margin:0 0 0 6px}
 .su-step .su-oh{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:800;letter-spacing:.01em;text-transform:uppercase;line-height:1.3}
 .su-n{flex:none;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;background:var(--accent);color:var(--accent-fg);font-size:13px}
 .su-step.off .su-n{background:var(--panel2);color:var(--fg2)}
@@ -4523,6 +4526,7 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
 <p>Open it any time from Settings (Classes, Edit) or the Edit classes button on Courses, which blinks while you have no Schoology link. Setup is two steps, in order:</p>
 <ul>
 <li><b>Step 1, Enter your classes and periods</b>: name each class and fill in its period. The table starts with 7 rows; <b>+</b> adds more, up to 20 classes, and × removes a row.</li>
+<li><b>Not at Langley High School?</b> Press it under step 1 and pick your school (FCPS and MCPS middle and high schools). The planner then uses that school's bell schedule, its days (like Red and White) and its calendar. Lunch works the way your school does it: a lunch letter in the row of the class it falls in, your grade, or your own lunch time if the school hasn't published one. If the planner has today as the wrong day, press <b>Swap days</b> on the day's schedule.</li>
 <li><b>Step 2, Add your Schoology link</b> (optional, but highly recommended): paste your Schoology calendar (iCal) link and press Import (or <kbd>Enter</kbd>). Without it nothing syncs: assignments and tests won't come in from Schoology, and you'd add every one by hand. Finding your Schoology link, above, shows where to get it.</li>
 <li>Each row has the class name, an optional <b>period</b> (1 to 8), a <b>lunch</b> (A, B, C or D, only for periods 5 and 6) and a <b>color</b>. New classes get a color that isn't taken yet; click the swatch to pick another.</li>
 <li>Shorthand turns into the proper name when you leave the box (ap lang becomes AP English Language and Composition, calc bc becomes AP Calculus BC, bio becomes Biology). You can always change it. Typing AP Microeconomics or AP Macroeconomics offers the combined course if you take both. A name the planner doesn't recognize gets a small warning with Did you mean suggestions; you can keep it anyway.</li>
@@ -6214,6 +6218,21 @@ function normalizeCourse(input){
   };
   SX.PALETTE = ['#2b8cff', '#ff3b30', '#a259ff', '#ff9500', '#00c48c', '#ff2d87', '#5b6cff', '#00bcd4', '#ffcc00', '#34c759', '#ff6b35', '#af52de'];
   SX.MAX_CLASSES = 20;
+  /* lunch choice (settings.lunch): {<class period 1-9>: shift} where the shift is a letter or number like A, E, 2
+     (Langley: {5: 'B', 6: 'D'}), {g: choice} for schools where lunch goes by grade or lunch group, and {c: 'H:MM-H:MM'}
+     for a lunch time the student typed (schools that publish none) */
+  SX.cleanLunch = function (l) {
+    var o = {};
+    if (!l || typeof l !== 'object' || Array.isArray(l)) return o;
+    Object.keys(l).slice(0, 12).forEach(function (k) {
+      var v = String(l[k] == null ? '' : l[k]).trim().toUpperCase();
+      if ((/^[1-9]$/.test(k) || k === 'g') && /^[A-Z0-9]{1,3}$/.test(v)) o[k] = v;
+      if (k === 'c' && /^\d{1,2}:\d\d-\d{1,2}:\d\d$/.test(v)) o.c = v;
+    });
+    return o;
+  };
+  /* the student's school: '' is Langley High School (the planner's built-in schedule), else an id from schools-compact.json */
+  SX.cleanSchool = function (v) { v = String(v || '').trim().toLowerCase(); return /^[a-z0-9-]{3,60}$/.test(v) && v !== 'fcps-langley-hs' ? v : ''; };
   /* a new class from a calendar course name; the page turns its name into the proper one (normalizeCourse) on next load */
   function newClass(d, name) {
     var courses = d.settings.courses = d.settings.courses || [];
@@ -8056,9 +8075,128 @@ const LUNCH_TIMES={A:'11:21-11:51',B:'11:51-12:21',C:'12:21-12:51',D:'12:51-1:21
 /* two hour early release (langleyhs.fcps.edu bell schedule): P4 does not meet, one lunch for everyone at the end */
 const EARLY_TIMES={1:'8:10-9:12',3:'9:18-10:20',5:'10:26-11:28',7:'11:34-12:35',2:'8:10-9:35',6:'9:41-11:05',8:'11:11-12:35'};
 /* a day runs on the early release schedule when the school calendar says so, unless the day was switched by hand */
-function relAuto(ds){return eventsOn(ds).some(e=>/early release/i.test(e[1]))?'early':'regular';}
+function relAuto(ds){if(SCHOOL_CAL)return (SCHOOL_CAL.early||[]).indexOf(ds)>=0?'early':'regular';return eventsOn(ds).some(e=>/early release/i.test(e[1]))?'early':'regular';}
 function relMode(ds){return ((state.settings&&state.settings.rel)||{})[ds]||relAuto(ds);}
 const PERIOD_TIMES={1:'8:10-9:40',2:'8:10-9:40',3:'9:46-11:15',4:'9:46-11:15',5:'11:19-1:19',6:'11:19-1:19',7:'1:27-2:55',8:'1:27-2:55'};
+/* ---------- other schools (2026-11-23): "Not at Langley High School?" on Your Classes. Langley keeps the tables above;
+   every other school runs on the engine below (tools/schools/engine.js, copied by tools/schools/inline.js) and its
+   data (schools-compact.json, served by rpcGetSchools, the chosen school kept on the device as sx-school:<id>) ---------- */
+/* SCHOOL-ENGINE-BEGIN */
+/* ENGINE-BEGIN */
+/* minutes after midnight from 'HH:MM' (24 h) */
+function shMin(hm){const a=String(hm).split(':');return (+a[0])*60+(+a[1]);}
+/* '13:05' style minutes to the planner's '1:05' (no am/pm, like the Langley tables) */
+function shFmt(m){const h=Math.floor(m/60),mm=m%60;return ((h%12)||12)+':'+String(mm).padStart(2,'0');}
+const shOver=(a,b)=>a.s<b.e&&b.s<a.e;
+/* how a student's lunch is chosen at this school:
+   period: a letter for each class period that holds the lunch shifts (Langley-style; lunch follows the teacher)
+   group:  one choice for the whole day (grade, or a lunch group whose whole schedule differs)
+   single: everyone eats at the same time (a Lunch row in the schedule)
+   unknown: the school published no times; the student may type their own */
+function shMode(sc){
+  const L=sc.lunch||{},k=L.kind;
+  if(k==='single')return 'single';
+  if(k==='unknown'||!(L.choices||[]).length)return 'unknown';
+  if(k==='grade')return 'group';
+  /* a regular day type that lists exactly one choice means the whole schedule depends on that choice */
+  const t=L.times||{};
+  if(sc.dayTypes.some(d=>!d.early&&t[d.name]&&Object.keys(t[d.name]).length===1&&L.choices.length>1))return 'group';
+  return 'period';
+}
+/* day types that fit this student's group choice (all of them when the school has no per-group schedules) */
+function shFits(sc,dt,pick){
+  if(shMode(sc)!=='group')return true;
+  const t=(sc.lunch.times||{})[dt.name];if(!t)return true;
+  const ks=Object.keys(t);if(ks.length!==1||ks[0]==='*')return true;
+  return !pick||ks[0]===String(pick);
+}
+/* the day type for one school day. o: {alt: index among alternating school days, dow: 0-6, early: bool,
+   flip: bool (the student said today is the other day), pick: group choice} */
+function shDayType(sc,o){
+  const pick=o.pick,reg=sc.dayTypes.filter(d=>!d.early&&shFits(sc,d,pick)),rot=sc.rotation||{};
+  let base=null;const wk=rot.weekday&&rot.weekday[String(o.dow)];
+  if(wk)base=reg.find(d=>d.name===wk)||null;
+  if(!base){
+    const days=(rot.days||[]).map(n=>reg.find(d=>d.name===n)).filter(Boolean);
+    const uniq=days.filter((d,i)=>days.indexOf(d)===i);
+    if(rot.kind==='alternate'&&uniq.length>1){const n=uniq.length;base=uniq[(((o.alt||0)+(o.flip?1:0))%n+n)%n];}
+    else base=uniq[0]||reg[0]||sc.dayTypes[0]||null;
+  }
+  if(base&&o.early){
+    const e=sc.dayTypes.find(d=>d.early&&d.of===base.name)||sc.dayTypes.find(d=>d.early&&!d.of&&shFits(sc,d,pick));
+    if(e)return e;
+  }
+  return base;
+}
+/* does an alternating school skip a weekday in its count (a fixed anchor day every week)? */
+function shAnchorDow(sc,dow){const w=sc.rotation&&sc.rotation.weekday;return !!(w&&w[String(dow)]);}
+/* class periods that meet on a day type */
+function shMeets(dt,per){return !!dt&&dt.periods.some(p=>p.kind==='class'&&p.per===+per);}
+/* periods (numbers) whose class holds the lettered lunch shifts, with the letters offered there */
+function shLunchPeriods(sc){
+  const out={};if(shMode(sc)!=='period')return out;
+  const T=sc.lunch.times||{};
+  sc.dayTypes.forEach(dt=>{const t=T[dt.name];if(!t)return;
+    dt.periods.forEach(p=>{if(p.kind!=='class'||p.per==null)return;const r={s:shMin(p.start),e:shMin(p.end)};
+      Object.keys(t).forEach(ch=>{const w=t[ch]&&t[ch].lunch;if(!w)return;
+        if(shOver(r,{s:shMin(w[0]),e:shMin(w[1])})){const l=out[p.per]||(out[p.per]=[]);if(l.indexOf(ch)<0)l.push(ch);}});});});
+  Object.keys(out).forEach(k=>out[k].sort((a,b)=>sc.lunch.choices.indexOf(a)-sc.lunch.choices.indexOf(b)));
+  return out;
+}
+/* the student's lunch windows (lunch plus recess/break) on a day type. lunch: the planner's settings.lunch
+   ({<period>: letter} for 'period', {g: choice} for 'group', {c: 'H:MM-H:MM'} typed by the student) */
+function shLunchWins(sc,dt,lunch){
+  lunch=lunch||{};const mode=shMode(sc),t=((sc.lunch||{}).times||{})[dt.name]||{},out=[];
+  const add=(w,label,per,extra)=>{if(!w||!w.lunch)return;out.push({kind:'lunch',label:label,per:per,s:shMin(w.lunch[0]),e:shMin(w.lunch[1])});
+    (w.also||[]).forEach(a=>out.push({kind:'break',label:a.label||'Break',per:per,s:shMin(a.start),e:shMin(a.end)}));};
+  if(mode==='period'){
+    dt.periods.forEach(p=>{if(p.kind!=='class'||p.per==null)return;const ch=lunch[String(p.per)];if(!ch||!t[ch])return;
+      const r={s:shMin(p.start),e:shMin(p.end)},w=t[ch].lunch;if(w&&shOver(r,{s:shMin(w[0]),e:shMin(w[1])}))add(t[ch],ch+' lunch',p.per);});
+  }else if(mode==='group'){
+    const ks=Object.keys(t),ch=lunch.g!=null?String(lunch.g):'';
+    const w=t[ch]||(ks.length===1?t[ks[0]]:null);if(w)add(w,'Lunch',null);
+  }else if(mode==='unknown'){
+    const m=/^(\d{1,2}):(\d\d)-(\d{1,2}):(\d\d)$/.exec(String(lunch.c||''));
+    if(m){const h=x=>{x=+x;return x<7?x+12:x;};out.push({kind:'lunch',label:'Lunch',per:null,s:h(m[1])*60+(+m[2]),e:h(m[3])*60+(+m[4])});}
+  }
+  return out.filter(w=>w.e>w.s);
+}
+/* the whole day for one student: classes split around their lunch and breaks, shared rows (Breakfast, Advisory,
+   one-for-all Lunch) kept. Each class piece lists all its parts (for the time left in the class). Sorted by start. */
+function shDay(sc,dt,lunch){
+  if(!dt)return [];
+  const wins=shLunchWins(sc,dt,lunch),out=[];
+  dt.periods.forEach(p=>{
+    const s=shMin(p.start),e=shMin(p.end);
+    if(p.kind!=='class'){out.push({kind:p.kind==='lunch'?'lunch':'other',label:p.label,per:p.per,s:s,e:e,shared:1});return;}
+    /* cut every window that falls inside this class out of it */
+    let parts=[[s,e]];
+    wins.forEach(w=>{if(!(w.s<e&&s<w.e))return;parts=parts.flatMap(([a,b])=>[[a,Math.min(b,w.s)],[Math.max(a,w.e),b]]).filter(([a,b])=>b-a>0);});
+    parts.forEach(([a,b])=>out.push({kind:'class',label:p.label,per:p.per,s:a,e:b,parts:parts,whole:[s,e]}));
+  });
+  wins.forEach(w=>out.push(w));
+  return out.sort((a,b)=>a.s-b.s||(a.kind==='class'?-1:1));
+}
+/* ENGINE-END */
+/* SCHOOL-ENGINE-END */
+let SCHOOL=null,SCHOOL_CAL=null,SCHOOL_ID='',SCHOOLS_ALL=null,SCHOOLS_P=null;
+function schoolId(){return (state.settings&&state.settings.school)||'';}
+/* the school in settings, from the device copy or fetched once; Langley ('') needs nothing */
+function schoolSync(){const id=schoolId();if(id===SCHOOL_ID)return;SCHOOL_ID=id;SCHOOL=null;SCHOOL_CAL=null;
+  if(id){const o=cJSON('sx-school:'+id);if(o&&o.s&&o.s.id===id){SCHOOL=o.s;SCHOOL_CAL=o.cal||null;}else schoolFetch(id);}
+  dayTypesBuild();}
+function schoolsAll(){if(SCHOOLS_ALL)return Promise.resolve(SCHOOLS_ALL);
+  return SCHOOLS_P||(SCHOOLS_P=api('/api/schools').then(r=>{SCHOOLS_ALL=r&&r.schools?r:{schools:{},cal:{}};SCHOOLS_P=null;return SCHOOLS_ALL;},e=>{SCHOOLS_P=null;throw e;}));}
+function schoolFetch(id){schoolsAll().then(all=>{const sc=all.schools[id];if(!sc)return;const cal=sc.district==='MCPS'&&all.cal?all.cal.MCPS||null:null;
+  try{cPut('sx-school:'+id,JSON.stringify({s:sc,cal}));}catch(_){}
+  if(schoolId()===id){SCHOOL=sc;SCHOOL_CAL=cal;dayTypesBuild();render();}}).catch(()=>{});}
+/* a period number some day of this school uses (a block school's classes have none: they count as meeting every day) */
+function schoolHasPer(p){return !!SCHOOL&&SCHOOL.dayTypes.some(d=>shMeets(d,p));}
+/* the class periods holding lettered lunch shifts and the letters offered (Langley: 5 and 6, A to D) */
+function lunchPeriodsNow(){return SCHOOL?shLunchPeriods(SCHOOL):{5:['A','B','C','D'],6:['A','B','C','D']};}
+function schoolDT(ds,early){if(!SCHOOL||!isSchoolDay(ds))return null;
+  return shDayType(SCHOOL,{alt:ALT_IDX[ds]||0,dow:dow(ds),early:early===undefined?relMode(ds)==='early':early,flip:!!(state.settings&&state.settings.rotFlip),pick:((state.settings&&state.settings.lunch)||{}).g});}
+const shRange=(a,b)=>shFmt(a)+'-'+shFmt(b);
 
 /* ---------- date helpers (local time only) ---------- */
 const pad=n=>String(n).padStart(2,'0');
@@ -8071,12 +8209,19 @@ const MON=['January','February','March','April','May','June','July','August','Se
 const fmtLong=ds=>{const d=parse(ds);return DOWN[d.getDay()]+', '+MON[d.getMonth()]+' '+d.getDate();};
 const fmtShort=ds=>{const d=parse(ds);return DOWN[d.getDay()]+' '+(d.getMonth()+1)+'/'+d.getDate();};
 const todayStr=()=>dstr(new Date());
-const isSchoolDay=ds=>{const w=dow(ds);return w>=1&&w<=5&&ds>=YEAR_START&&ds<=YEAR_END&&!NO_SCHOOL.has(ds);};
-const DAY_TYPE={};(()=>{let t='green',ds=YEAR_START;while(ds<=YEAR_END){if(isSchoolDay(ds)){DAY_TYPE[ds]=t;t=(t==='green')?'gold':'green';}ds=addDays(ds,1);}})();
+const isSchoolDay=ds=>{const w=dow(ds);if(w<1||w>5)return false;const C=SCHOOL_CAL;if(C)return ds>=C.start&&ds<=C.end&&C.no.indexOf(ds)<0;return ds>=YEAR_START&&ds<=YEAR_END&&!NO_SCHOOL.has(ds);};
+/* green/gold (Langley) or the two alternating days of another school; ALT_IDX counts alternating school days (a fixed
+   weekly anchor day is skipped) and rebuilds when the school, its calendar or the student's day swap changes */
+let DAY_TYPE={},ALT_IDX={};
+function dayTypesBuild(){DAY_TYPE={};ALT_IDX={};const C=SCHOOL_CAL,en=C?C.end:YEAR_END;
+  let t=SCHOOL&&state.settings&&state.settings.rotFlip?'gold':'green',ds=C?C.start:YEAR_START,i=0;
+  while(ds<=en){if(isSchoolDay(ds)){if(SCHOOL&&shAnchorDow(SCHOOL,dow(ds)))DAY_TYPE[ds]='green';else{DAY_TYPE[ds]=t;ALT_IDX[ds]=i++;t=(t==='green')?'gold':'green';}}ds=addDays(ds,1);}}
+dayTypesBuild();
 const dayType=ds=>DAY_TYPE[ds]||null;
 const eventsOn=ds=>EVENTS.filter(e=>e[0]===ds);
 function nextSchoolDay(ds,inclusive){let c=inclusive?ds:addDays(ds,1),g=0;while(!isSchoolDay(c)&&g++<400){c=addDays(c,1);if(c>'2027-07-01')return null;}return g>400?null:c;}
-function courseMeets(cid,ds){const t=dayType(ds);if(!t)return false;const p=state.settings.periods[cid];if(!p)return true;
+function courseMeets(cid,ds){if(SCHOOL){const dt=schoolDT(ds);if(!dt)return false;const p=state.settings.periods[cid];if(!p)return true;return shMeets(dt,p)||!schoolHasPer(p);}
+  const t=dayType(ds);if(!t)return false;const p=state.settings.periods[cid];if(!p)return true;
   return (p%2===1)===(t==='green');}
 function nextMeeting(cid,after){let c=nextSchoolDay(after,false),g=0;while(c&&g++<400){if(courseMeets(cid,c))return c;c=nextSchoolDay(c,false);}return null;}
 function mondayOf(ds){const w=dow(ds);return addDays(ds,w===0?1:1-w);}
@@ -8178,6 +8323,7 @@ async function apiRaw(path,opts){
     if(path==='/api/data')return gsRead('rpcGetData',obHas()?undefined:DATA_VER||undefined);
     if(path==='/api/resources')return gsRead('rpcGetResources');
     if(path==='/api/opps')return gsRead('rpcGetOpps');
+    if(path==='/api/schools')return gsRead('rpcGetSchools');
     if(path==='/api/myres'&&method==='GET')return gsRead('rpcListMyRes');
     if(path==='/api/myres'&&method==='POST')return gsRun('rpcSaveRes',body);
     if(path==='/api/myres/resync')return gsRun('rpcResyncRes',body);
@@ -8594,7 +8740,7 @@ function confetti(x,y){
 async function removeTask(id){try{await api('/api/task/'+encodeURIComponent(id),{method:'DELETE'});}catch(e){console.warn('delete failed',e);}}
 async function saveSettings(){if(!settingsLoaded)return;SX.scrubCourses(COURSES);try{await api('/api/settings',{method:'POST',body:JSON.stringify({colors:state.settings.colors,periods:state.settings.periods,shareClasses:!!state.settings.shareClasses,
   seenTips:state.settings.seenTips||[],usedPages:state.settings.usedPages||[],
-  lastGame:state.settings.lastGame||'',clockStyle:state.settings.clockStyle||'classic',advisoryCourse:state.settings.advisoryCourse||'',courses:COURSES,ical:state.settings.ical||'',fullNames:!!state.settings.fullNames,quickGames:state.settings.quickGames||[],focusMode:!!state.settings.focusMode,pageFade:!!state.settings.pageFade,decoOn:!!state.settings.decoOn,sensPics:!!state.settings.sensPics,sensGames:!!state.settings.sensGames,sensTools:!!state.settings.sensTools,footerOff:!!state.settings.footerOff,pageGrads:state.settings.pageGrads||{},noteCols:state.settings.noteCols||[],pageColors:state.settings.pageColors||{},courseOrder:state.settings.courseOrder||[],homeView:state.settings.homeView||'mixed',homeChosen:!!state.settings.homeChosen,homePages:state.settings.homePages||[],homeRes:state.settings.homeRes||[],quickLinks:Array.isArray(state.settings.quickLinks)?state.settings.quickLinks:null,dynRes:!!state.settings.dynRes,hideGames:!!state.settings.hideGames,hideChat:!!state.settings.hideChat,faqNew:!!state.settings.faqNew,oppStar:state.settings.oppStar||[],oppArch:state.settings.oppArch||[],gamesIntro:!!state.settings.gamesIntro,gameStar:state.settings.gameStar||[],hidePages:state.settings.hidePages||[],tutorialNew:!!state.settings.tutorialNew,rel:state.settings.rel||{},lunch:state.settings.lunch||{},gpa:SX.cleanGpa(state.settings.gpa),gpaYear:SX.cleanGpaYear(state.settings.gpaYear),gpaByYear:!!state.settings.gpaByYear})});}catch(e){console.warn('save failed',e);}}
+  lastGame:state.settings.lastGame||'',clockStyle:state.settings.clockStyle||'classic',advisoryCourse:state.settings.advisoryCourse||'',courses:COURSES,ical:state.settings.ical||'',fullNames:!!state.settings.fullNames,quickGames:state.settings.quickGames||[],focusMode:!!state.settings.focusMode,pageFade:!!state.settings.pageFade,decoOn:!!state.settings.decoOn,sensPics:!!state.settings.sensPics,sensGames:!!state.settings.sensGames,sensTools:!!state.settings.sensTools,footerOff:!!state.settings.footerOff,pageGrads:state.settings.pageGrads||{},noteCols:state.settings.noteCols||[],pageColors:state.settings.pageColors||{},courseOrder:state.settings.courseOrder||[],homeView:state.settings.homeView||'mixed',homeChosen:!!state.settings.homeChosen,homePages:state.settings.homePages||[],homeRes:state.settings.homeRes||[],quickLinks:Array.isArray(state.settings.quickLinks)?state.settings.quickLinks:null,dynRes:!!state.settings.dynRes,hideGames:!!state.settings.hideGames,hideChat:!!state.settings.hideChat,faqNew:!!state.settings.faqNew,oppStar:state.settings.oppStar||[],oppArch:state.settings.oppArch||[],gamesIntro:!!state.settings.gamesIntro,gameStar:state.settings.gameStar||[],hidePages:state.settings.hidePages||[],tutorialNew:!!state.settings.tutorialNew,rel:state.settings.rel||{},lunch:state.settings.lunch||{},school:state.settings.school||'',rotFlip:!!state.settings.rotFlip,gpa:SX.cleanGpa(state.settings.gpa),gpaYear:SX.cleanGpaYear(state.settings.gpaYear),gpaByYear:!!state.settings.gpaByYear})});}catch(e){console.warn('save failed',e);}}
 async function saveNote(n){if(STALE.has(n))return;try{await api('/api/advisory',{method:'POST',body:JSON.stringify(n)});}catch(e){console.warn('save failed',e);}}
 /* in-class assignments a week past their date, and sticky notes a week old, are removed by themselves */
 let sweepBusy=false;
@@ -8666,11 +8812,14 @@ function taskHTML(t,showDate){const c=courseById(t.course),col=color(t.course);
     ${state.extended&&t.details?`<span class="dd2">${esc(t.details)}</span>`:''}</div>
     <button class="del" data-act="del" data-id="${esc(t.id)}" title="delete">×</button></div>`;}
 function dayBadge(ds){const t=dayType(ds);
+  if(SCHOOL&&t){const b=schoolDT(ds,false);if(!b||(SCHOOL.rotation||{}).kind!=='alternate')return '';
+    return '<span class="chip '+(t==='gold'?'a':'g')+'">'+esc(b.name.replace(/\s*day$/i,'').toUpperCase().slice(0,14))+'</span>';}
   if(t==='green')return '<span class="chip g">GREEN</span>';
   if(t==='gold')return '<span class="chip a">GOLD</span>';
   if(dow(ds)===0||dow(ds)===6)return '<span class="chip o">WEEKEND</span>';
   return '<span class="chip h">NO SCHOOL</span>';}
 function scheduleHTML(ds){const t=dayType(ds);if(!t)return'';
+  if(SCHOOL)return schoolScheduleHTML(ds);
   const early=relMode(ds)==='early',times=early?EARLY_TIMES:PERIOD_TIMES;
   const items=COURSES.filter(c=>state.settings.periods[c.id]&&courseMeets(c.id,ds))
     .map(c=>({p:state.settings.periods[c.id],col:color(c.id),name:cname(c)}));
@@ -8685,6 +8834,19 @@ function scheduleHTML(ds){const t=dayType(ds);if(!t)return'';
   if(early&&rows.length)rows.push(`<div class="srow lunch"><span class="per"></span><span class="tm">12:35-12:55</span><span class="sq"></span><span class="scn">Lunch</span></div>`);
   const sw=`<div class="relsw">${[['regular','Regular'],['early','Early release']].map(([m,lb])=>`<button class="hbtn ${relMode(ds)===m?'on':''}" data-act="rel" data-ds="${ds}" data-m="${m}">${lb}</button>`).join('')}</div>`;
   return rows.length?`<div class="sched">${sw}${rows.join('')}</div>`:'';}
+/* another school's day: your classes in order, your lunch (and recess or break) under the class it falls in, shared
+   lunch periods, the Regular / Early release switch, and Swap days for schools with alternating days */
+function schoolScheduleHTML(ds){const dt=schoolDT(ds);if(!dt)return'';
+  const lunch=state.settings.lunch||{},day=shDay(SCHOOL,dt,lunch),items=[];
+  const row=(per,tm,col,name)=>`<div class="srow"><span class="per">${per}</span><span class="tm">${tm}</span><span class="sq"${col?` style="background:${esc(col)}"`:''}></span><span class="scn">${esc(name)}</span></div>`;
+  const lrow=w=>`<div class="srow lunch"><span class="per"></span><span class="tm">${shRange(w.s,w.e)}</span><span class="sq"></span><span class="scn">${esc(w.label)}</span></div>`;
+  dt.periods.forEach(p=>{const s=shMin(p.start),e=shMin(p.end);
+    if(p.kind==='class'&&p.per!=null){const c=COURSES.find(x=>state.settings.periods[x.id]==p.per);if(c)items.push({s,h:row('P'+p.per,shRange(s,e),color(c.id),cname(c))});}
+    else if(p.kind==='lunch')items.push({s,h:lrow({s,e,label:p.label})});});
+  day.filter(w=>(w.kind==='lunch'||w.kind==='break')&&!w.shared).forEach(w=>items.push({s:w.s+0.5,h:lrow(w)}));
+  const alt=(SCHOOL.rotation||{}).kind==='alternate';
+  const sw=`<div class="relsw">${[['regular','Regular'],['early','Early release']].map(([m,lb])=>`<button class="hbtn ${relMode(ds)===m?'on':''}" data-act="rel" data-ds="${ds}" data-m="${m}">${lb}</button>`).join('')}${alt?`<button class="hbtn" data-act="rotflip" title="Today is the other day">Swap days</button>`:''}</div>`;
+  return items.length?`<div class="sched">${sw}${items.sort((a,b)=>a.s-b.s).map(x=>x.h).join('')}</div>`:'';}
 function meetsLine(ds){const t=dayType(ds);if(!t)return'';
   const any=Object.values(state.settings.periods).some(Boolean);if(!any)return'';
   const parts=COURSES.filter(c=>courseMeets(c.id,ds)).map(c=>{const p=state.settings.periods[c.id];
@@ -10567,6 +10729,12 @@ document.addEventListener('click',async e=>{
   if(act==='sucancel'){state.setup=false;render();return;}
   if(act==='logout'){pending('logout','[data-act="logout"]',logOut);return;}
   if(act==='gdocs'){gdocsExport(el.dataset.k);return;}
+  if(act==='rotflip'){state.settings.rotFlip=!state.settings.rotFlip;dayTypesBuild();render();saveSettings();return;}
+  if(act==='schpick'){SU_PICK=SU_PICK?null:{q:''};if(SU_PICK&&!SCHOOLS_ALL)schoolsAll().then(()=>render(),()=>{SU_PICK=null;noteToast('Couldn\'t load the schools, try again');render();});render();return;}
+  if(act==='schset'){const id=el.dataset.id||'';SU_PICK=null;if(id===schoolId()){render();return;}
+    /* a new school starts with no lunch choice (its letters mean something else) and no day swap */
+    state.settings.school=id;state.settings.lunch={};state.settings.rotFlip=false;schoolSync();render();saveSettings();return;}
+  if(act==='schgroup'){state.settings.lunch={...(state.settings.lunch||{}),g:el.dataset.v};dayTypesBuild();render();saveSettings();return;}
   if(act==='rel'){const ds=el.dataset.ds,m=el.dataset.m,r={...(state.settings.rel||{})};
     if(m===relAuto(ds))delete r[ds];else r[ds]=m;state.settings.rel=r;render();saveSettings();return;}
   if(act==='nav'){calStep(Number(el.dataset.n));return;}
@@ -10854,9 +11022,28 @@ const WARN_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="ev
    in the background, a new row, a removed row) never shifts what was typed into another row or drops a lunch */
 const XDD_ON={};
 let suFresh=true,suLastView='';
+/* the school line on Your Classes: Langley needs nothing; another school shows its name, a grade or lunch-group
+   choice when lunch goes by that, or a box for the student's own lunch time when the school published none */
+let SU_PICK=null;
+function suSchoolHTML(){
+  const L=state.settings.lunch||{};let h=`<div class="su-school">${SCHOOL||schoolId()?`<span class="su-sn">${esc(SCHOOL?SCHOOL.name:'Loading your school...')}</span>`:''}<button type="button" class="kbtn" data-act="schpick">${schoolId()?'Change school':'Not at Langley High School?'}</button></div>`;
+  if(SCHOOL){const mode=shMode(SCHOOL);
+    if(mode==='group'){const gr=SCHOOL.lunch.kind==='grade';
+      h+=`<div class="su-school"><span class="fl">${gr?'Your grade':'Your lunch'}</span>${SCHOOL.lunch.choices.map(c=>`<button type="button" class="hbtn ${L.g===c?'on':''}" data-act="schgroup" data-v="${esc(c)}">${esc(gr?c+'th grade':c+' lunch')}</button>`).join('')}</div>`;}
+    else if(mode==='unknown')h+=`<div class="su-school"><span class="fl">Your lunch</span><input type="text" id="su-lunchc" value="${esc(L.c||'')}" placeholder="11:30-12:00" maxlength="11" autocomplete="off"><span class="sx-none">This school hasn't published lunch times.</span></div>`;
+    else if(mode==='period'&&Object.keys(lunchPeriodsNow()).length)h+=`<div class="sx-none">Pick your lunch in the row of the class it falls in (periods ${Object.keys(lunchPeriodsNow()).join(' and ')}).</div>`;}
+  if(SU_PICK)h+=suPickerHTML();
+  return `<div class="su-step su-schools">${h}</div>`;}
+function suPickerHTML(){
+  if(!SCHOOLS_ALL)return `<div class="sx-none">Loading schools...</div>`;
+  const q=(SU_PICK.q||'').trim().toLowerCase(),all=Object.values(SCHOOLS_ALL.schools).sort((a,b)=>a.name.localeCompare(b.name));
+  const hit=all.filter(x=>!q||x.name.toLowerCase().includes(q)).slice(0,40);
+  const lang=!q||'langley high school'.includes(q);
+  return `<div class="panel su-pick"><input type="text" id="su-schq" value="${esc(SU_PICK.q||'')}" placeholder="Search your school" autocomplete="off" spellcheck="false">
+    <div class="su-pl">${lang?`<button type="button" class="cdd-item${!schoolId()?' on':''}" data-act="schset" data-id="">Langley High School</button>`:''}${hit.map(x=>`<button type="button" class="cdd-item${x.id===schoolId()?' on':''}" data-act="schset" data-id="${esc(x.id)}">${esc(x.name)} <span class="sx-none">${esc(x.district)}</span></button>`).join('')}${!hit.length&&!lang?'<div class="sx-none">No school by that name yet</div>':''}</div></div>`;}
 function suRowsFromCourses(){const lunch=state.settings.lunch||{};
   return COURSES.map(c=>{const p=state.settings.periods[c.id]||'';
-    return {id:c.id,name:c.name,raw:c.raw||'',per:p?String(p):'',lunch:(p==5||p==6)&&lunch[p]||'',col:color(c.id),p4ok:p==4};});}
+    const LP=lunchPeriodsNow();return {id:c.id,name:c.name,raw:c.raw||'',per:p?String(p):'',lunch:LP[p]&&lunch[p]||'',col:color(c.id),p4ok:p==4};});}
 function suRowsFromDom(){return [...document.querySelectorAll('#v-setup .su-row')].map(r=>{
   const n=r.querySelector('.su-name'),p=r.querySelector('.su-per'),l=r.querySelector('.su-lunch'),c=r.querySelector('.su-col');
   return {id:n.dataset.id||'',name:n.value,raw:n.dataset.raw||'',per:p.value,lunch:l&&l.dataset.v||'',col:c?c.value:'',tn:n.dataset.touched==='1',tp:p.dataset.touched==='1',p4ok:p.dataset.p4ok==='1'};});}
@@ -11433,16 +11620,17 @@ function renderSetup(model){
   const ph=state.setup?state.suPhase||'':'',ob=ph==='tour'||ph==='classes'||ph==='link';
   if(ph==='tour'){el.innerHTML=obTourHTML();suLastView='';requestAnimationFrame(()=>obStep(true));return;}
   const nextCol=i=>ob?PC_SW[i%PC_SW.length]:PALETTE[i%PALETTE.length];
+  const LPN=lunchPeriodsNow(),LPA=[...new Set(Object.values(LPN).flat())];
   for(let i=0;i<setupRows;i++){const c=model[i]||{id:'',name:'',raw:'',per:'',lunch:'',col:''},p=c.per,col=c.col||nextCol(i),ex=ob&&i===0;
     rows.push(`<div class="su-row"><span class="su-nw"><input type="text" class="su-name" id="su-n${i}" data-id="${esc(c.id)}" data-raw="${esc(c.raw)}"${c.tn?' data-touched="1"':''}
       value="${esc(c.name)}" placeholder="${ex?'Chemistry HN':'Class'}" autocomplete="off" spellcheck="false" maxlength="80"><button type="button" class="su-warn" tabindex="0" aria-label="Not an official course name" aria-haspopup="true">${WARN_ICON}</button></span>
       <input type="text" class="su-per" id="su-p${i}" value="${esc(p)}" placeholder="${ex?'1':'Period'}" inputmode="numeric" maxlength="1" autocomplete="off"${c.tp?' data-touched="1"':''}${c.p4ok?' data-p4ok="1"':''}>
-      ${xddHTML({kind:'lunch',id:'su-l'+i,cls:'su-lunch'+(p==5||p==6?'':' off'),value:c.lunch,ph:'Lunch',label:'Lunch',
-        options:[{v:'',t:'Lunch'}].concat(['A','B','C','D'].map(l=>({v:l,t:l+' lunch'})))})}
+      ${xddHTML({kind:'lunch',id:'su-l'+i,cls:'su-lunch'+(LPN[p]?'':' off'),value:c.lunch,ph:'Lunch',label:'Lunch',
+        options:[{v:'',t:'Lunch'}].concat(LPA.map(l=>({v:l,t:l+' lunch'})))})}
       <span class="cpk"><button type="button" class="cpk-btn" data-cpk aria-label="Color" title="Color" style="background:${esc(col)}"></button><input type="color" class="su-col" id="su-c${i}" value="${esc(col)}" tabindex="-1" aria-hidden="true"></span>
       <button class="su-del" data-act="sudel" title="Remove" aria-label="Remove"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`);}
   /* two steps, in order: your classes, then the Schoology link (optional, but nothing syncs without it) */
-  const step1=`<div class="su-step"><div class="su-oh"><span class="su-n">1</span>Enter your classes and periods</div></div>`;
+  const step1=`<div class="su-step"><div class="su-oh"><span class="su-n">1</span>Enter your classes and periods</div></div>${ob?'':suSchoolHTML()}`;
   const step2=`<div class="su-step"><div class="su-oh"><span class="su-n">2</span>Add your Schoology link (highly recommended)</div>
       <div class="su-why">Without the link nothing syncs: your assignments and tests won't come in from Schoology, and you'd have to add every one by hand.</div>
       <div class="su-ir"><input type="text" id="su-ical" value="${esc(state.settings.ical||'')}" placeholder="iCal link" autocomplete="off" spellcheck="false">
@@ -11485,11 +11673,16 @@ function renderSetup(model){
 /* import from the pasted link: the server saves it, adds this week's events and creates classes for the calendar's
    courses; the page then names them properly (loadData) and shows the filled table */
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='su-ical'){e.preventDefault();suImport();}});
-document.addEventListener('input',e=>{if(!e.target.classList||!e.target.classList.contains('su-per'))return;const l=e.target.parentElement.querySelector('.su-lunch');if(l)l.classList.toggle('off',!/^[56]$/.test(e.target.value.trim()));});
+document.addEventListener('input',e=>{if(e.target&&e.target.id==='su-schq'&&SU_PICK){SU_PICK.q=e.target.value;render();}});
+/* a lunch time typed for a school that publishes none: saved when it reads like 11:30-12:00 */
+document.addEventListener('change',e=>{if(!e.target||e.target.id!=='su-lunchc')return;const v=e.target.value.replace(/\s+/g,'');
+  const L={...(state.settings.lunch||{})};if(!v)delete L.c;else if(/^\d{1,2}:\d\d-\d{1,2}:\d\d$/.test(v))L.c=v;else{noteToast('Type your lunch like 11:30-12:00');return;}
+  state.settings.lunch=L;render();saveSettings();});
+document.addEventListener('input',e=>{if(!e.target.classList||!e.target.classList.contains('su-per'))return;const l=e.target.parentElement.querySelector('.su-lunch');if(l)l.classList.toggle('off',!lunchPeriodsNow()[e.target.value.trim()]);});
 XDD_ON.lunch=()=>suAutoSave(true);
 /* period 4 is Advisory: typing 4 asks first; Change empties the box, I understand keeps 4 for that row */
 document.addEventListener('input',e=>{const t=e.target;if(!t.classList||!t.classList.contains('su-per'))return;
-  if(t.value==='4'&&t.dataset.p4ok!=='1')suP4Ask(t);});
+  if(t.value==='4'&&t.dataset.p4ok!=='1'&&!SCHOOL)suP4Ask(t);});
 function suP4Ask(inp){
   if(document.getElementById('su-p4ask'))return;
   const o=document.createElement('div');o.className='qov su-p4-ov';o.id='su-p4ask';
@@ -11499,7 +11692,7 @@ function suP4Ask(inp){
   document.body.appendChild(o);
   const done=ok=>{o.remove();if(!inp.isConnected)return;
     if(ok)inp.dataset.p4ok='1';else{inp.value='';inp.dataset.touched='1';}
-    const l=inp.closest('.su-row')&&inp.closest('.su-row').querySelector('.su-lunch');if(l)l.classList.toggle('off',!/^[56]$/.test(inp.value));
+    const l=inp.closest('.su-row')&&inp.closest('.su-row').querySelector('.su-lunch');if(l)l.classList.toggle('off',!lunchPeriodsNow()[inp.value]);
     inp.focus({preventScroll:true});suAutoSave(true);};
   o.addEventListener('click',e=>{const b=e.target.closest('[data-p4]');if(b)done(b.dataset.p4==='ok');});
   o.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();done(false);}});
@@ -11649,7 +11842,9 @@ function suIcalSave(now){clearTimeout(suIcalT);const go=()=>{const i=document.ge
   if(now)go();else suIcalT=setTimeout(go,900);}
 async function saveSetup(stay,quiet){
   clearTimeout(suSaveT);suSaveT=0;state.setupAuto=false;
-  const list=[],periods={},colors={},used=new Set(),picked={},lunch={};
+  const list=[],periods={},colors={},used=new Set(),picked={},lunch={},LPS=lunchPeriodsNow();
+  /* a grade / lunch-group choice and a typed lunch time are set above the table, not in its rows: keep them */
+  {const ol=state.settings.lunch||{};if(ol.g)lunch.g=ol.g;if(ol.c)lunch.c=ol.c;}
   const slug=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,12)||'class';
   document.querySelectorAll('#v-setup .su-row').forEach(r=>{
     const ni=r.querySelector('.su-name'),pi=r.querySelector('.su-per');
@@ -11663,9 +11858,9 @@ async function saveSetup(stay,quiet){
     used.add(id);ni.dataset.id=id;
     list.push({id,name:n.name,abbr:n.abbr,raw:raw||typed,keys:[...new Set(n.keys.concat(extra))].filter(Boolean).slice(0,16)});
     /* period 4 only once "I understand" was pressed for that row */
-    const p=Number(pi.value);if(p>=1&&p<=8&&(p!==4||pi.dataset.p4ok==='1'))periods[id]=p;
+    const p=Number(pi.value);if(p>=1&&p<=8&&(p!==4||pi.dataset.p4ok==='1'||SCHOOL))periods[id]=p;
     const ci=r.querySelector('.su-col');if(ci&&/^#[0-9a-f]{6}$/i.test(ci.value))picked[id]=ci.value;
-    const li=r.querySelector('.su-lunch');if((p===5||p===6)&&li&&/^[ABCD]$/.test(li.dataset.v||''))lunch[p]=li.dataset.v;
+    const li=r.querySelector('.su-lunch');if(LPS[p]&&li&&LPS[p].indexOf(li.dataset.v||'')>=0)lunch[p]=li.dataset.v;
   });
   if(!list.length)return;
   const taken=new Set();
@@ -12761,6 +12956,12 @@ let ckRaf=0,ckLastSec=-1;
 function ckMin(hm){const[h,m]=hm.split(':').map(Number);return (h<7?h+12:h)*60+m;}
 function ckSpan(r){const[a,b]=r.split('-');return [ckMin(a),ckMin(b)];}
 function ckSlots(ds){
+  if(SCHOOL){const dt=schoolDT(ds);if(!dt)return null;const out=[];
+    shDay(SCHOOL,dt,state.settings.lunch||{}).forEach(x=>{
+      if(x.kind==='class'){const c=x.per!=null?COURSES.find(y=>state.settings.periods[y.id]==x.per):null;out.push({p:x.per,name:c?cname(c):x.label,col:c?color(c.id):'var(--faint)',c:c?c.id:'',s:x.s,e:x.e,parts:x.parts});}
+      else if(x.kind==='lunch'||x.kind==='break')out.push({lunch:1,p:x.per,s:x.s,e:x.e,label:x.label});
+      else out.push({p:x.per,name:x.label,col:'var(--faint)',c:'',s:x.s,e:x.e});});
+    return out.sort((a,b)=>a.s-b.s||(a.lunch?1:0)-(b.lunch?1:0));}
   const t=dayType(ds);if(!t)return null;
   const early=relMode(ds)==='early',times=early?EARLY_TIMES:PERIOD_TIMES,lunch=state.settings.lunch||{},out=[];
   Object.keys(times).map(Number).filter(p=>(p%2===1)===(t==='green')).sort((a,b)=>ckMin(times[a].split('-')[0])-ckMin(times[b].split('-')[0])||a-b).forEach(p=>{
@@ -12785,13 +12986,13 @@ function ckStatus(now){
   const slots=ckSlots(todayStr()),m=now.getHours()*60+now.getMinutes()+now.getSeconds()/60;
   if(!slots||!slots.length)return ckStudy(now)||{text:'No school today'};
   const L=slots.find(x=>x.lunch&&m>=x.s&&m<x.e);
-  if(L)return{name:'Lunch',col:'var(--gold)',text:'Lunch ends in '+ckDur(L.e-m),pct:(m-L.s)/(L.e-L.s)};
+  if(L){const nm=L.label&&!/lunch/i.test(L.label)?L.label:'Lunch';return{name:nm,col:'var(--gold)',text:nm+' ends in '+ckDur(L.e-m),pct:(m-L.s)/(L.e-L.s)};}
   const cls=slots.filter(x=>!x.lunch),cur=cls.find(x=>m>=x.s&&m<x.e);
   if(cur){const ps=cur.parts||[[cur.s,cur.e]],tot=ps.reduce((n,[a,b])=>n+b-a,0),done=ps.reduce((n,[a,b])=>n+Math.min(b-a,Math.max(0,m-a)),0);
     const more=ps.some(([a])=>a>cur.s);
     return{name:cur.name,col:cur.col,text:more?'Lunch starts in '+ckDur(cur.e-m):cur.name+' ends in '+ckDur(cur.e-m),pct:tot?done/tot:0};}
   const nx=cls.find(x=>x.s>m);
-  if(nx&&(m>=cls[0].s||nx.s-m<=60))return{name:nx.name,col:nx.col,text:'Period '+nx.p+' starts in '+ckDur(nx.s-m)};
+  if(nx&&(m>=cls[0].s||nx.s-m<=60))return{name:nx.name,col:nx.col,text:(nx.p!=null?'Period '+nx.p:nx.name)+' starts in '+ckDur(nx.s-m)};
   return ckStudy(now)||{text:'No class right now'};}
 /* out of class: a study session you're going to, within the hour or running, counts down here too */
 function ckStudy(now){const t=now.getTime(),s=ssMine().find(x=>ssStart(x)-t<=3600000&&ssEnd(x)>t);if(!s)return null;
@@ -12879,6 +13080,7 @@ document.addEventListener('click',e=>{
   if(e.target.closest('[data-act="scareleave"]')){clearTimeout(scareT);state.view='home';try{localStorage.setItem('sx-tab','home');}catch(_){}render();if(scareFromTools)openTools();}});
 var scareFromTools=false;
 function render(){
+  schoolSync();
   if(state.user&&!memeGot&&!memeP&&Date.now()-memeMiss>600000)setTimeout(memeGet,0);
   if(gmPlaying()){gmMissed.render=true;return;}
   /* an assignment open for editing is saved first: redrawing would throw away its text and picked class */
