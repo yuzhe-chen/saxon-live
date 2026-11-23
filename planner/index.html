@@ -35,14 +35,19 @@ if(/^[a-z0-9_.-]{3,24}:[0-9a-f]{64}$/.test(tok)){try{if(!localStorage.getItem('s
 })();</script><script>/* runs outside script.google.com: the page's google.script.run calls go to the backend as plain web requests (no Google sign-in) */
 (function(){if(window.google&&window.google.script)return;
 var API='https:'+'/'+'/script.google.com/macros/s/AKfycbxDk0GrC7XrtoekZdrW4qPsffwxxuG0ujTopOYe5m3rzRPX1GOtbv9-aUtvaXAZlFLW/exec';
+var AUTH='https:'+'/'+'/script.google.com/macros/s/AKfycbyD2v6OsK-OSARQAf9Dc6fgx9Mzjri2kby-XYOWQMC4Bxv3Xq2lRwydToJYXPUjojn3wg/exec',AUTH_FNS={rpcLogin:1,rpcSignup:1,rpcAuthLogout:1,rpcNameFree:1,rpcAuthWarm:1},MAIN_TOO={rpcLogin:1,rpcSignup:1};
+window.SX_AUTH=!!AUTH;
 function runner(ok,fail){return new Proxy({},{get:function(_,name){
 if(name==='withSuccessHandler')return function(f){return runner(f,fail);};
 if(name==='withFailureHandler')return function(f){return runner(ok,f);};
 if(name==='withUserObject')return function(){return runner(ok,fail);};
 return function(){var args=Array.prototype.slice.call(arguments);
-fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn:name,args:args,site:location.hostname,framed:window.top!==window,via:(location.ancestorOrigins&&location.ancestorOrigins.length?location.ancestorOrigins[location.ancestorOrigins.length-1]:'')})})
-.then(function(r){return r.json();})
-.then(function(o){if(o&&o.ok){if(ok)ok(o.result);}else if(fail)fail(new Error(o&&o.error||'failed'));})
+var body=JSON.stringify({fn:name,args:args,site:location.hostname,framed:window.top!==window,via:(location.ancestorOrigins&&location.ancestorOrigins.length?location.ancestorOrigins[location.ancestorOrigins.length-1]:'')});
+var post=function(url){return fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:body}).then(function(r){return r.json();});};
+/* sign-in calls go to the sign-in service (its own Apps Script project); if it can't be reached, log in and sign up
+   fall back to the main backend, which still has both */
+var first=AUTH&&AUTH_FNS[name]?post(AUTH).catch(function(e){if(MAIN_TOO[name])return post(API);throw e;}):post(API);
+first.then(function(o){if(o&&o.ok){if(ok)ok(o.result);}else if(fail)fail(new Error(o&&o.error||'failed'));})
 .catch(function(e){if(fail)fail(e);});};}});}
 window.google={script:{run:runner(null,null)}};})();</script>
 <script>/* opened with a saved login (a reload, or from atoll framed): from the very first paint the page shows only its background and the
@@ -4517,7 +4522,7 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
 <h3>Your Classes</h3>
 <p>Open it any time from Settings (Classes, Edit) or the Edit classes button on Courses, which blinks while you have no Schoology link. Setup is two steps, in order:</p>
 <ul>
-<li><b>Step 1, Enter your classes and periods</b>: name each class and fill in its period. The table starts with 7 rows; <b>+</b> adds more, up to 10 classes, and × removes a row.</li>
+<li><b>Step 1, Enter your classes and periods</b>: name each class and fill in its period. The table starts with 7 rows; <b>+</b> adds more, up to 20 classes, and × removes a row.</li>
 <li><b>Step 2, Add your Schoology link</b> (optional, but highly recommended): paste your Schoology calendar (iCal) link and press Import (or <kbd>Enter</kbd>). Without it nothing syncs: assignments and tests won't come in from Schoology, and you'd add every one by hand. Finding your Schoology link, above, shows where to get it.</li>
 <li>Each row has the class name, an optional <b>period</b> (1 to 8), a <b>lunch</b> (A, B, C or D, only for periods 5 and 6) and a <b>color</b>. New classes get a color that isn't taken yet; click the swatch to pick another.</li>
 <li>Shorthand turns into the proper name when you leave the box (ap lang becomes AP English Language and Composition, calc bc becomes AP Calculus BC, bio becomes Biology). You can always change it. Typing AP Microeconomics or AP Macroeconomics offers the combined course if you take both. A name the planner doesn't recognize gets a small warning with Did you mean suggestions; you can keep it anyway.</li>
@@ -4613,7 +4618,7 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
 
 <h3>Resources</h3>
 <ul>
-<li>Each class has a card with <b>Add resource</b>: a <b>Document</b> or a <b>Link</b>. An account can hold up to 40 resources (downloads included) and up to 5 PDFs.</li>
+<li>Each class has a card with <b>Add resource</b>: a <b>Document</b> or a <b>Link</b>. Each PDF can be up to 1 MB.</li>
 <li>The button at the top switches between <b>My resources</b> (ones you wrote or contribute to) and <b>Downloaded</b> (ones you imported from the public library).</li>
 <li>Click a resource to open it. Documents open as a page, links open in a new tab, and <b>PDFs</b> open in a new tab.</li>
 <li>Only the author and the <b>contributors</b> they add by username (up to 10) can edit a resource. Only the author can delete it, change its contributors, or make it public or private. A resource you contribute to shows under your class with the same name.</li>
@@ -4654,10 +4659,10 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
 
 <div class="g-chat"><h3>Chat</h3>
 <ul>
-<li><b>Friends</b>: type a username under the list and press Add to send a friend request. If they already asked you, you become friends right away. You can have up to 100 friends.</li>
+<li><b>Friends</b>: type a username under the list and press Add to send a friend request. If they already asked you, you become friends right away.</li>
 <li><b>Requests</b> you receive appear at the top with Accept and Decline. Requests you sent appear under Sent with Cancel.</li>
 <li>Click a friend to open a direct chat. The icon next to a friend removes them. Only friends can message each other directly.</li>
-<li><b>New group</b> (the people icon): give it a name, check the friends to add, and press Start. Groups hold up to 20 people.</li>
+<li><b>New group</b> (the people icon): give it a name, check the friends to add, and press Start.</li>
 <li><b>Plan a study session</b> (the calendar button beside the message box): what, day, time, place, class and a note. Everyone answers Going, Maybe or Can't, and whoever planned it can cancel it for everyone. Sessions you're going to show on Home under Study sessions (All sessions lists them), in the Calendar, and remind you 10 minutes before they start.</li>
 <li><b>Send to a friend</b>: while editing an assignment, click its class name and pick Send to a friend, then a chat. Your friend gets it as a card and can add it to their own planner with one click.</li>
 <li>If a friend turned on <b>Friends can see my classes</b>, the More button beside their name in People opens <b>[Name]'s Classes</b>: each Green and Gold day's periods, with the classes you share marked.</li>
@@ -5131,7 +5136,7 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
 
     <div class="lp-cards">
       <div class="lp-card" style="--lp-c:var(--blue)"><i data-art="calc"></i><h3>Tools</h3><p>A GPA calculator that weights classes the FCPS way, Desmos, a clock that counts down the period, a table formatter and a breathing timer for study breaks.</p></div>
-      <div class="lp-card" style="--lp-c:var(--green)"><i data-art="chat"></i><h3>Chat</h3><p>Message friends one on one, or start a group of up to 20. Only people on your friends list can message you directly.</p></div>
+      <div class="lp-card" style="--lp-c:var(--green)"><i data-art="chat"></i><h3>Chat</h3><p>Message friends one on one, or start a group. Only people on your friends list can message you directly.</p></div>
       <div class="lp-card" style="--lp-c:var(--orange)"><i data-art="trophy"></i><h3>Rewards</h3><p>Share your link. Each person who signs up with it moves you up a rank and unlocks something new, like custom page colors, colored notes and Crown avatars.</p></div>
     </div>
 
@@ -6440,7 +6445,7 @@ function normalizeCourse(input){
     return bestScore >= 3 ? best : null;
   };
   SX.PALETTE = ['#2b8cff', '#ff3b30', '#a259ff', '#ff9500', '#00c48c', '#ff2d87', '#5b6cff', '#00bcd4', '#ffcc00', '#34c759', '#ff6b35', '#af52de'];
-  SX.MAX_CLASSES = 10;
+  SX.MAX_CLASSES = 20;
   /* a new class from a calendar course name; the page turns its name into the proper one (normalizeCourse) on next load */
   function newClass(d, name) {
     var courses = d.settings.courses = d.settings.courses || [];
@@ -6862,10 +6867,10 @@ function normalizeCourse(input){
   };
 
   /* ---------- resources people write (documents and links), shared limits and cleaning ---------- */
-  SX.RES_MAX = 40;            /* resources per account */
+  SX.RES_MAX = 100000;        /* resources per account: effectively no cap (Nov 2026: growth caps removed) */
   SX.DOC_MAX = 60000;         /* characters of document HTML */
   SX.PDF_MAX = 1048576;       /* bytes per uploaded PDF (stored base64 in the data sheet) */
-  SX.PDF_PER_USER = 5;
+  SX.PDF_PER_USER = 100000;    /* effectively no cap; PDF_MAX per file still applies */
   var str = function (v, n) { return typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/[—·]/g, ',').replace(/\s+/g, ' ').trim().slice(0, n) : ''; };
   SX.httpsUrl = function (v) { v = String(v || '').trim(); return /^https:\/\/[a-z0-9.-]+\.[a-z]{2,}(?::\d+)?([\/?#][^\s"'<>]*)?$/i.test(v) && v.length <= 1000 ? v : ''; };
   /* input from the page -> {res} or {error}; flags are worked out here, so a flagged resource is never published */
@@ -6894,7 +6899,7 @@ function normalizeCourse(input){
      The author (owner) and the contributors they name may edit; only the author changes Public/Private, the
      contributor list, or deletes it. A downloaded copy (from) is read-only and follows its source on resync.
      Others see a resource only while it is published (public and not flagged). */
-  SX.CONTRIB_MAX = 10;
+  SX.CONTRIB_MAX = 50;
   var contribs = function (r) { return (r && Array.isArray(r.contributors)) ? r.contributors : []; };
   SX.isAuthor = function (r, me) { return !!r && !r.from && r.owner === me; };
   SX.canEdit = function (r, me) { return !!r && !r.from && (r.owner === me || contribs(r).indexOf(me) >= 0); };
@@ -7095,8 +7100,8 @@ function normalizeCourse(input){
   SX.CHAT_RECENT_KEEP = 60;    /* newest messages left in the record after archiving (one page) */
   SX.CHAT_ARCH_MAX = 200;      /* messages per archived page */
   SX.CHAT_CHARS = 80000;       /* characters for the record's messages or one archived page (the script cache holds < 90,000) */
-  SX.FRIENDS_MAX = 100;
-  SX.GROUP_MAX = 20;           /* people per group */
+  SX.FRIENDS_MAX = 1000;       /* bounds the social record's size, not a growth cap */
+  SX.GROUP_MAX = 200;          /* people per group (pings go out 50 at a time) */
   SX.SESS_MAX = 30;            /* study sessions kept per conversation */
   SX.SESS_INDEX_MAX = 60;      /* study sessions listed per account */
   SX.dmId = function (a, b) { return 'd:' + (a < b ? a + '|' + b : b + '|' + a); };
@@ -11077,7 +11082,7 @@ document.addEventListener('click',e=>{if(tDragging||Date.now()-tNoClick<500){e.s
 const normalizeCourse=SX.normalizeCourse,ckey=SX.ckey,makeAbbr=SX.makeAbbr;
 
 /* ---------- class setup: up to 9 classes, each with an optional period ---------- */
-const SETUP_MIN=7,SETUP_MAX=10;let setupRows=0;
+const SETUP_MIN=7,SETUP_MAX=20;let setupRows=0;
 const WARN_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2.5L1.5 21h21zM11 9h2v6.5h-2zM11 17h2v2h-2z"/></svg>';
 /* the table's rows: from the saved classes when the page opens, after that from the table itself, so a redraw (a reload
    in the background, a new row, a removed row) never shifts what was typed into another row or drops a lunch */
@@ -13312,6 +13317,22 @@ if(window.SX_REF)sxRefArrived(window.SX_REF);
      account's data loading (true once in hand); a short ring shows on the color only if it is still on its way */
   /* opts.center: no login page (a framed start with a saved session): the clock on a plain page in the middle of the
      screen, and opts.swap draws the planner behind the color */
+  /* the wrong-password burst: each part of the clock (rim, face, ticks, hands, cap) flies out from the middle along
+     its own line, spinning and fading, behind a quick white flash; about 0.7 s, then the form shakes as usual */
+  const ckBurst=g=>new Promise(done=>{
+    const parts=[...g.querySelectorAll('path,circle,line,rect,polygon,ellipse')];
+    const flash=document.createElementNS('http:'+'/'+'/www.w3.org/2000/svg','circle');
+    flash.setAttribute('cx','50');flash.setAttribute('cy','50');flash.setAttribute('fill','#fff');g.appendChild(flash);
+    const fly=parts.map((el,i)=>{let b={x:45,y:45,width:10,height:10};try{b=el.getBBox();}catch(_){}
+      const px=b.x+b.width/2,py=b.y+b.height/2,a=Math.atan2(py-50,px-50)+(Math.random()-.5)*.9+(Math.hypot(px-50,py-50)<4?i*2.4:0);
+      return {el,base:el.getAttribute('transform')||'',px,py,dx:Math.cos(a),dy:Math.sin(a),dist:70+Math.random()*90,spin:(Math.random()-.5)*720};});
+    const t0=performance.now(),D=700;
+    const fr=now=>{const t=Math.min(1,(now-t0)/D),e=1-Math.pow(1-t,3);
+      flash.setAttribute('r',String(6+44*Math.min(1,t*3)));flash.setAttribute('opacity',String(Math.max(0,.9-t*3.2)));
+      fly.forEach(p=>{p.el.setAttribute('transform',`translate(${p.dx*p.dist*e} ${p.dy*p.dist*e+40*t*t}) rotate(${p.spin*e} ${p.px} ${p.py}) ${p.base}`);
+        p.el.setAttribute('opacity',String(1-t));});
+      if(t<1)requestAnimationFrame(fr);else done();};
+    requestAnimationFrame(fr);});
   const clockEnter=async(dataP,opts={})=>{
     spMenu(false);
     const html=document.documentElement,wait=ms=>new Promise(r=>setTimeout(r,ms));
@@ -13336,7 +13357,12 @@ if(window.SX_REF)sxRefArrived(window.SX_REF);
     const setPop=(s,o)=>{pop.setAttribute('transform',`translate(50 50) scale(${s}) translate(-50 -50)`);pop.setAttribute('opacity',o);};
     const io=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2,back=t=>{const c=1.6;return 1+(c+1)*Math.pow(t-1,3)+c*Math.pow(t-1,2);};
     /* each frame moves the animation on by at most 40 ms, so a busy page (still loading) pauses it instead of skipping it */
-    const run=(ms,f)=>new Promise(res=>{let el=0,last=performance.now();const fr=now=>{el+=Math.max(0,Math.min(40,now-last));last=now;const t=Math.min(1,el/ms);f(t);if(t<1)requestAnimationFrame(fr);else res();};requestAnimationFrame(fr);});
+    const run=(ms,f)=>new Promise(res=>{let el=0,last=performance.now();const fr=now=>{el+=Math.max(0,Math.min(40,now-last));last=now;const t=Math.min(1,el/ms);f(t);if(t<1&&ok!==false)requestAnimationFrame(fr);else res();};requestAnimationFrame(fr);});
+    /* the answer was "no" (wrong password, name taken...): the clock goes away at once instead of finishing its spin */
+    const bail=async()=>{if(ok!==false)return false;
+      /* a wrong password: the clock bursts (every part flies out from the middle, spinning and fading) */
+      if(opts.why&&opts.why()==='wrong')await ckBurst(pop);
+      ov.remove();sp.classList.remove('clk','clk-out');go.classList.remove('busy');return true;};
     let cx,cy,rc;
     setT(0);setPop(.55,0);
     if(!opts.center)sp.classList.add('clk');
@@ -13351,8 +13377,10 @@ if(window.SX_REF)sxRefArrived(window.SX_REF);
     }else{
       await wait(60);
       await run(340,t=>setPop(.55+.45*back(t),Math.min(1,t*2.5)));}
+    if(await bail())return false;
     await wait(50);
     await run(1250,t=>setT(880*io(t)));
+    if(await bail())return false;
     await wait(50);
     if(!opts.center)sp.classList.add('clk-out');
     await wait(120);
@@ -13360,6 +13388,7 @@ if(window.SX_REF)sxRefArrived(window.SX_REF);
     const far=Math.max(Math.hypot(cx,cy),Math.hypot(W-cx,cy),Math.hypot(cx,H-cy),Math.hypot(W-cx,H-cy)),sEnd=far/rc*1.04,lnE=Math.log(sEnd);
     await run(700,t=>{const s=Math.exp(lnE*(t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2));
       svg.setAttribute('viewBox',`${cx-cx/s} ${cy-cy/s} ${W/s} ${H/s}`);});
+    if(await bail())return false;
     const cov=document.createElement('div');cov.id='spcover';cov.setAttribute('aria-hidden','true');cov.style.background=CK_STYLES[CKS].cap;document.body.appendChild(cov);ov.remove();
     if(ok===null){const wt=setTimeout(()=>cov.classList.add('wait'),250);await dataP.catch(()=>{});clearTimeout(wt);cov.classList.remove('wait');}
     if(!ok){
@@ -13385,10 +13414,25 @@ if(window.SX_REF)sxRefArrived(window.SX_REF);
     const a=document.activeElement;if(a&&a.tagName==='INPUT'&&a.selectionStart!==a.selectionEnd)return;
     (user.value?code:user).focus();});
   sw.addEventListener('click',()=>{setMode(!signup);focusFirst();});
+  /* the sign-in service (web build only): woken while the form is open, so its first answer comes from a warm start,
+     and asked whether a new username is free while it is typed (the sign-up then never waits to hear "taken") */
+  const authRun=(fn,...a)=>new Promise(res=>{if(!window.SX_AUTH)return res(null);try{google.script.run.withSuccessHandler(res).withFailureHandler(()=>res(null))[fn](...a);}catch(_){res(null);}});
+  let warmAt=0;const authWarm=()=>{if(passKey||Date.now()-warmAt<120000)return;warmAt=Date.now();authRun('rpcAuthWarm');};
+  ['pointerdown','focusin','keydown'].forEach(ev=>gate.addEventListener(ev,authWarm,{passive:true}));
+  if(!passKey)setTimeout(authWarm,400);
+  let freeT=0,freeFor='';
+  user.addEventListener('input',()=>{
+    clearTimeout(freeT);if(!signup)return;
+    const n=user.value.trim().toLowerCase();
+    if(msg.dataset.free){msg.textContent='';delete msg.dataset.free;}
+    if(!/^[a-z0-9_.-]{3,24}$/.test(n))return;
+    freeT=setTimeout(async()=>{freeFor=n;const a=await authRun('rpcNameFree',n);
+      if(!a||freeFor!==n||!signup||user.value.trim().toLowerCase()!==n||busy)return;
+      if(a.free===false){msg.textContent=a.why==='badname'?ERR.badname:ERR.taken;msg.dataset.free='1';}},250);});
   const ERR={empty:'Enter a username and password',wrong:'Wrong password',nouser:'Account not found',banned:'This account has been banned',badname:'Pick a different username',taken:'That username is taken',
     short:'Password must be at least 6 characters',long:'Password is too long',mismatch:'Passwords don’t match',
     name:'Usernames are 3 to 24 letters, numbers, periods, dashes or underscores',locked:'Too many tries, wait a minute',
-    full:'No room for new accounts',busy:'Too many new accounts right now, try again later',conn:'Can’t connect, try again'};
+    full:'No room for new accounts',busy:'This device made 5 accounts in the last hour. Try again later',conn:'Can’t connect, try again'};
   const fail=k=>{go.classList.remove('busy');msg.textContent=ERR[k]||ERR.conn;gate.classList.remove('bad');void gate.offsetWidth;gate.classList.add('bad');
     if(k==='wrong'||k==='mismatch'||k==='short'){code.value='';conf.value='';code.focus();}
     /* the referral can't be used here: the code is cleared, so signing up again goes through without it */
@@ -13411,32 +13455,33 @@ if(window.SX_REF)sxRefArrived(window.SX_REF);
       if(!document.getElementById('spagree').checked)return fail('terms');
     }
     busy=true;msg.textContent='';go.classList.add('busy');
-    let r=null;
     const sq=loginSeq;loginSeq=null;
-    try{r=await authCall(signup?'signup':'login',name,pw,signup?refIn.value:'',sq);}catch(_){r=null;}
-    busy=false;
-    if(tfaAsk(r,name,go))return;
-    if(!r||!r.token)return fail(r&&r.error||'conn');
-    try{localStorage.removeItem('sx-ref');}catch(_){}refIn.value='';
-    setToken(r.token);state.user=r.user;
-    /* hand the login to the browser's password manager (Chrome offers to save it); ignored where it isn't supported */
-
-    resetAccountState();
-    state.view='home';try{localStorage.setItem('sx-tab','home');}catch(_){}
-    /* a new account: the FAQ button blinks until its "I Can Read" */
-    /* and it lands on Home, where the tutorial starts once the login page is gone (Your Classes comes in the tutorial) */
-    const su=signup;if(su)HOME_PICK=true;   /* a new account goes straight to Home */
-    const newAcct=()=>{if(su){state.settings.faqNew=true;state.settings.tutorialNew=true;saveSettings();}};
-    /* the data usually came with the reply (r.data), so it is in hand at once; the clock plays either way */
-    const dataP=loadData(r.data).then(ok=>{if(ok)newAcct();return ok;});
+    /* the request goes out and the clock starts on this same frame, so the tap answers at once (well under 50 ms); the
+       clock plays for as long as the answer takes (it holds on the color until the account's data is in), and a "no"
+       stops it early and shows why */
+    const su=signup;let r=null;
+    const authP=authCall(su?'signup':'login',name,pw,su?refIn.value:'',sq).then(v=>(r=v),()=>(r=null));
+    const dataP=authP.then(v=>{
+      if(!v||!v.token)return false;
+      try{localStorage.removeItem('sx-ref');}catch(_){}refIn.value='';
+      setToken(v.token);state.user=v.user;
+      resetAccountState();
+      state.view='home';try{localStorage.setItem('sx-tab','home');}catch(_){}
+      /* a new account lands on Home (the tutorial starts there once the login page is gone) and its FAQ button blinks */
+      if(su)HOME_PICK=true;
+      /* the data came with the reply (r.data); the sign-in service's profile is short, so the full one (avatar,
+         referrals, multiplayer) follows from the main backend right after */
+      return loadData(v.data).then(ok=>{if(ok&&su){state.settings.faqNew=true;state.settings.tutorialNew=true;saveSettings();}
+        if(ok&&v.data)setTimeout(()=>{loadData().catch(()=>{});},60);return ok;});
+    });
+    const refused=()=>{busy=false;go.classList.remove('busy');if(tfaAsk(r,name,go))return;fail(r&&r.error||'conn');};
     if(matchMedia('(prefers-reduced-motion: reduce)').matches){
-      if(!(await dataP))return fail('conn');
-      enter();
+      if(!(await dataP))return refused();
+      busy=false;enter();
       if(state.settings.tutorialNew)tutSoon();return;}
-    busy=true;
-    const ok=await clockEnter(dataP);
+    const ok=await clockEnter(dataP,{why:()=>r&&r.error});
     busy=false;
-    if(!ok)return fail('conn');
+    if(!ok)return refused();
     if(state.settings.tutorialNew)tutSoon();
   });
   /* the brand in the top bar opens Home; only Log out returns to the login page */
@@ -13870,7 +13915,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.getElemen
 var CH={state:null,tabs:[],cur:null,conv:{},pane:null,ng:null,gp:false,menu:'',confirm:'',timer:0,inflight:false,again:false,
   typing:{},opt:new Set(),lastSync:0,booted:'',sess:{},sessTried:false,noRead:false};
 var CH_ERR={nouser:'No such user',self:'That\'s you',full:'Friend list full',slow:'Slow down',notfriend:'Not friends',
-  members:'Pick at least one friend',toobig:'Groups hold up to 20',noconv:'Conversation gone',conn:'Not connected',
+  members:'Pick at least one friend',toobig:'That group is too big',noconv:'Conversation gone',conn:'Not connected',
   norequest:'That request is gone',nomember:'Not in this group',notshared:'Not shared',bad:'Not available yet',readonly:'Read only',empty:'Nothing to send',notallowed:'Not allowed',nomsg:'Message gone'};
 function chatApi(op,args){return Promise.resolve(api('/api/social',{method:'POST',body:JSON.stringify({op,args:args||{}})})).then(r=>{if(r&&r.avs)chAvs=r.avs;return r;});}
 /* chat's icons: drawn like the menu bar's (24-unit grid, 2.8 stroke, round ends; sized and coloured by CSS) */
@@ -14718,7 +14763,7 @@ function chGroupGo(){
   const ng=CH.ng;if(!ng||!CH.state)return;
   const gi=document.getElementById('ch-gname'),title=(gi?gi.value:ng.title||'').trim().slice(0,60),sel=ng.sel.slice();
   if(!sel.length){ng.err=CH_ERR.members;chatPaint();return;}
-  if(sel.length+1>20){ng.err=CH_ERR.toobig;chatPaint();return;}
+  if(sel.length+1>SX.GROUP_MAX){ng.err=CH_ERR.toobig;chatPaint();return;}
   const tmp='gtmp'+(++chK),list=[me()].concat(sel);
   CH.ng=null;
   CH.state.convs.unshift({id:tmp,title:title||list.join(', '),group:true,system:false,last:Date.now(),unread:false,preview:'',tmp:true});
@@ -15143,6 +15188,7 @@ function logOutClose(){
 async function logOut(){
   try{if(window.SXRT)SXRT.stop();}catch(_){}RT_USER='';RT_INFO=null;
   state.setOpen=false;closeNavMenus();render();
+  if(window.SX_AUTH&&passKey){try{google.script.run.rpcAuthLogout(passKey);}catch(_){}}
   const out=api('/api/logout',{method:'POST',body:'{}'}).catch(()=>{});
   if(!splashLeave){await out;logOutClose();authLost();return;}
   /* the overlays close once the bars and the login page's background cover the screen, so nothing jumps before that */
