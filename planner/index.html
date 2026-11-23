@@ -15944,12 +15944,23 @@ const guestReply=r=>{if(r&&typeof r==='object'&&r.used){newGuestId();return '';}
 const gmSaveQ=new Map(),gmSent=new Map();let gmSaveT=0,gmSaveRun=Promise.resolve();
 /* a copy already saved is not sent again, and a save the server is too busy for waits 20 to 30 s before it tries again */
 /* each save is a spreadsheet write of the whole copy under the one script lock, so a big save waits longer: 8 s up to 8 KB, then 0.3 ms per character (45 s at the 150 KB limit) */
-function gameSaveSoon(id,data){if(gmSent.get(id)===data&&!gmSaveQ.has(id))return;gmSaveQ.set(id,data);if(!gmSaveT)gmSaveT=setTimeout(gameSaveFlush,Math.min(45000,Math.max(8000,String(data).length*0.3)));}
-function gameSaveFlush(){clearTimeout(gmSaveT);gmSaveT=0;if(!gmSaveQ.size)return gmSaveRun;const q=[...gmSaveQ];gmSaveQ.clear();
-  /* this device keeps the newest copy at once (not on every save a game makes: only when they go out) */
+/* the server gets each game's save at most every GM_SRV_GAP (2026-11-23: game saves were 60% of all backend calls and
+   queued classwork behind them at 2 PM); this device's copy still follows every 8-45 s, and closing the game, hiding the
+   tab or leaving the page sends everything at once */
+const GM_SRV_GAP=90000,gmSentAt=new Map();
+function gameSaveSoon(id,data){if(gmSent.get(id)===data&&!gmSaveQ.has(id))return;gmSaveQ.set(id,data);if(!gmSaveT)gmSaveT=setTimeout(()=>gameSaveFlush(true),Math.min(45000,Math.max(8000,String(data).length*0.3)));}
+/* soft (the timers): this device's copy now, the server only for games not sent in the last GM_SRV_GAP; anything else
+   (pagehide, tab hidden, closing the game) sends every waiting save */
+function gameSaveFlush(soft){clearTimeout(gmSaveT);gmSaveT=0;if(!gmSaveQ.size)return gmSaveRun;let q=[...gmSaveQ];
+  /* this device keeps the newest copy at once (not on every save a game makes: only when a timer or a send comes) */
   if(!(isGameAdmin()&&gameTest()))q.forEach(([id,d])=>{const dv=gsDev(id);gsDevPut(id,d,dv?dv.s:(gmSent.has(id)?gmSent.get(id):'\u0000'));});
+  if(soft===true){const now=Date.now(),left=id=>GM_SRV_GAP-(now-(gmSentAt.get(id)||0)),wait=q.filter(([id])=>left(id)>0);
+    q=q.filter(([id])=>left(id)<=0);
+    if(wait.length)gmSaveT=setTimeout(()=>gameSaveFlush(true),Math.max(1000,Math.min(15000,...wait.map(([id])=>left(id)))));
+    if(!q.length)return gmSaveRun;}
+  q.forEach(([id])=>{gmSaveQ.delete(id);gmSentAt.set(id,Date.now());});
   return gmSaveRun=gmSaveRun.then(()=>Promise.all(q.map(([id,d])=>gameSave(id,d).then(()=>{gmSent.set(id,d);const dv=gsDev(id);if(!dv||dv.d===d)gsDevPut(id,d,d);}).catch(err=>{
-    if(err&&err.busy){if(!gmSaveQ.has(id))gmSaveQ.set(id,d);if(!gmSaveT)gmSaveT=setTimeout(gameSaveFlush,20000+Math.random()*10000);}
+    if(err&&err.busy){gmSentAt.delete(id);if(!gmSaveQ.has(id))gmSaveQ.set(id,d);if(!gmSaveT)gmSaveT=setTimeout(()=>gameSaveFlush(true),20000+Math.random()*10000);}
     else console.warn('game save failed',err);}))));}
 addEventListener('pagehide',gameSaveFlush);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)gameSaveFlush();});
