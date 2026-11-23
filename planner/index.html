@@ -2779,9 +2779,10 @@ svg.bk-book .bk-p2{animation:bkp2 5s cubic-bezier(.5,0,.4,1) infinite}
 /* News */
 .nw-wrap{max-width:1040px;margin:0 auto;padding:24px 20px 60px}
 .nw-top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:8px}
-.nw-h{margin:0;font:800 28px var(--font-ui);color:var(--fg)}
+.nw-h{margin:0;font:700 28px/42px var(--display);color:var(--blue);text-transform:lowercase;letter-spacing:-0.01em}
 .nw-sw{display:flex;align-items:center;gap:10px;font:800 14.5px var(--font-ui);color:var(--fg2)}
 .nw-chips{margin:8px 0 20px}
+.nw-chips .hbtn:not(.on),.ab-card .abs-row .kbtn:not(.on){color:var(--fg2)}
 .nw-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
 .nw-card{display:flex;flex-direction:column;gap:8px;padding:16px 18px;background:var(--box);border:2px solid var(--line);border-bottom-width:4px;border-radius:16px;color:var(--fg);text-decoration:none;min-width:0}
 .nw-card:hover{border-color:var(--pri-light)}
@@ -2795,7 +2796,7 @@ svg.bk-book .bk-p2{animation:bkp2 5s cubic-bezier(.5,0,.4,1) infinite}
 .nw-tbl td{text-align:right;padding:7px 6px;border-top:2px solid var(--line);white-space:nowrap}
 .nw-tbl th:first-child,.nw-tbl td:first-child{text-align:left}
 .nw-rk{display:inline-block;width:22px;color:var(--faint);font-weight:800}
-.nw-retry{display:flex;justify-content:center}
+.nw-retry{display:flex;justify-content:flex-start;margin-top:10px}
 .dl-price{align-self:flex-start;padding:3px 10px;border-radius:999px;background:var(--pri-wash);color:var(--green);font:800 14px var(--font-ui)}
 @media(max-width:560px){.nw-tbl{padding:12px 10px}.nw-tbl table{font-size:13px}.nw-tbl td,.nw-tbl th{padding:7px 3px}.nw-rk{width:18px}.nw-grid{grid-template-columns:1fr}.nw-list{grid-template-columns:1fr}.nw-wrap{padding:16px 14px 50px}}
 /* Appearance: hidden pages, and avatars */
@@ -2986,7 +2987,7 @@ button.ch-row.on{background:var(--blue-wash);box-shadow:inset 0 0 0 2px var(--bl
 .su-row .xdd.su-lunch .cdd-btn .car svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
 .su-row .xdd.su-lunch .cdd-menu{left:auto;right:0;min-width:130px}
 .su-row .xdd.su-lunch.off{visibility:hidden}
-@media (max-width:700px){.su-row .xdd.su-lunch.off{display:none}.su-list .su-row .xdd.su-lunch{width:86px}.su-row .xdd.su-lunch .cdd-btn{padding:0 5px 0 10px;gap:2px;font-size:13px}.su-row .xdd.su-lunch .cnm{overflow:visible}}
+@media (max-width:700px){.su-list .su-row:has(.su-lunch:not(.off)){flex-wrap:wrap}.su-list .su-row .xdd.su-lunch:not(.off){order:9;flex:1 1 100%;width:auto}.su-row .xdd.su-lunch.off{display:none}.su-list .su-row .xdd.su-lunch{width:86px}.su-row .xdd.su-lunch .cdd-btn{padding:0 5px 0 10px;gap:2px;font-size:13px}.su-row .xdd.su-lunch .cnm{overflow:visible}}
 .su-p4-ov .qbox{width:420px;border:2px solid var(--line);border-bottom-width:4px;border-radius:var(--r)}
 .su-p4-ov p{margin:0;font-size:15px;line-height:1.45}
 .su-p4-ov .gw-row{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px}
@@ -12547,6 +12548,7 @@ async function pwxAct(a){
   if(a==='chg'){const c=v('sec-cur'),n1=v('sec-new'),n2=v('sec-new2');if(!c)return pwxMsg(PWX_ERR.wrongcur);if(n1.length<6)return pwxMsg(PWX_ERR.short);if(n1!==n2)return pwxMsg(PWX_ERR.mismatch);
     const r=await call('rpcPwChange',passKey,c,n1);if(!r.ok)return pwxMsg(PWX_ERR[r.error]||PWX_ERR.conn);secOpen('Password changed. Your old password still works for 3 days.');return;}
   if(a==='picset'){pwx={mode:'set',seq:[],back:'sec'};pwxPics();return;}
+  if(a==='tfago'){const sw=document.querySelector('.tfa-sw');if(sw){sw.scrollIntoView({block:'center',behavior:'smooth'});sw.focus({preventScroll:true});}return;}
   if(a==='picoff'){const r=await call('rpcPicSet',passKey,null);if(r.ok&&state.user)state.user.pic=false;secOpen(r.ok?'Picture password turned off.':PWX_ERR.conn);render();return;}
   if(a==='classes'){pwxClose();state.setOpen=false;closeNavMenus();HOME_PICK=false;state.setup=true;render();const w=document.querySelector('.wrap');if(w)w.scrollTop=0;return;}
   if(a==='who'){const n=v('pwx-name').trim().toLowerCase();if(!n)return pwxMsg(PWX_ERR.nouser);pwx.name=n;
@@ -12610,7 +12612,7 @@ function secPaint(r,note){
   state.user.pic=r.pic;
   const todo=[[r.ical,'Add your Schoology link','Your assignments sync, and you can reset your password with it.','<button type="button" class="pwx-alt" data-pwx="classes">Edit classes</button>'],
     [r.pic,'Set a picture password','Another way to reset your password, and needed for two-step login.','<button type="button" class="pwx-alt" data-pwx="picset">Set</button>'],
-    [r.tfa,'Turn on two-step login','Nobody can log in with just your password.','']];
+    [r.tfa,'Turn on two-step login','Nobody can log in with just your password.'+(r.pic?'':' Set a picture password first.'),r.pic?'<button type="button" class="pwx-alt" data-pwx="tfago">Turn on</button>':'']];
   const ok='<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   pwxShow(`<div class="sec"><h2>Security</h2>
     ${note?`<div class="sec-ok">${esc(note)}</div>`:''}
