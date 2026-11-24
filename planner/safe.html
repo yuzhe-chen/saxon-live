@@ -40,7 +40,7 @@ window.SX_AUTH=!!AUTH;window.SX_SHIM=true;
 /* RELAYS: forwarders on different providers (relay/) for networks that block script.google.com. A call that can't reach
    Apps Script (network error or a filter's block page) is sent again through them in order, starting with the last one that
    worked; after one such failure this page goes to the relays first for 12 hours */
-var RELAYS=['https:'+'/'+'/tidepool.ambicant.workers.dev'],RK='sx-relay',viaRelay=false,rPref=0;try{var rv=(localStorage.getItem(RK)||'').split('|');viaRelay=RELAYS.length>0&&Date.now()-(+rv[0]||0)<432e5;rPref=Math.max(0,Math.min(+rv[1]||0,RELAYS.length-1));}catch(_){}
+var RELAYS=['https:'+'/'+'/reedbank-eta.vercel.app','https:'+'/'+'/tidepool.ambicant.workers.dev'],RK='sx-relay',viaRelay=false,rPref=0;try{var rv=(localStorage.getItem(RK)||'').split('|');viaRelay=RELAYS.length>0&&Date.now()-(+rv[0]||0)<432e5;rPref=Math.max(0,Math.min(+rv[1]||0,RELAYS.length-1));}catch(_){}
 function runner(ok,fail){return new Proxy({},{get:function(_,name){
 if(name==='withSuccessHandler')return function(f){return runner(f,fail);};
 if(name==='withFailureHandler')return function(f){return runner(ok,f);};
