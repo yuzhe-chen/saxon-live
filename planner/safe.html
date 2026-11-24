@@ -2797,7 +2797,6 @@ svg.bk-book .bk-p2{animation:bkp2 5s cubic-bezier(.5,0,.4,1) infinite}
 .nw-tbl th:first-child,.nw-tbl td:first-child{text-align:left}
 .nw-rk{display:inline-block;width:22px;color:var(--faint);font-weight:800}
 .nw-retry{display:flex;justify-content:flex-start;margin-top:10px}
-.dl-price{align-self:flex-start;padding:3px 10px;border-radius:999px;background:var(--pri-wash);color:var(--green);font:800 14px var(--font-ui)}
 @media(max-width:560px){.nw-tbl{padding:12px 10px}.nw-tbl table{font-size:13px}.nw-tbl td,.nw-tbl th{padding:7px 3px}.nw-rk{width:18px}.nw-grid{grid-template-columns:1fr}.nw-list{grid-template-columns:1fr}.nw-wrap{padding:16px 14px 50px}}
 /* Appearance: hidden pages, and avatars */
 html.no-v-courses [data-v="courses"],html.no-v-courses #hm-courses,
@@ -2807,7 +2806,6 @@ html.no-v-assignments [data-v="assignments"],html.no-v-assignments #hm-assignmen
 html.no-v-resources [data-v="resources"],html.no-v-resources #hm-resources,
 html.no-v-chat [data-v="chat"],html.no-v-chat #hm-chat,
 html.no-v-news [data-v="news"],
-html.no-v-deals [data-v="deals"],
 html.no-v-absence [data-v="absence"],
 html.no-v-tasks [data-v="tasks"],html.no-v-tasks #hm-tasks,
 html.no-v-guide [data-v="guide"],html.no-v-guide #hm-guide,
@@ -4605,8 +4603,6 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
 <li><b>School Events</b>: pick a date, add an optional time and a title, then press Add. Times are read between 7 AM and 6 PM, so 8:10 means 8:10 AM and 3 means 3:00 PM. Upcoming events are listed here and show on the calendar.</li>
 </ul>
 
-<h3>Deals</h3>
-<p>Deals, in the top bar (under More on a small screen), lists sales from public deal sites, refreshed every 15 minutes. The chips at the top (All, Electronics, Computers, Gaming and toys, Clothing, School supplies, Books and music, Sports, Beauty, Home) narrow the list; a card opens the deal on the store's own page in a new tab. Anything adult or age restricted is left out. Deals can be hidden under Settings, Appearance, Hide pages.</p>
 
 <h3>Tools</h3>
 <p>Tools, in the top bar, is a screen of tools. The menu bar hides while one fills the screen; the arrow on the left edge brings you back.</p>
@@ -5132,7 +5128,6 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
       </div>
       <div class="mm-sep mm-psep"></div>
       <button class="mm-row" data-v="news"><i class="mi" data-art="globe"></i><span>News</span></button>
-      <button class="mm-row" data-v="deals"><i class="mi" data-art="search"></i><span>Deals</span></button>
       <button class="mm-row" data-act-games><i class="mi" data-art="controller"></i><span>Games</span></button>
       <button class="mm-row" id="mgear" aria-expanded="false" aria-controls="mgear-l"><i class="mi" data-art="gear"></i><span>Settings</span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
       <div class="mm-other" id="mgear-l" hidden>
@@ -5173,7 +5168,6 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
 <section class="view" id="v-tasks"></section>
 <section class="view" id="v-absence"></section>
 <section class="view" id="v-news"></section>
-<section class="view" id="v-deals"></section>
 <section class="view" id="v-tools"></section>
 <section class="view" id="v-clock"></section>
 <section class="view" id="v-scare"></section>
@@ -10386,8 +10380,8 @@ function renderSetdd(){
 
 /* ---------- calc section expansion ---------- */
 const parseCalcSections=input=>(input.match(/\d+\.\d+[a-z]?/gi)||[]).map(s=>s.toLowerCase());
-/* the calc shortcut's item title: section - pg.page: problems (the stored list says "p. 77: 3, 9, 23"), e.g. 1.1 - pg.77: 3, 9, 23 */
-const calcTitle=(sec,probs)=>{if(!probs)return sec;const m=/^p\.?\s*(\d+)\s*:\s*(.*)$/i.exec(String(probs).trim());return m?sec+' - pg.'+m[1]+': '+m[2]:sec+': '+probs;};
+/* the calc shortcut's item title: section - pg. page: problems (the stored list says "p. 77: 3, 9, 23"), e.g. 1.1 - pg. 77: 3, 9, 23 */
+const calcTitle=(sec,probs)=>{if(!probs)return sec;const m=/^p\.?\s*(\d+)\s*:\s*(.*)$/i.exec(String(probs).trim());return m?sec+' - pg. '+m[1]+': '+m[2]:sec+': '+probs;};
 
 /* small note under a tab when an account has no classes yet */
 let needT=0;
@@ -10460,7 +10454,7 @@ function measureTabs(){
   mMenu.querySelectorAll('.mtab').forEach(m=>m.classList.toggle('inbar',inBar.has(m.dataset.v)));
   if(typeof chatBadge==='function'&&CH)chatBadge();
   mMenu.classList.toggle('all-in',shown===tabs.length);
-  menuBtn.classList.toggle('on',tabs.slice(shown).some(t=>t.dataset.v===state.view)||state.view==='news'||state.view==='deals');
+  menuBtn.classList.toggle('on',tabs.slice(shown).some(t=>t.dataset.v===state.view)||state.view==='news');
   moreDD.innerHTML='';
 }
 function scheduleMeasure(){if(measureQueued)return;measureQueued=true;
@@ -12425,7 +12419,7 @@ const AV_FR=[['g','Gold'],['s','Silver'],['r','Rainbow']];
 const avName=id=>{const m=/^([mac])(\d{1,2})(?:\.[gsr])?$/.exec(id||'');return m&&VO_AV_N[m[1]][+m[2]]||'';};
 let chAvs={};
 const AP_PAGES=[['courses','Courses'],['calendar','Calendar'],['advisory','To-Do'],['assignments','Assignments'],['resources','Resources'],['tools','Tools'],
-  ['tasks','Tasks'],['chat','Chat'],['absence','Absence'],['news','News'],['deals','Deals'],['games','Games'],['guide','Guide']];
+  ['tasks','Tasks'],['chat','Chat'],['absence','Absence'],['news','News'],['games','Games'],['guide','Guide']];
 const hiddenPages=()=>{const h=new Set((state.settings&&state.settings.hidePages)||[]);if(state.settings&&state.settings.hideChat)h.add('chat');if(SAFE||state.settings&&state.settings.hideGames)h.add('games');return h;};
 const pageHidden=k=>!!state.user&&hiddenPages().has(k);
 /* the avatar pictures (Crown, Modern, Antiques) as tiles; shown in Settings, Appearance and in the picker from a pencil on your own picture in chat */
@@ -12661,7 +12655,7 @@ document.addEventListener('change',e=>{if(e.target.id!=='ap-foot'||!state.user)r
 /* Appearance, Home: what Home shows (homeView), and with Pages, which page cards (homePages; empty means every page
    that isn't hidden) */
 const HV_OPTS=[['mixed','Mixed'],['pages','Pages'],['resources','Resources'],['chat','Chat'],['assignments','Assignments'],['notepad','Notepad']];
-const hpPages=()=>{const a=AP_PAGES.filter(([k])=>k!=='news'&&k!=='deals'&&k!=='absence'&&(k!=='tasks'||(state.user&&state.user.owner)));
+const hpPages=()=>{const a=AP_PAGES.filter(([k])=>k!=='news'&&k!=='absence'&&(k!=='tasks'||(state.user&&state.user.owner)));
   return a;};
 const hpOn=k=>hmShown().some(p=>p[0]===k);
 /* up to 8 boxes can be ticked: once 8 are, the others are greyed out until one is unticked */
@@ -13120,7 +13114,7 @@ function render(){
   AP_PAGES.forEach(([k])=>document.documentElement.classList.toggle('no-v-'+k,k!=='games'&&k!=='chat'&&pageHidden(k)));
   /* a view that throws falls back to the calendar instead of leaving the page stuck */
   if(state.view!=='settings')setCleanup();
-  const views={home:renderHome,calendar:renderCalendar,courses:renderCourses,advisory:renderAdvisory,assignments:renderAssignments,resources:renderResources,chat:renderChat,tools:renderTools,tasks:renderTasks,news:renderNews,deals:renderDeals,absence:renderAbsence,clock:renderClock,scare:renderScare,settings:renderSettingsPage,setup:renderSetup};
+  const views={home:renderHome,calendar:renderCalendar,courses:renderCourses,advisory:renderAdvisory,assignments:renderAssignments,resources:renderResources,chat:renderChat,tools:renderTools,tasks:renderTasks,news:renderNews,absence:renderAbsence,clock:renderClock,scare:renderScare,settings:renderSettingsPage,setup:renderSetup};
   try{if(v==='home')renderHome(!wasHome);else views[v]();}catch(err){
     console.error(err);
     if(v==='calendar'||v==='setup'){const s=document.getElementById('v-'+v);if(s)s.innerHTML='<div class="empty">Something went wrong showing this page. Reload to try again.</div>';return;}
@@ -13143,7 +13137,7 @@ function render(){
   {let th=null;try{th=localStorage.getItem('sx-theme');}catch(_){}document.documentElement.setAttribute('data-theme',th==='dark'?'dark':'light');}
   try{state.extended=localStorage.getItem('sx-extended')!=='0';}catch(_){}
   try{const md=localStorage.getItem('sx-mode');if(md&&['all','hw','exam','notdue','notes'].includes(md))state.mode=md;}catch(_){}
-  try{const t=localStorage.getItem('sx-tab');if(t&&['home','calendar','courses','advisory','assignments','resources','tools','chat','absence','news','deals','tasks','clock'].includes(t))state.view=t;}catch(_){}
+  try{const t=localStorage.getItem('sx-tab');if(t&&['home','calendar','courses','advisory','assignments','resources','tools','chat','absence','news','tasks','clock'].includes(t))state.view=t;}catch(_){}
   try{const tt=localStorage.getItem('sx-tooltab');state.toolTab=tt==='gpa'?tt:'phys';}catch(_){}
   try{const o=localStorage.getItem('sx-oppsort');if(['deadline','prestige','difficulty','fit'].includes(o))state.oppSort=o;}catch(_){}
   {let v=null;try{v=localStorage.getItem('sx-oppside');}catch(_){}state.oppSide=v!=='0';state.oppSideM=false;}
@@ -14378,36 +14372,6 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',e=>{if(e.target.id!=='nw-sports')return;state.newsSports=e.target.checked;try{localStorage.setItem('sx-news-sports',e.target.checked?'1':'0');}catch(_){}render();});
 try{state.newsSports=localStorage.getItem('sx-news-sports')==='1';}catch(_){}
-/* Deals: current sales from public deal feeds (DealNews by category, Slickdeals front page). The server fetches them, drops
-   adult and age-restricted titles and caches them for 15 minutes; the page keeps what it was sent for the session. */
-const DEAL_CATS=[['all','All'],['electronics','Electronics'],['computers','Computers'],['gaming','Gaming and toys'],['clothing','Clothing'],['school','School supplies'],['books','Books and music'],['sports','Sports'],['beauty','Beauty'],['home','Home']];
-const DEALS={};
-function dealsGet(cat){
-  const c=DEALS[cat];if(c)return c.d;
-  const pk='deals:'+cat,pc=pcGet(pk),have=pc&&pc.d&&pc.d.ok?pc.d:null;
-  if(have&&Date.now()-pc.t<5*60000){DEALS[cat]={d:have};return have;}
-  DEALS[cat]={d:have,p:true};
-  const ask=GS?gsCall('rpcDeals',passKey||'',cat):fetch('/api/deals?cat='+cat).then(x=>x.json());
-  ask.then(o=>{if(o&&o.ok){DEALS[cat]={d:o};try{pcPut(pk,o);}catch(_){}}else DEALS[cat]={d:have||{ok:false}};},()=>{DEALS[cat]={d:have||{ok:false}};}).then(()=>{if(state.view==='deals')render();});
-  return have;
-}
-function renderDeals(){
-  const el=document.getElementById('v-deals'),cat=DEAL_CATS.some(x=>x[0]===state.dealCat)?state.dealCat:'all';
-  const chips=`<div class="rd-tabs nw-chips">${DEAL_CATS.map(([k,n])=>`<button type="button" class="hbtn${cat===k?' on':''}" data-dl="cat" data-k="${k}" aria-pressed="${cat===k}">${n}</button>`).join('')}</div>`;
-  const d=dealsGet(cat);
-  let body;
-  if(!d)body=ldHTML();
-  else if(!d.ok)body=`<div class="empty">Could not load this right now</div><div class="nw-retry"><button type="button" class="hbtn hb-box" data-dl="retry">Try again</button></div>`;
-  else body=d.items.length?`<div class="nw-list">${d.items.map(x=>`<a class="nw-card" href="${esc(x.l)}" target="_blank" rel="noopener noreferrer"><span class="nw-t">${esc(x.t)}</span>${x.p?`<span class="dl-price">${esc(x.p)}</span>`:''}<span class="nw-m">${esc(x.s)}${x.at?' '+esc(newsAgo(x.at)):''}</span></a>`).join('')}</div>`:'<div class="empty">No deals right now</div>';
-  el.innerHTML=`<div class="nw-wrap"><div class="nw-top"><h2 class="nw-h">Deals</h2></div>${chips}${body}</div>`;
-}
-document.addEventListener('click',e=>{
-  const b=e.target.closest&&e.target.closest('#v-deals [data-dl]');if(!b)return;
-  if(b.dataset.dl==='cat'){state.dealCat=b.dataset.k;try{localStorage.setItem('sx-dealcat',b.dataset.k);}catch(_){}}
-  else if(b.dataset.dl==='retry')delete DEALS[DEAL_CATS.some(x=>x[0]===state.dealCat)?state.dealCat:'all'];
-  render();
-});
-try{state.dealCat=localStorage.getItem('sx-dealcat')||'all';}catch(_){}
 function renderChat(){
   const v=document.getElementById('v-chat');
   if(!v.querySelector('.chp'))v.innerHTML=`<div class="chp"><aside class="chs">
@@ -15059,6 +15023,11 @@ async function sendSugg(){
    Accept keeps the suggestion and tells its sender (with the optional message typed first); Decline tells them too; Remove tells nobody.
    Both Decline and Remove make it disappear at once. Claude's messages (a suggestion finished) wait on top for the owner. */
 const SG_PEND=new Set();
+/* answers still on their way to the server (id -> 'accept' | 'remove'). Every list the server sends back is a picture from
+   that moment, so a reply to one answer can still show the next ones as waiting: until each answer's own reply lands, it is
+   laid over every list (2026-11-23: accepting a few in a row made them flip back to waiting, then to accepted) */
+const SG_OPS=new Map();
+function sgMerge(list){return (list||[]).filter(x=>SG_OPS.get(x.id)!=='remove').map(x=>SG_OPS.get(x.id)==='accept'&&x.status!=='accepted'?Object.assign({},x,{status:'accepted',an:x.an||Date.now()}):x);}
 const sgWhen=t=>t?new Date(t).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
 function suggAdminHTML(){
   const list=(SGL||[]).filter(x=>!SG_PEND.has(x.id)),mine=state.user&&state.user.owner;
@@ -15088,18 +15057,20 @@ function sgPaint(keep){const d=document.getElementById('sugg');if(!d||d.hidden||
 async function sgLoad(){
   let r=null;try{r=await sgApi({op:'suggestions'});}catch(_){r=null;}
   if(!r||!r.ok){const m=document.getElementById('sg-amsg');if(m)m.textContent='Couldn’t load, try again';return;}
-  SGL=r.suggestions||[];SGM=r.msgs||[];sgPaint();}
+  SGL=sgMerge(r.suggestions||[]);SGM=r.msgs||[];sgPaint();}
 function sgMsg(t){const m=document.getElementById('sg-amsg');if(m)m.textContent=t||'';}
 /* answering one: it leaves (or moves) at once, the server follows in the background; a failure brings it back with what was typed */
 async function sgAct(id,how){
   const ta=document.querySelector(`#sugg [data-sg-rep="${CSS.escape(id)}"]`),note=ta?ta.value.trim():'';
   const item=(SGL||[]).find(x=>x.id===id);if(!item)return;
-  const before=SGL.slice();
-  if(how==='accept')SGL=SGL.map(x=>x.id===id?Object.assign({},x,{status:'accepted',an:Date.now()}):x);else SGL=SGL.filter(x=>x.id!==id);
+  SG_OPS.set(id,how==='accept'?'accept':'remove');SGL=sgMerge(SGL);
   sgPaint(true);sgMsg(how==='accept'?(item.user==='guest'?'Accepted':'Accepted, sent to their inbox'):how==='decline'?'Declined':'Removed');
   let r=null;try{r=how==='accept'?await sgApi({op:'suggAccept',id,note}):await sgApi({op:'suggDone',ids:[id],how:'decline',note,silent:how==='silent'});}catch(_){r={error:'conn'};}
-  if(r&&r.ok){SGL=r.suggestions||SGL;if(r.msgs)SGM=r.msgs;sgPaint(true);return;}
-  SGL=before;sgPaint(true);const t2=document.querySelector(`#sugg [data-sg-rep="${CSS.escape(id)}"]`);if(t2&&note)t2.value=note;sgMsg('Couldn’t send that, try again');
+  SG_OPS.delete(id);
+  if(r&&r.ok){SGL=sgMerge(r.suggestions||SGL);if(r.msgs)SGM=r.msgs;sgPaint(true);return;}
+  /* only this one goes back (others answered meanwhile keep their answers) */
+  if(how==='accept')SGL=SGL.map(x=>x.id===id?item:x);else if(!SGL.some(x=>x.id===id))SGL=SGL.concat([item]).sort((a,b)=>(b.created||0)-(a.created||0));
+  sgPaint(true);const t2=document.querySelector(`#sugg [data-sg-rep="${CSS.escape(id)}"]`);if(t2&&note)t2.value=note;sgMsg('Couldn’t send that, try again');
 }
 async function sgSaveNote(id){
   const ta=document.querySelector(`#sugg [data-sg-note="${CSS.escape(id)}"]`),said=document.querySelector(`#sugg [data-sg-said="${CSS.escape(id)}"]`);if(!ta)return;
@@ -15230,7 +15201,7 @@ async function loadGame(id){
    kept under id|hash and used only when the page asks for that same hash. A fetched file is stored only when its own
    hash matches what the page expects, so an updated game is never served from an old copy. Up to GF_KEEP characters
    in all, the least recently opened go first. Without IndexedDB or a stamp it simply fetches, as before */
-const GAME_VER={"lander":"1684804b21","pipworks":"79e1238ce5","solitaire":"8c505f28ec","geohunter":"1fcd87b8d6","chess":"196ceee016","gartic":"6f22b9c960","guessbuild":"ec4193b106","imposter":"2c7f34720b","poker":"6c5dc0b563","soundboard":"e07aefc27d","capitalist":"73fea6408d","tinyfishing":"708c08b431","krillion":"f512748a77","geodash":"f1196aa413","appel":"80dd5f0087","metrica-wave":"c3df75a336","voteout":"7f793110c6","getaway":"9dda126d83","tag":"8bc7736018","crossyroad":"da8570d413","drivemad":"127bf09cfc","gladihoppers":"87d1b808b0","monkeymart":"4ce25762a3","ovo":"f564966222","stickmanhook":"a5c495f4f5","paperio":"8198023f59","smashkarts":"806875291a","yohoho":"24208763a5","basketballrandom":"175bedac55","houseofhazards":"7b313f0931","snake":"c5420e56c9","torahrunner":"999330d0cd","knessetcombat":"40048a6819","doom":"4f3b061ac7","papaspizzeria":"ded7417f7e","papasburgeria":"aedcee9463","papaswingeria":"b9b6139c9d","papastacomia":"5f69931ad8","papaspancakeria":"4baa264d88","pakistanrunner":"f31a76e05b","departed":"a354fdc1d9","retrobowl":"d7ddcc1688","subwaysurfers":"c332af6b02","tunnelrush":"dec240f546","driftboss":"71fad4f513","fnae":"9844ce377d","meditation":"56847adf1b","crashout":"59eaa18662","snowrider":"a692396710","retrobowlcollege":"3ad9da6ab9","powerlineio":"a874292b22","janissarybattles":"6da0602eb4","tag2":"cda72138aa","cookieclicker":"7422c6501f","idlebreakout":"57034162f4","farflung":"2dc945985c","cards":"759a40fee2","jamborine":"6b3031482b","stonks":"00e653f0c7","scrapyard":"6ae157e457","tanukisunset":"f43650a20f","extraplot":"8c6176690d"};
+const GAME_VER={"lander":"1684804b21","pipworks":"79e1238ce5","solitaire":"8c505f28ec","geohunter":"1fcd87b8d6","chess":"196ceee016","gartic":"6f22b9c960","guessbuild":"ec4193b106","imposter":"2c7f34720b","poker":"6c5dc0b563","soundboard":"e07aefc27d","capitalist":"73fea6408d","tinyfishing":"708c08b431","krillion":"f512748a77","geodash":"f1196aa413","appel":"80dd5f0087","metrica-wave":"c3df75a336","voteout":"7f793110c6","getaway":"9dda126d83","tag":"8bc7736018","crossyroad":"da8570d413","drivemad":"127bf09cfc","gladihoppers":"87d1b808b0","monkeymart":"4ce25762a3","ovo":"f564966222","stickmanhook":"a5c495f4f5","paperio":"8198023f59","smashkarts":"806875291a","yohoho":"24208763a5","basketballrandom":"175bedac55","houseofhazards":"7b313f0931","snake":"c5420e56c9","torahrunner":"999330d0cd","knessetcombat":"40048a6819","doom":"4f3b061ac7","papaspizzeria":"ded7417f7e","papasburgeria":"aedcee9463","papaswingeria":"b9b6139c9d","papastacomia":"5f69931ad8","papaspancakeria":"4baa264d88","pakistanrunner":"f31a76e05b","departed":"a354fdc1d9","retrobowl":"d7ddcc1688","subwaysurfers":"c332af6b02","tunnelrush":"dec240f546","driftboss":"71fad4f513","fnae":"9844ce377d","meditation":"56847adf1b","crashout":"59eaa18662","snowrider":"a692396710","retrobowlcollege":"3ad9da6ab9","powerlineio":"a874292b22","janissarybattles":"6da0602eb4","tag2":"cda72138aa","cookieclicker":"7422c6501f","idlebreakout":"57034162f4","farflung":"2dc945985c","cards":"759a40fee2","jamborine":"6b3031482b","stonks":"00e653f0c7","scrapyard":"6ae157e457","tanukisunset":"f43650a20f","extraplot":"8c6176690d","ngon":"585a70d985"};
 const GF_KEEP=24e6;let gfDbP=null;
 function gfDb(){if(gfDbP)return gfDbP;gfDbP=new Promise((res,rej)=>{try{const q=indexedDB.open('sx-game',1);
   q.onupgradeneeded=()=>{q.result.createObjectStore('f');q.result.createObjectStore('m');};q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);q.onblocked=()=>rej(0);}catch(e){rej(e);}});
