@@ -40,8 +40,13 @@ window.SX_AUTH=!!AUTH;window.SX_SHIM=true;
 /* RELAYS: forwarders on different providers (relay/) for networks that block script.google.com. A call that can't reach
    Apps Script (network error or a filter's block page) is sent again through them in order, starting with the last one that
    worked; after one such failure this page goes to the relays first for 12 hours */
+/* route counter: calls answered by each route (direct, forms, or a relay's host), plus one "page blocked" per page whose
+   direct call failed; the page sends the counts with its usage report (rpcTrack, o.r) for the Dashboard */
+window.SX_RT=window.SX_RT||{};var rtc=function(k){window.SX_RT[k]=(window.SX_RT[k]||0)+1;},rtb=function(){if(!window.SX_RTB){window.SX_RTB=1;rtc('page blocked');}};
+var rtk=function(u){return u==='@form'?'forms':u.slice(0,4)==='@tg:'?'translate':(/\/\/([a-z0-9-]+)\.[a-z0-9.-]*?([a-z0-9-]+)\.[a-z]+$/.exec(u)||[0,u])[2]||u;};
 var FORM={u:'https:'+'/'+'/docs.google.com/forms/d/e/1FAIpQLScnxyKZFnSGrgAjRUihgrTkSAfCHVEMdd5PoK6Wz_CFeSPm_g/formResponse',e:'1951068254'},FDB='https:'+'/'+'/saxonplanner-default-rtdb.firebaseio.com';
-var RELAYS=(FORM?['@form']:[]).concat(['https:'+'/'+'/reedbank-eta.vercel.app','https:'+'/'+'/tidepool.ambicant.workers.dev']),RK='sx-relay',viaRelay=false,rPref=0;try{var rv=(localStorage.getItem(RK)||'').split('|');viaRelay=RELAYS.length>0&&Date.now()-(+rv[0]||0)<432e5;rPref=Math.max(0,Math.min(+rv[1]||0,RELAYS.length-1));}catch(_){}
+var TG=['reedbank--eta-vercel-app','kelpbed-netlify-app'];
+var RELAYS=TG.map(function(h){return '@tg:'+h;}).concat(FORM?['@form']:[]).concat(['https:'+'/'+'/reedbank-eta.vercel.app','https:'+'/'+'/kelpbed.netlify.app','https:'+'/'+'/tidepool.ambicant.workers.dev']),RK='sx-relay',viaRelay=false,rPref=0;try{var rv=(localStorage.getItem(RK)||'').split('|');viaRelay=RELAYS.length>0&&Date.now()-(+rv[0]||0)<432e5;rPref=Math.max(0,Math.min(+rv[1]||0,RELAYS.length-1));}catch(_){}
 function runner(ok,fail){return new Proxy({},{get:function(_,name){
 if(name==='withSuccessHandler')return function(f){return runner(f,fail);};
 if(name==='withFailureHandler')return function(f){return runner(ok,f);};
@@ -54,25 +59,33 @@ var post=function(url){return fetch(url,{method:'POST',headers:{'Content-Type':'
 /* last rung, the Forms relay (formrelay/): the request goes in as a Google Form answer (docs.google.com) and the answer
    comes back in chunks on Firebase RTDB /r/<channel> (firebaseio.com), a channel only this call knows. Both are Google
    addresses a school filter can't block without breaking Google itself */
-var formSend=function(k){return new Promise(function(res,rej){
+/* the answer comes back on Firebase RTDB /r/<channel> in chunks; submit(c) sends the request by some other road */
+var chanSend=function(submit,ms){return new Promise(function(res,rej){
   var b=new Uint8Array(16);crypto.getRandomValues(b);var c=Array.prototype.map.call(b,function(x){return ('0'+x.toString(16)).slice(-2);}).join('');
   var parts={},done=false,es;
   var end=function(f,v){if(done)return;done=true;clearTimeout(tm);try{es.close();}catch(_){}f(v);};
-  var tm=setTimeout(function(){end(rej,new Error('form timeout'));},45000);
+  var tm=setTimeout(function(){end(rej,new Error('channel timeout'));},ms);
   var take=function(path,d){if(!d)return;if(path==='/'){for(var q in d)parts[q]=d[q];}else parts[path.slice(1)]=d;
     var n=0,have=0;for(var q2 in parts){if(parts[q2]&&typeof parts[q2].d==='string'){have++;n=parts[q2].n;}}
     if(n&&have>=n){var t='';for(var i=0;i<n;i++){if(!parts['p'+i])return;t+=parts['p'+i].d;}try{end(res,JSON.parse(t));}catch(e){end(rej,e);}}};
   var on=function(e){try{var m=JSON.parse(e.data);if(m)take(m.path,m.data);}catch(_){}};
   try{es=new EventSource(FDB+'/r/'+c+'.json');}catch(e){return end(rej,e);}
   es.addEventListener('put',on);es.addEventListener('patch',on);
-  fetch(FORM.u,{method:'POST',mode:'no-cors',body:new URLSearchParams([['entry.'+FORM.e,JSON.stringify({c:c,k:k,b:body})]])}).catch(function(e){end(rej,e);});
+  submit(c).catch(function(e){end(rej,e);});
 });};
+var formSend=function(k){return chanSend(function(c){return fetch(FORM.u,{method:'POST',mode:'no-cors',body:new URLSearchParams([['entry.'+FORM.e,JSON.stringify({c:c,k:k,b:body})]])});},45000);};
+/* Google Translate's proxy (translate.goog) passes GET to a relay even where the relay's own address is blocked; the request rides
+   in the address (base64url, so only small requests: up to about 12 KB) and the relay drops the answer into the channel */
+var tgSend=function(k,h){var b64='';try{b64=btoa(unescape(encodeURIComponent(body))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}catch(e){return Promise.reject(e);}
+  if(b64.length>12000)return Promise.reject(new Error('too big for translate'));
+  return chanSend(function(c){return fetch('https:'+'/'+'/'+h+'.translate.goog/q?c='+c+'&t='+k+'&b='+b64+'&_x_tr_sl=auto&_x_tr_tl=en',{mode:'no-cors',credentials:'omit'});},12000);};
 var relay=function(k){var order=RELAYS.slice(rPref).concat(RELAYS.slice(0,rPref)),i=0;
   var next=function(e){if(i>=order.length)return Promise.reject(e||new Error('relay'));var u=order[i++];
-    return (u==='@form'?formSend(k):post(u+'/'+k)).then(function(o){rPref=RELAYS.indexOf(u);viaRelay=true;try{localStorage.setItem(RK,Date.now()+'|'+rPref);}catch(_){}return o;},next);};
+    return (u==='@form'?formSend(k):u.slice(0,4)==='@tg:'?tgSend(k,u.slice(4)):post(u+'/'+k)).then(function(o){rtc(rtk(u));rPref=RELAYS.indexOf(u);viaRelay=true;try{localStorage.setItem(RK,Date.now()+'|'+rPref);}catch(_){}return o;},next);};
   return next();};
-var send=function(url,k){if(!RELAYS.length)return post(url);if(viaRelay)return relay(k).catch(function(){return post(url);});
-  return post(url).catch(function(e){if(e&&e.name==='AbortError')throw e;return relay(k);});};
+var direct=function(url){return post(url).then(function(o){rtc('direct');return o;});};
+var send=function(url,k){if(!RELAYS.length)return direct(url);if(viaRelay){rtb();return relay(k).catch(function(){return direct(url);});}
+  return direct(url).catch(function(e){if(e&&e.name==='AbortError')throw e;rtb();return relay(k);});};
 var first=AUTH&&AUTH_FNS[name]?send(AUTH,'a').catch(function(e){if(MAIN_TOO[name])return send(API,'m');throw e;}):send(API,'m');
 first.then(function(o){if(o&&o.ok){if(ok)ok(o.result);}else if(fail)fail(new Error(o&&o.error||'failed'));})
 .catch(function(e){if(fail)fail(e);});};
@@ -3390,6 +3403,7 @@ svg.ic-pic>*{vector-effect:non-scaling-stroke;stroke-width:2px}
 .db-lg i.l0{background:var(--pri-light,#a4ceff)}.db-lg i.l1{background:var(--pri-dark,var(--pri))}.db-lg i.l2{background:color-mix(in srgb,var(--pri-dark,var(--pri)) 62%,#000)}
 .db-over{margin-bottom:2px}
 .db-st2{display:flex;flex-direction:column}
+.db-sr.db-rt{grid-template-columns:minmax(70px,1fr) repeat(var(--rc),minmax(0,1fr))}
 .db-sr{display:grid;grid-template-columns:minmax(90px,1.3fr) repeat(4,minmax(0,1fr));gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
 .db-sr.hd{border-top:0;padding:0 0 6px;font:700 12px var(--font-ui);color:var(--faint);text-transform:uppercase;letter-spacing:.05em}
 .db-sn{font:700 15px var(--font-ui);color:var(--fg)}
@@ -15867,7 +15881,8 @@ document.addEventListener('click',e=>{const el=e.target.closest&&e.target.closes
   const l=trackLabel(el);if(!l)return;TRK.c[l]=(TRK.c[l]||0)+1;TRK.n++;},true);
 function trackGame(id){if(!id)return;TRK.g[id]=(TRK.g[id]||0)+1;TRK.n++;}
 function trackSend(){
-  if(!TRK.n||!GS)return;const body={c:TRK.c,g:TRK.g};TRK.c={};TRK.g={};TRK.n=0;TRK.last=Date.now();
+  const rt=window.SX_RT&&Object.keys(window.SX_RT).length?window.SX_RT:null;
+  if((!TRK.n&&!rt)||!GS)return;const body={c:TRK.c,g:TRK.g};if(rt){body.r=rt;window.SX_RT={};}TRK.c={};TRK.g={};TRK.n=0;TRK.last=Date.now();
   gsCall('rpcTrack',passKey||'',body).catch(()=>{});
 }
 (function trkTick(){setTimeout(()=>{if(Date.now()-TRK.last>=10*60*1000)trackSend();trkTick();},jit(60*1000));})();
@@ -16039,7 +16054,12 @@ function dashPaint(){
   const backend=(()=>{const B=DB.backend;if(!B||!B.hours||!B.hours.length)return card('Backend','Counts start after the next server update; each hour shows once it has calls.',none('Nothing measured yet'));
     const rows=B.hours.slice().reverse().map(h=>`<div class="db-sr"><b class="db-sn">${h.ago===0?'This hour':h.ago+' hour'+(h.ago===1?'':'s')+' ago'}</b><span class="db-sc"><b>${nf(h.calls)}</b><small>calls</small></span><span class="db-sc"><b>${nf(h.avgMs)}</b><small>avg ms</small></span><span class="db-sc"><b>${nf(h.errors)}</b><small>errors</small></span><span class="db-sc"><b>${nf(h.slow)}</b><small>over 3 s</small></span></div>`).join('');
     const last=B.hours[B.hours.length-1],top=(last.top||[]).map(t=>`<div class="db-note">${esc(t[0].replace(/^rpc/,''))}: ${nf(t[1])} calls, ${nf(t[2])} ms each</div>`).join('');
-    return card('Backend by hour',`Estimated from a sample of one call in ${B.every}; hours with no calls are left out.`,`<div class="db-st2">${rows}</div>`)+card('Busiest calls, latest hour','',top||none());})();
+    /* which route answered the page's calls each day (route counter): a rise in "page blocked" or in forms/relay calls means a
+       network started blocking script.google.com */
+    const RT=U.rt||{},rd=Object.keys(RT).sort().slice(-7).reverse(),rk=['direct','forms','vercel','netlify','workers','page blocked'].filter(k=>rd.some(d=>RT[d][k]));
+    const rtCard=rd.length?card('Routes','Calls answered by each route, by day (UTC). Direct is script.google.com; forms is the Google Forms relay; vercel, netlify and workers are the hosting relays. Page blocked counts pages whose direct call failed.',
+      `<div class="db-st2" style="--rc:${rk.length}"><div class="db-sr db-rt hd"><span></span>${rk.map(k=>`<span>${esc(k)}</span>`).join('')}</div>${rd.map(d=>`<div class="db-sr db-rt"><b class="db-sn">${esc(d.slice(5))}</b>${rk.map(k=>`<span class="db-sc"><b>${nf(RT[d][k]||0)}</b></span>`).join('')}</div>`).join('')}</div>`):card('Routes','Counts start after the next update.',none('Nothing yet'));
+    return rtCard+card('Backend by hour',`Estimated from a sample of one call in ${B.every}; hours with no calls are left out.`,`<div class="db-st2">${rows}</div>`)+card('Busiest calls, latest hour','',top||none());})();
   const sites=`${card('Addresses','Accounts that opened the planner from each address, counted once for every address an account used. Visits through atoll.web.app count as atoll from Nov 19; before that they show under saxon-planner.',hostHTML)}
     ${otherCard}`;
   const assignments=`${kpis([kpi(nf(T.done||0),'Completed',{big:1}),kpi(nf(T.week||0),'Completed this week'),kpi(T.timed?Math.round(T.onTime/T.timed*100)+'%':'-','Finished on time',{s:nf(T.onTime||0)+' on time, '+nf(T.late||0)+' late'}),kpi(nf(Math.max(0,(T.open||0)-(T.overdue||0))),'Still to do'),kpi(nf(T.overdue||0),'Overdue, not done'),kpi(nf(T.people||0),'Students crossing off',{s:nf(T.cleared||0)+' cleared in bulk'})])}
