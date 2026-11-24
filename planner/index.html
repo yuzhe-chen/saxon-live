@@ -2350,12 +2350,10 @@ nav.tabs .mmenu .mcolors button.kbtn:hover{background:var(--panel);color:var(--f
 #spcover.dvd .sp-night{opacity:1}
 #spcover .sp-dvd{position:absolute;left:0;top:0;display:flex;align-items:center;gap:12px;padding:12px 20px 12px 14px;border-radius:20px;
   background:var(--dc);box-shadow:0 5px 0 var(--de),0 0 46px var(--dg);color:#fff;font:800 clamp(20px,3vw,30px)/1 Nunito,system-ui,sans-serif;
-  letter-spacing:.3px;white-space:nowrap;will-change:transform;opacity:0;transition:opacity .6s ease,background-color .3s,box-shadow .3s}
+  letter-spacing:.3px;white-space:nowrap;will-change:transform;opacity:0;transition:opacity .6s ease}
 #spcover .sp-dvd.on{opacity:1}
 #spcover .sp-dvd .dv-i{display:grid;place-items:center;width:1.6em;height:1.6em;border-radius:12px;background:#fff;box-shadow:0 3px 0 rgba(0,0,0,.16)}
 #spcover .sp-dvd .dv-i svg{width:1.25em;height:1.25em;display:block}
-#spcover .sp-dvd.hit{animation:dvsq .28s ease-out}
-@keyframes dvsq{0%{scale:1}35%{scale:.93}100%{scale:1}}
 #spcover .sp-spark{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:var(--dc);pointer-events:none;
   animation:dvspark .8s cubic-bezier(.2,.7,.4,1) forwards}
 @keyframes dvspark{to{transform:translate(var(--sx),var(--sy)) scale(.2);opacity:0}}
@@ -13517,32 +13515,40 @@ function coverWait(cov){
     /* a wave is 10 bars, each thinner and a little later than the last; then a pause, then the next wave */
     const tick=()=>{if(!on)return;const now=performance.now()-t0;
       if(now>=next){if(waves>=2){startDvd();return;}const k=n%10;bar(k);n++;if(k===9)waves++;next=now+(k===9?900:16+6*k);}raf=requestAnimationFrame(tick);};
-    /* the DVD logo: the planner's notebook and name on a badge in the planner's colors; a bounce changes the color with a little
-       squash, and a corner hit throws sparks */
+    /* the DVD logo: the planner's notebook (its blues take the badge's color) and name on a badge; a bounce changes the color,
+       a corner hit throws sparks. Every 3 wall hits without a corner hit double the speed; every 6, another badge joins and the
+       speed halves instead. A click on the screen speeds everything up a little */
     const startDvd=()=>{if(dvd||!on)return;dvd=true;
       const night=document.createElement('div');night.className='sp-night';cov.insertBefore(night,word);void night.offsetWidth;
       cov.classList.add('dvd');
-      const COL=[['#1cb0f6','#1899d6'],['#58cc02','#58a700'],['#ffc800','#e5a400'],['#ff4b4b','#ea2b2b'],['#ce82ff','#a568cc'],['#ff9600','#e08600']];let ci=0;
-      const d=document.createElement('div');d.className='sp-dvd';d.innerHTML='<span class="dv-i">'+(typeof art==='function'?art('logo'):'')+'</span><span>saxon planner</span>';
-      const paint=()=>{const [c,e]=COL[ci];d.style.setProperty('--dc',c);d.style.setProperty('--de',e);d.style.setProperty('--dg',c+'55');};paint();
-      cov.appendChild(d);
-      const W0=cov.clientWidth,H0=cov.clientHeight;let w=d.offsetWidth,h=d.offsetHeight,x=(W0-w)/2,y=(H0-h)/2;
-      const sp=Math.max(120,Math.min(200,Math.hypot(W0,H0)*.11));let a=Math.PI/4+Math.floor(Math.random()*4)*Math.PI/2,vx=sp*Math.cos(a),vy=sp*Math.sin(a),last=0;
-      d.style.transform=`translate(${x}px,${y}px)`;
-      setTimeout(()=>{if(on)d.classList.add('on');},500);
-      const spark=(px,py)=>{for(let i=0;i<16;i++){const p=document.createElement('i');p.className='sp-spark';const an=Math.random()*Math.PI*2,dist=50+Math.random()*90;
+      const COL=[['#1cb0f6','#1899d6'],['#58cc02','#58a700'],['#ffc800','#e5a400'],['#ff4b4b','#ea2b2b'],['#ce82ff','#a568cc'],['#ff9600','#e08600']];
+      const logo=(typeof art==='function'?art('logo'):'').replace(/#1CB0F6/gi,'var(--dc)').replace(/#1899D6/gi,'var(--de)');
+      const W0=cov.clientWidth,H0=cov.clientHeight,BASE=Math.max(120,Math.min(200,Math.hypot(W0,H0)*.11)),MAXV=1400,MAXB=12;
+      let mul=1,streak=0,last=0;const boxes=[];
+      const paint=b=>{const [c,e]=COL[b.ci];b.d.style.setProperty('--dc',c);b.d.style.setProperty('--de',e);b.d.style.setProperty('--dg',c+'55');};
+      const add=(x,y)=>{const d=document.createElement('div');d.className='sp-dvd';d.innerHTML='<span class="dv-i">'+logo+'</span><span>saxon planner</span>';
+        const b={d,ci:boxes.length%COL.length,x:0,y:0,ux:0,uy:0};paint(b);cov.appendChild(d);
+        const w=d.offsetWidth,h=d.offsetHeight;b.x=x==null?(W0-w)/2:Math.max(0,Math.min(cov.clientWidth-w,x));b.y=y==null?(H0-h)/2:Math.max(0,Math.min(cov.clientHeight-h,y));
+        const a=Math.PI/4+Math.floor(Math.random()*4)*Math.PI/2;b.ux=Math.cos(a);b.uy=Math.sin(a);
+        d.style.transform=`translate(${b.x}px,${b.y}px)`;void d.offsetWidth;d.classList.add('on');boxes.push(b);return b;};
+      add();
+      const spark=(px,py,ci)=>{for(let i=0;i<16;i++){const p=document.createElement('i');p.className='sp-spark';const an=Math.random()*Math.PI*2,dist=50+Math.random()*90;
         p.style.cssText=`left:${px}px;top:${py}px;--dc:${COL[(ci+i)%COL.length][0]};--sx:${(Math.cos(an)*dist).toFixed(0)}px;--sy:${(Math.sin(an)*dist).toFixed(0)}px`;
         cov.appendChild(p);setTimeout(()=>p.remove(),850);}};
-      const step=t=>{if(!on)return;if(!last)last=t;const dt=Math.min(.05,(t-last)/1000);last=t;const W=cov.clientWidth,H=cov.clientHeight;w=d.offsetWidth;h=d.offsetHeight;
-        x+=vx*dt;y+=vy*dt;let hx=false,hy=false;
-        if(x<=0){x=0;vx=Math.abs(vx);hx=true;}else if(x+w>=W){x=W-w;vx=-Math.abs(vx);hx=true;}
-        if(y<=0){y=0;vy=Math.abs(vy);hy=true;}else if(y+h>=H-5){y=H-5-h;vy=-Math.abs(vy);hy=true;}
-        if(hx||hy){ci=(ci+1)%COL.length;paint();d.classList.remove('hit');void d.offsetWidth;d.classList.add('hit');
-          if(hx&&hy)spark(x<W/2?0:W,y<H/2?0:H);}
-        d.style.transform=`translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;raf=requestAnimationFrame(step);};
-      setTimeout(()=>{if(on)raf=requestAnimationFrame(step);},900);};
+      const wallHit=b=>{streak++;
+        if(streak%6===0){mul=Math.max(.25,mul/2);if(boxes.length<MAXB)add(b.x,b.y);}
+        else if(streak%3===0)mul=Math.min(MAXV/BASE,mul*2);};
+      cov.style.pointerEvents='auto';cov.addEventListener('pointerdown',()=>{mul=Math.min(MAXV/BASE,mul*1.12);});
+      const step=t=>{if(!on)return;if(!last)last=t;const dt=Math.min(.1,(t-last)/1000);last=t;const W=cov.clientWidth,H=cov.clientHeight,v=BASE*mul;
+        boxes.forEach(b=>{const w=b.d.offsetWidth,h=b.d.offsetHeight;b.x+=b.ux*v*dt;b.y+=b.uy*v*dt;let hx=false,hy=false;
+          if(b.x<=0){b.x=0;b.ux=Math.abs(b.ux);hx=true;}else if(b.x+w>=W){b.x=W-w;b.ux=-Math.abs(b.ux);hx=true;}
+          if(b.y<=0){b.y=0;b.uy=Math.abs(b.uy);hy=true;}else if(b.y+h>=H){b.y=H-h;b.uy=-Math.abs(b.uy);hy=true;}
+          if(hx||hy){b.ci=(b.ci+1)%COL.length;paint(b);if(hx&&hy){streak=0;spark(b.x<W/2?0:W,b.y<H/2?0:H,b.ci);}else wallHit(b);}
+          b.d.style.transform=`translate(${b.x.toFixed(1)}px,${b.y.toFixed(1)}px)`;});
+        raf=requestAnimationFrame(step);};
+      raf=requestAnimationFrame(step);};
     raf=requestAnimationFrame(tick);},250);
-  return ()=>{on=false;clearTimeout(start);cancelAnimationFrame(raf);cov.classList.remove('wait');};
+  return ()=>{on=false;clearTimeout(start);cancelAnimationFrame(raf);cov.classList.remove('wait');cov.style.pointerEvents='';};
 }
 /* search boxes stay read-only until touched: browsers never autofill a read-only box, and Chrome ignores
    autocomplete="off" and put the saved username in them */
@@ -13801,7 +13807,12 @@ if(window.SX_REF)sxRefArrived(window.SX_REF);
        clock plays for as long as the answer takes (it holds on the color until the account's data is in), and a "no"
        stops it early and shows why */
     const su=signup;let r=null,answered=false,instant=false;
-    const authP=authCall(su?'signup':'login',name,pw,su?refIn.value:'',sq).then(v=>(r=v),()=>(r=null)).then(v=>{answered=true;return v;});
+    /* a sign up answered "taken" can be this same sign up arriving twice: on a network that lets the request through but blocks
+       the answer, the first try made the account and the backup route sent it again. So "taken" quietly tries logging in with
+       the same name and password; only the account's own password gets in */
+    const authP=authCall(su?'signup':'login',name,pw,su?refIn.value:'',sq).then(v=>v,()=>null)
+      .then(v=>su&&v&&v.error==='taken'?authCall('login',name,pw,'',null).then(w=>w&&w.token?w:v,()=>v):v)
+      .then(v=>(r=v)).then(v=>{answered=true;return v;});
     /* instant sign-in: this device's sealed copy opens with the password while the server checks it */
     const boxP=!su&&!sq?boxOpen(name,pw):Promise.resolve(null);
     let tw=null;
