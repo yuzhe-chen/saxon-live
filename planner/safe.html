@@ -40,7 +40,8 @@ window.SX_AUTH=!!AUTH;window.SX_SHIM=true;
 /* RELAYS: forwarders on different providers (relay/) for networks that block script.google.com. A call that can't reach
    Apps Script (network error or a filter's block page) is sent again through them in order, starting with the last one that
    worked; after one such failure this page goes to the relays first for 12 hours */
-var RELAYS=['https:'+'/'+'/reedbank-eta.vercel.app','https:'+'/'+'/tidepool.ambicant.workers.dev'],RK='sx-relay',viaRelay=false,rPref=0;try{var rv=(localStorage.getItem(RK)||'').split('|');viaRelay=RELAYS.length>0&&Date.now()-(+rv[0]||0)<432e5;rPref=Math.max(0,Math.min(+rv[1]||0,RELAYS.length-1));}catch(_){}
+var FORM={u:'https:'+'/'+'/docs.google.com/forms/d/e/1FAIpQLScnxyKZFnSGrgAjRUihgrTkSAfCHVEMdd5PoK6Wz_CFeSPm_g/formResponse',e:'1951068254'},FDB='https:'+'/'+'/saxonplanner-default-rtdb.firebaseio.com';
+var RELAYS=(FORM?['@form']:[]).concat(['https:'+'/'+'/reedbank-eta.vercel.app','https:'+'/'+'/tidepool.ambicant.workers.dev']),RK='sx-relay',viaRelay=false,rPref=0;try{var rv=(localStorage.getItem(RK)||'').split('|');viaRelay=RELAYS.length>0&&Date.now()-(+rv[0]||0)<432e5;rPref=Math.max(0,Math.min(+rv[1]||0,RELAYS.length-1));}catch(_){}
 function runner(ok,fail){return new Proxy({},{get:function(_,name){
 if(name==='withSuccessHandler')return function(f){return runner(f,fail);};
 if(name==='withFailureHandler')return function(f){return runner(ok,f);};
@@ -50,9 +51,25 @@ var run=function(){var body=JSON.stringify({fn:name,args:args,site:location.host
 var post=function(url){return fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:body}).then(function(r){return r.json();});};
 /* sign-in calls go to the sign-in service (its own Apps Script project); if it can't be reached, log in and sign up
    fall back to the main backend, which still has both */
+/* last rung, the Forms relay (formrelay/): the request goes in as a Google Form answer (docs.google.com) and the answer
+   comes back in chunks on Firebase RTDB /r/<channel> (firebaseio.com), a channel only this call knows. Both are Google
+   addresses a school filter can't block without breaking Google itself */
+var formSend=function(k){return new Promise(function(res,rej){
+  var b=new Uint8Array(16);crypto.getRandomValues(b);var c=Array.prototype.map.call(b,function(x){return ('0'+x.toString(16)).slice(-2);}).join('');
+  var parts={},done=false,es;
+  var end=function(f,v){if(done)return;done=true;clearTimeout(tm);try{es.close();}catch(_){}f(v);};
+  var tm=setTimeout(function(){end(rej,new Error('form timeout'));},45000);
+  var take=function(path,d){if(!d)return;if(path==='/'){for(var q in d)parts[q]=d[q];}else parts[path.slice(1)]=d;
+    var n=0,have=0;for(var q2 in parts){if(parts[q2]&&typeof parts[q2].d==='string'){have++;n=parts[q2].n;}}
+    if(n&&have>=n){var t='';for(var i=0;i<n;i++){if(!parts['p'+i])return;t+=parts['p'+i].d;}try{end(res,JSON.parse(t));}catch(e){end(rej,e);}}};
+  var on=function(e){try{var m=JSON.parse(e.data);if(m)take(m.path,m.data);}catch(_){}};
+  try{es=new EventSource(FDB+'/r/'+c+'.json');}catch(e){return end(rej,e);}
+  es.addEventListener('put',on);es.addEventListener('patch',on);
+  fetch(FORM.u,{method:'POST',mode:'no-cors',body:new URLSearchParams([['entry.'+FORM.e,JSON.stringify({c:c,k:k,b:body})]])}).catch(function(e){end(rej,e);});
+});};
 var relay=function(k){var order=RELAYS.slice(rPref).concat(RELAYS.slice(0,rPref)),i=0;
   var next=function(e){if(i>=order.length)return Promise.reject(e||new Error('relay'));var u=order[i++];
-    return post(u+'/'+k).then(function(o){rPref=RELAYS.indexOf(u);viaRelay=true;try{localStorage.setItem(RK,Date.now()+'|'+rPref);}catch(_){}return o;},next);};
+    return (u==='@form'?formSend(k):post(u+'/'+k)).then(function(o){rPref=RELAYS.indexOf(u);viaRelay=true;try{localStorage.setItem(RK,Date.now()+'|'+rPref);}catch(_){}return o;},next);};
   return next();};
 var send=function(url,k){if(!RELAYS.length)return post(url);if(viaRelay)return relay(k).catch(function(){return post(url);});
   return post(url).catch(function(e){if(e&&e.name==='AbortError')throw e;return relay(k);});};
@@ -2317,8 +2334,17 @@ nav.tabs .mmenu .mcolors button.kbtn:hover{background:var(--panel);color:var(--f
 #splash.clk .sp-art{content-visibility:hidden}
 #spcover{position:fixed;inset:0;z-index:1700;background:#1cb0f6;pointer-events:none;transition:opacity .5s ease}
 #spcover.off{opacity:0}
-#spcover.wait::after{content:"";position:absolute;left:50%;top:50%;width:28px;height:28px;margin:-16px 0 0 -16px;
-  border:3px solid #fff;border-right-color:transparent;border-radius:50%;animation:spspin .7s linear infinite}
+/* waiting for the account's data on the cover: waves of bars streak across like log out's (wide and close at first, then thinner
+   and further apart, speeding up as they go), and the name fades in and out, centred (coverWait) */
+#spcover{overflow:hidden}
+#spcover i{position:absolute;top:0;bottom:0;left:0;width:var(--w);background:var(--c);transform:translateX(-100%);
+  transition:transform var(--t) cubic-bezier(.5,0,.9,.45)}
+#spcover i.go{transform:translateX(100vw)}
+#spcover .sp-word{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;margin:0;padding:0 16px;text-align:center;
+  font:800 clamp(30px,6vw,56px)/1 Nunito,system-ui,sans-serif;color:#fff;letter-spacing:.4px;text-shadow:0 3px 0 rgba(0,0,0,.13);
+  opacity:0;animation:spword 2.4s ease-in-out infinite}
+@keyframes spword{0%,100%{opacity:0;transform:translateY(10px)}30%,70%{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#spcover .sp-word{animation:none;opacity:1}}
 /* logging out: the app fades to the login page's own background while vertical bars in the color of the page that was open
    streak across from left to right, speeding up as they go; they come wide and close together at first, then fewer, thinner and
    further apart, so the effect trails off; the login page's pieces settle in together (the legal links with the form). The
@@ -13228,6 +13254,22 @@ function scrollOb(e){for(let el=e.target;el&&el.nodeType===1;el=el.parentElement
 ['pointerover','wheel','touchstart'].forEach(t=>addEventListener(t,scrollOb,{capture:true,passive:true}));
 /* ---------- opening splash: log in or sign up; a saved session goes straight in ---------- */
 let splashShow=null,splashLeave=null;
+/* the cover while the account's data is still coming (after 250 ms): the name, centred, and waves of white bars like log out's */
+function coverWait(cov){
+  let on=true,raf=0,word=null;const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches,rnd=(a,b)=>a+Math.random()*(b-a);
+  const start=setTimeout(()=>{if(!on)return;cov.classList.add('wait');word=document.createElement('p');word.className='sp-word';word.textContent='saxon planner';cov.appendChild(word);
+    if(reduce)return;
+    let n=0,next=0;const t0=performance.now();
+    const bar=k=>{const f=Math.min(1,k/9),wd=(14-12.4*f)*rnd(.8,1.2),t=rnd(560,680);
+      const b=document.createElement('i');b.style.setProperty('--w',wd.toFixed(2)+'vw');b.style.setProperty('--t',Math.round(t)+'ms');
+      b.style.setProperty('--c',k%2?'rgba(255,255,255,.13)':'rgba(255,255,255,.24)');cov.insertBefore(b,word);b.getBoundingClientRect();b.classList.add('go');
+      const end=()=>{if(b.isConnected)b.remove();};b.addEventListener('transitionend',end,{once:true});setTimeout(end,t+150);};
+    /* a wave is 10 bars, each thinner and a little later than the last; then a pause, then the next wave */
+    const tick=()=>{if(!on)return;const now=performance.now()-t0;
+      if(now>=next){const k=n%10;bar(k);n++;next=now+(k===9?900:16+6*k);}raf=requestAnimationFrame(tick);};
+    raf=requestAnimationFrame(tick);},250);
+  return ()=>{on=false;clearTimeout(start);cancelAnimationFrame(raf);cov.classList.remove('wait');};
+}
 /* search boxes stay read-only until touched: browsers never autofill a read-only box, and Chrome ignores
    autocomplete="off" and put the saved username in them */
 {const wake=e=>{const t=e.target;if(t&&t.matches&&t.matches('input[data-noauto][readonly]'))t.removeAttribute('readonly');};
@@ -13415,7 +13457,7 @@ if(window.SX_REF)sxRefArrived(window.SX_REF);
       svg.setAttribute('viewBox',`${cx-cx/s} ${cy-cy/s} ${W/s} ${H/s}`);});
     if(await bail())return false;
     const cov=document.createElement('div');cov.id='spcover';cov.setAttribute('aria-hidden','true');cov.style.background=CK_STYLES[CKS].cap;document.body.appendChild(cov);ov.remove();
-    if(ok===null){const wt=setTimeout(()=>cov.classList.add('wait'),250);await dataP.catch(()=>{});clearTimeout(wt);cov.classList.remove('wait');}
+    if(ok===null){const stop=coverWait(cov);await dataP.catch(()=>{});stop();}
     if(!ok){
       /* the data didn't come: back to the form */
       sp.classList.remove('clk','clk-out');go.classList.remove('busy');cov.classList.add('off');setTimeout(()=>cov.remove(),550);return false;}
