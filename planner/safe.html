@@ -2348,7 +2348,18 @@ nav.tabs .mmenu .mcolors button.kbtn:hover{background:var(--panel);color:var(--f
    at each bounce */
 #spcover .sp-night{position:absolute;inset:0;background:#000;opacity:0;transition:opacity .9s ease}
 #spcover.dvd .sp-night{opacity:1}
-#spcover.dvd .sp-word{inset:auto;left:0;top:0;padding:0;animation:none;opacity:1;text-shadow:none;transition:color .25s;will-change:transform;white-space:nowrap}
+#spcover .sp-dvd{position:absolute;left:0;top:0;display:flex;align-items:center;gap:12px;padding:12px 20px 12px 14px;border-radius:20px;
+  background:var(--dc);box-shadow:0 5px 0 var(--de),0 0 46px var(--dg);color:#fff;font:800 clamp(20px,3vw,30px)/1 Nunito,system-ui,sans-serif;
+  letter-spacing:.3px;white-space:nowrap;will-change:transform;opacity:0;transition:opacity .6s ease,background-color .3s,box-shadow .3s}
+#spcover .sp-dvd.on{opacity:1}
+#spcover .sp-dvd .dv-i{display:grid;place-items:center;width:1.6em;height:1.6em;border-radius:12px;background:#fff;box-shadow:0 3px 0 rgba(0,0,0,.16)}
+#spcover .sp-dvd .dv-i svg{width:1.25em;height:1.25em;display:block}
+#spcover .sp-dvd.hit{animation:dvsq .28s ease-out}
+@keyframes dvsq{0%{scale:1}35%{scale:.93}100%{scale:1}}
+#spcover .sp-spark{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:var(--dc);pointer-events:none;
+  animation:dvspark .8s cubic-bezier(.2,.7,.4,1) forwards}
+@keyframes dvspark{to{transform:translate(var(--sx),var(--sy)) scale(.2);opacity:0}}
+#spcover.dvd .sp-word{opacity:0;animation:none;transition:opacity .4s}
 @media (prefers-reduced-motion:reduce){#spcover .sp-word{animation:none;opacity:1}}
 /* logging out: the app fades to the login page's own background while vertical bars in the color of the page that was open
    streak across from left to right, speeding up as they go; they come wide and close together at first, then fewer, thinner and
@@ -13272,20 +13283,30 @@ function coverWait(cov){
     /* a wave is 10 bars, each thinner and a little later than the last; then a pause, then the next wave */
     const tick=()=>{if(!on)return;const now=performance.now()-t0;
       if(now>=next){if(waves>=2){startDvd();return;}const k=n%10;bar(k);n++;if(k===9)waves++;next=now+(k===9?900:16+6*k);}raf=requestAnimationFrame(tick);};
+    /* the DVD logo: the planner's notebook and name on a badge in the planner's colors; a bounce changes the color with a little
+       squash, and a corner hit throws sparks */
     const startDvd=()=>{if(dvd||!on)return;dvd=true;
       const night=document.createElement('div');night.className='sp-night';cov.insertBefore(night,word);void night.offsetWidth;
-      const r=word.getBoundingClientRect(),rg=document.createRange();rg.selectNodeContents(word);const tr=rg.getBoundingClientRect();
       cov.classList.add('dvd');
-      const COL=['#1cb0f6','#58cc02','#ffc800','#ff4b4b','#ce82ff','#ff9600'];let ci=0;
-      let w=word.offsetWidth,h=word.offsetHeight,x=tr.left,y=tr.top,vx=150*(Math.random()<.5?-1:1),vy=110*(Math.random()<.5?-1:1),last=performance.now();
-      word.style.transform=`translate(${x}px,${y}px)`;
-      const step=t=>{if(!on)return;const dt=Math.min(.05,(t-last)/1000);last=t;const W=cov.clientWidth,H=cov.clientHeight;w=word.offsetWidth;h=word.offsetHeight;
-        x+=vx*dt;y+=vy*dt;let hit=false;
-        if(x<=0){x=0;vx=Math.abs(vx);hit=true;}else if(x+w>=W){x=W-w;vx=-Math.abs(vx);hit=true;}
-        if(y<=0){y=0;vy=Math.abs(vy);hit=true;}else if(y+h>=H){y=H-h;vy=-Math.abs(vy);hit=true;}
-        if(hit){ci=(ci+1)%COL.length;word.style.color=COL[ci];}
-        word.style.transform=`translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;raf=requestAnimationFrame(step);};
-      setTimeout(()=>{if(on)raf=requestAnimationFrame(step);},700);};
+      const COL=[['#1cb0f6','#1899d6'],['#58cc02','#58a700'],['#ffc800','#e5a400'],['#ff4b4b','#ea2b2b'],['#ce82ff','#a568cc'],['#ff9600','#e08600']];let ci=0;
+      const d=document.createElement('div');d.className='sp-dvd';d.innerHTML='<span class="dv-i">'+(typeof art==='function'?art('logo'):'')+'</span><span>saxon planner</span>';
+      const paint=()=>{const [c,e]=COL[ci];d.style.setProperty('--dc',c);d.style.setProperty('--de',e);d.style.setProperty('--dg',c+'55');};paint();
+      cov.appendChild(d);
+      const W0=cov.clientWidth,H0=cov.clientHeight;let w=d.offsetWidth,h=d.offsetHeight,x=(W0-w)/2,y=(H0-h)/2;
+      const sp=Math.max(120,Math.min(200,Math.hypot(W0,H0)*.11));let a=Math.PI/4+Math.floor(Math.random()*4)*Math.PI/2,vx=sp*Math.cos(a),vy=sp*Math.sin(a),last=0;
+      d.style.transform=`translate(${x}px,${y}px)`;
+      setTimeout(()=>{if(on)d.classList.add('on');},500);
+      const spark=(px,py)=>{for(let i=0;i<16;i++){const p=document.createElement('i');p.className='sp-spark';const an=Math.random()*Math.PI*2,dist=50+Math.random()*90;
+        p.style.cssText=`left:${px}px;top:${py}px;--dc:${COL[(ci+i)%COL.length][0]};--sx:${(Math.cos(an)*dist).toFixed(0)}px;--sy:${(Math.sin(an)*dist).toFixed(0)}px`;
+        cov.appendChild(p);setTimeout(()=>p.remove(),850);}};
+      const step=t=>{if(!on)return;if(!last)last=t;const dt=Math.min(.05,(t-last)/1000);last=t;const W=cov.clientWidth,H=cov.clientHeight;w=d.offsetWidth;h=d.offsetHeight;
+        x+=vx*dt;y+=vy*dt;let hx=false,hy=false;
+        if(x<=0){x=0;vx=Math.abs(vx);hx=true;}else if(x+w>=W){x=W-w;vx=-Math.abs(vx);hx=true;}
+        if(y<=0){y=0;vy=Math.abs(vy);hy=true;}else if(y+h>=H-5){y=H-5-h;vy=-Math.abs(vy);hy=true;}
+        if(hx||hy){ci=(ci+1)%COL.length;paint();d.classList.remove('hit');void d.offsetWidth;d.classList.add('hit');
+          if(hx&&hy)spark(x<W/2?0:W,y<H/2?0:H);}
+        d.style.transform=`translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;raf=requestAnimationFrame(step);};
+      setTimeout(()=>{if(on)raf=requestAnimationFrame(step);},900);};
     raf=requestAnimationFrame(tick);},250);
   return ()=>{on=false;clearTimeout(start);cancelAnimationFrame(raf);cov.classList.remove('wait');};
 }
