@@ -37,6 +37,10 @@ if(/^[a-z0-9_.-]{3,24}:[0-9a-f]{64}$/.test(tok)){try{if(!localStorage.getItem('s
 var API='https:'+'/'+'/script.google.com/macros/s/AKfycbxDk0GrC7XrtoekZdrW4qPsffwxxuG0ujTopOYe5m3rzRPX1GOtbv9-aUtvaXAZlFLW/exec';
 var AUTH='https:'+'/'+'/script.google.com/macros/s/AKfycbyD2v6OsK-OSARQAf9Dc6fgx9Mzjri2kby-XYOWQMC4Bxv3Xq2lRwydToJYXPUjojn3wg/exec',AUTH_FNS={rpcLogin:1,rpcSignup:1,rpcAuthLogout:1,rpcNameFree:1,rpcAuthWarm:1},MAIN_TOO={rpcLogin:1,rpcSignup:1};
 window.SX_AUTH=!!AUTH;
+/* RELAY: a Cloudflare Worker (relay/) for networks that block script.google.com. A call that can't reach Apps Script
+   (network error or a filter's block page) is sent again through it; after one such failure this page goes to the
+   relay first for 12 hours */
+var RELAY='https:'+'/'+'/tidepool.ambicant.workers.dev',RK='sx-relay',viaRelay=false;try{viaRelay=!!RELAY&&Date.now()-(+localStorage.getItem(RK)||0)<432e5;}catch(_){}
 function runner(ok,fail){return new Proxy({},{get:function(_,name){
 if(name==='withSuccessHandler')return function(f){return runner(f,fail);};
 if(name==='withFailureHandler')return function(f){return runner(ok,f);};
@@ -46,7 +50,10 @@ var body=JSON.stringify({fn:name,args:args,site:location.hostname,framed:window.
 var post=function(url){return fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:body}).then(function(r){return r.json();});};
 /* sign-in calls go to the sign-in service (its own Apps Script project); if it can't be reached, log in and sign up
    fall back to the main backend, which still has both */
-var first=AUTH&&AUTH_FNS[name]?post(AUTH).catch(function(e){if(MAIN_TOO[name])return post(API);throw e;}):post(API);
+var relay=function(k){return post(RELAY+'/'+k);};
+var send=function(url,k){if(!RELAY)return post(url);if(viaRelay)return relay(k).catch(function(){return post(url);});
+  return post(url).catch(function(e){if(e&&e.name==='AbortError')throw e;return relay(k).then(function(o){viaRelay=true;try{localStorage.setItem(RK,String(Date.now()));}catch(_){}return o;});});};
+var first=AUTH&&AUTH_FNS[name]?send(AUTH,'a').catch(function(e){if(MAIN_TOO[name])return send(API,'m');throw e;}):send(API,'m');
 first.then(function(o){if(o&&o.ok){if(ok)ok(o.result);}else if(fail)fail(new Error(o&&o.error||'failed'));})
 .catch(function(e){if(fail)fail(e);});};}});}
 window.google={script:{run:runner(null,null)}};})();</script>
