@@ -13292,17 +13292,20 @@ function coverWait(cov){
       const W0=cov.clientWidth,H0=cov.clientHeight,BASE=Math.max(120,Math.min(200,Math.hypot(W0,H0)*.11)),MAXV=1400,MAXB=12;
       let mul=1,streak=0,last=0;const boxes=[];
       const paint=b=>{const [c,e]=COL[b.ci];b.d.style.setProperty('--dc',c);b.d.style.setProperty('--de',e);b.d.style.setProperty('--dg',c+'55');};
-      const add=(x,y)=>{const d=document.createElement('div');d.className='sp-dvd';d.innerHTML='<span class="dv-i">'+logo+'</span><span>saxon planner</span>';
+      const add=(x,y,from)=>{const d=document.createElement('div');d.className='sp-dvd';d.innerHTML='<span class="dv-i">'+logo+'</span><span>saxon planner</span>';
         const b={d,ci:boxes.length%COL.length,x:0,y:0,ux:0,uy:0};paint(b);cov.appendChild(d);
         const w=d.offsetWidth,h=d.offsetHeight;b.x=x==null?(W0-w)/2:Math.max(0,Math.min(cov.clientWidth-w,x));b.y=y==null?(H0-h)/2:Math.max(0,Math.min(cov.clientHeight-h,y));
-        const a=Math.PI/4+Math.floor(Math.random()*4)*Math.PI/2;b.ux=Math.cos(a);b.uy=Math.sin(a);
+        /* the first badge goes at 45 degrees like the real DVD logo; a new one leaves its parent the other way across at its own
+           angle (20 to 70 degrees), so the two never move in step */
+        if(from){const a=(20+Math.random()*50)*Math.PI/180;b.ux=-Math.sign(from.ux||1)*Math.cos(a);b.uy=(Math.random()<.5?-1:1)*Math.sin(a);}
+        else{const a=Math.PI/4+Math.floor(Math.random()*4)*Math.PI/2;b.ux=Math.cos(a);b.uy=Math.sin(a);}
         d.style.transform=`translate(${b.x}px,${b.y}px)`;void d.offsetWidth;d.classList.add('on');boxes.push(b);return b;};
       add();
       const spark=(px,py,ci)=>{for(let i=0;i<16;i++){const p=document.createElement('i');p.className='sp-spark';const an=Math.random()*Math.PI*2,dist=50+Math.random()*90;
         p.style.cssText=`left:${px}px;top:${py}px;--dc:${COL[(ci+i)%COL.length][0]};--sx:${(Math.cos(an)*dist).toFixed(0)}px;--sy:${(Math.sin(an)*dist).toFixed(0)}px`;
         cov.appendChild(p);setTimeout(()=>p.remove(),850);}};
       const wallHit=b=>{streak++;
-        if(streak%6===0){mul=Math.max(.25,mul/2);if(boxes.length<MAXB)add(b.x,b.y);}
+        if(streak%6===0){mul=Math.max(.25,mul/2);if(boxes.length<MAXB)add(b.x,b.y,b);}
         else if(streak%3===0)mul=Math.min(MAXV/BASE,mul*2);};
       cov.style.pointerEvents='auto';cov.addEventListener('pointerdown',()=>{mul=Math.min(MAXV/BASE,mul*1.12);});
       const step=t=>{if(!on)return;if(!last)last=t;const dt=Math.min(.1,(t-last)/1000);last=t;const W=cov.clientWidth,H=cov.clientHeight,v=BASE*mul;
