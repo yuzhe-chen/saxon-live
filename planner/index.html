@@ -2344,6 +2344,11 @@ nav.tabs .mmenu .mcolors button.kbtn:hover{background:var(--panel);color:var(--f
   font:800 clamp(30px,6vw,56px)/1 Nunito,system-ui,sans-serif;color:#fff;letter-spacing:.4px;text-shadow:0 3px 0 rgba(0,0,0,.13);
   opacity:0;animation:spword 2.4s ease-in-out infinite}
 @keyframes spword{0%,100%{opacity:0;transform:translateY(10px)}30%,70%{opacity:1;transform:none}}
+/* still waiting after two waves: the cover fades to black and the name bounces off the edges like a DVD logo, changing color
+   at each bounce */
+#spcover .sp-night{position:absolute;inset:0;background:#000;opacity:0;transition:opacity .9s ease}
+#spcover.dvd .sp-night{opacity:1}
+#spcover.dvd .sp-word{inset:auto;left:0;top:0;padding:0;animation:none;opacity:1;text-shadow:none;transition:color .25s;will-change:transform;white-space:nowrap}
 @media (prefers-reduced-motion:reduce){#spcover .sp-word{animation:none;opacity:1}}
 /* logging out: the app fades to the login page's own background while vertical bars in the color of the page that was open
    streak across from left to right, speeding up as they go; they come wide and close together at first, then fewer, thinner and
@@ -13490,7 +13495,7 @@ function scrollOb(e){for(let el=e.target;el&&el.nodeType===1;el=el.parentElement
 let splashShow=null,splashLeave=null;
 /* the cover while the account's data is still coming (after 250 ms): the name, centred, and waves of white bars like log out's */
 function coverWait(cov){
-  let on=true,raf=0,word=null;const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches,rnd=(a,b)=>a+Math.random()*(b-a);
+  let on=true,raf=0,word=null,waves=0,dvd=false;const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches,rnd=(a,b)=>a+Math.random()*(b-a);
   const start=setTimeout(()=>{if(!on)return;cov.classList.add('wait');word=document.createElement('p');word.className='sp-word';word.textContent='saxon planner';cov.appendChild(word);
     if(reduce)return;
     let n=0,next=0;const t0=performance.now();
@@ -13500,7 +13505,21 @@ function coverWait(cov){
       const end=()=>{if(b.isConnected)b.remove();};b.addEventListener('transitionend',end,{once:true});setTimeout(end,t+150);};
     /* a wave is 10 bars, each thinner and a little later than the last; then a pause, then the next wave */
     const tick=()=>{if(!on)return;const now=performance.now()-t0;
-      if(now>=next){const k=n%10;bar(k);n++;next=now+(k===9?900:16+6*k);}raf=requestAnimationFrame(tick);};
+      if(now>=next){if(waves>=2){startDvd();return;}const k=n%10;bar(k);n++;if(k===9)waves++;next=now+(k===9?900:16+6*k);}raf=requestAnimationFrame(tick);};
+    const startDvd=()=>{if(dvd||!on)return;dvd=true;
+      const night=document.createElement('div');night.className='sp-night';cov.insertBefore(night,word);void night.offsetWidth;
+      const r=word.getBoundingClientRect(),rg=document.createRange();rg.selectNodeContents(word);const tr=rg.getBoundingClientRect();
+      cov.classList.add('dvd');
+      const COL=['#1cb0f6','#58cc02','#ffc800','#ff4b4b','#ce82ff','#ff9600'];let ci=0;
+      let w=word.offsetWidth,h=word.offsetHeight,x=tr.left,y=tr.top,vx=150*(Math.random()<.5?-1:1),vy=110*(Math.random()<.5?-1:1),last=performance.now();
+      word.style.transform=`translate(${x}px,${y}px)`;
+      const step=t=>{if(!on)return;const dt=Math.min(.05,(t-last)/1000);last=t;const W=cov.clientWidth,H=cov.clientHeight;w=word.offsetWidth;h=word.offsetHeight;
+        x+=vx*dt;y+=vy*dt;let hit=false;
+        if(x<=0){x=0;vx=Math.abs(vx);hit=true;}else if(x+w>=W){x=W-w;vx=-Math.abs(vx);hit=true;}
+        if(y<=0){y=0;vy=Math.abs(vy);hit=true;}else if(y+h>=H){y=H-h;vy=-Math.abs(vy);hit=true;}
+        if(hit){ci=(ci+1)%COL.length;word.style.color=COL[ci];}
+        word.style.transform=`translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;raf=requestAnimationFrame(step);};
+      setTimeout(()=>{if(on)raf=requestAnimationFrame(step);},700);};
     raf=requestAnimationFrame(tick);},250);
   return ()=>{on=false;clearTimeout(start);cancelAnimationFrame(raf);cov.classList.remove('wait');};
 }
