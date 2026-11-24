@@ -36,26 +36,31 @@ if(/^[a-z0-9_.-]{3,24}:[0-9a-f]{64}$/.test(tok)){try{if(!localStorage.getItem('s
 (function(){if(window.google&&window.google.script)return;
 var API='https:'+'/'+'/script.google.com/macros/s/AKfycbxDk0GrC7XrtoekZdrW4qPsffwxxuG0ujTopOYe5m3rzRPX1GOtbv9-aUtvaXAZlFLW/exec';
 var AUTH='https:'+'/'+'/script.google.com/macros/s/AKfycbyD2v6OsK-OSARQAf9Dc6fgx9Mzjri2kby-XYOWQMC4Bxv3Xq2lRwydToJYXPUjojn3wg/exec',AUTH_FNS={rpcLogin:1,rpcSignup:1,rpcAuthLogout:1,rpcNameFree:1,rpcAuthWarm:1},MAIN_TOO={rpcLogin:1,rpcSignup:1};
-window.SX_AUTH=!!AUTH;
-/* RELAY: a Cloudflare Worker (relay/) for networks that block script.google.com. A call that can't reach Apps Script
-   (network error or a filter's block page) is sent again through it; after one such failure this page goes to the
-   relay first for 12 hours */
-var RELAY='https:'+'/'+'/tidepool.ambicant.workers.dev',RK='sx-relay',viaRelay=false;try{viaRelay=!!RELAY&&Date.now()-(+localStorage.getItem(RK)||0)<432e5;}catch(_){}
+window.SX_AUTH=!!AUTH;window.SX_SHIM=true;
+/* RELAYS: forwarders on different providers (relay/) for networks that block script.google.com. A call that can't reach
+   Apps Script (network error or a filter's block page) is sent again through them in order, starting with the last one that
+   worked; after one such failure this page goes to the relays first for 12 hours */
+var RELAYS=['https:'+'/'+'/tidepool.ambicant.workers.dev'],RK='sx-relay',viaRelay=false,rPref=0;try{var rv=(localStorage.getItem(RK)||'').split('|');viaRelay=RELAYS.length>0&&Date.now()-(+rv[0]||0)<432e5;rPref=Math.max(0,Math.min(+rv[1]||0,RELAYS.length-1));}catch(_){}
 function runner(ok,fail){return new Proxy({},{get:function(_,name){
 if(name==='withSuccessHandler')return function(f){return runner(f,fail);};
 if(name==='withFailureHandler')return function(f){return runner(ok,f);};
 if(name==='withUserObject')return function(){return runner(ok,fail);};
 return function(){var args=Array.prototype.slice.call(arguments);
-var body=JSON.stringify({fn:name,args:args,site:location.hostname,framed:window.top!==window,via:(location.ancestorOrigins&&location.ancestorOrigins.length?location.ancestorOrigins[location.ancestorOrigins.length-1]:'')});
+var run=function(){var body=JSON.stringify({fn:name,args:args,site:location.hostname,framed:window.top!==window,via:(location.ancestorOrigins&&location.ancestorOrigins.length?location.ancestorOrigins[location.ancestorOrigins.length-1]:'')});
 var post=function(url){return fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:body}).then(function(r){return r.json();});};
 /* sign-in calls go to the sign-in service (its own Apps Script project); if it can't be reached, log in and sign up
    fall back to the main backend, which still has both */
-var relay=function(k){return post(RELAY+'/'+k);};
-var send=function(url,k){if(!RELAY)return post(url);if(viaRelay)return relay(k).catch(function(){return post(url);});
-  return post(url).catch(function(e){if(e&&e.name==='AbortError')throw e;return relay(k).then(function(o){viaRelay=true;try{localStorage.setItem(RK,String(Date.now()));}catch(_){}return o;});});};
+var relay=function(k){var order=RELAYS.slice(rPref).concat(RELAYS.slice(0,rPref)),i=0;
+  var next=function(e){if(i>=order.length)return Promise.reject(e||new Error('relay'));var u=order[i++];
+    return post(u+'/'+k).then(function(o){rPref=RELAYS.indexOf(u);viaRelay=true;try{localStorage.setItem(RK,Date.now()+'|'+rPref);}catch(_){}return o;},next);};
+  return next();};
+var send=function(url,k){if(!RELAYS.length)return post(url);if(viaRelay)return relay(k).catch(function(){return post(url);});
+  return post(url).catch(function(e){if(e&&e.name==='AbortError')throw e;return relay(k);});};
 var first=AUTH&&AUTH_FNS[name]?send(AUTH,'a').catch(function(e){if(MAIN_TOO[name])return send(API,'m');throw e;}):send(API,'m');
 first.then(function(o){if(o&&o.ok){if(ok)ok(o.result);}else if(fail)fail(new Error(o&&o.error||'failed'));})
-.catch(function(e){if(fail)fail(e);});};}});}
+.catch(function(e){if(fail)fail(e);});};
+/* instant sign-in: a call made before the server's answer carries the placeholder token (SX_TP); it waits for the real one */
+if(window.SX_TW&&window.SX_TP&&args.indexOf(window.SX_TP)>=0)window.SX_TW.then(function(t){args=args.map(function(a){return a===window.SX_TP?t:a;});run();},function(){if(fail)fail(new Error('auth'));});else run();};}});}
 window.google={script:{run:runner(null,null)}};})();</script>
 <script>/* opened with a saved login (a reload, or from atoll framed): from the very first paint the page shows only its background and the
    sign-in clock at 5:30 (html.sx-fb), never the login page or Home, until the clock sequence takes over. ?framedtest=1 on
@@ -8487,7 +8492,7 @@ function getToken(){
 }
 function setToken(t){
   /* signing out: this account's data copy leaves the device too (shared school computers) */
-  if(!t&&passKey){try{dcDrop();}catch(_){}}
+  if(!t&&passKey){try{dcDrop();}catch(_){}try{localStorage.removeItem('sx-boxk:'+passKey.split(':')[0]);}catch(_){}}
   passKey=t||'';
   try{if(t)localStorage.setItem('sx-token',t);else{localStorage.removeItem('sx-token');localStorage.removeItem('sx-boot');}}catch(_){}
   try{document.cookie='sx-token='+(t?encodeURIComponent(t):'')+';max-age='+(t?315360000:0)+';path=/;SameSite=None;Secure';}catch(_){}
@@ -8684,11 +8689,60 @@ function dcWrite(force){
     rt:RT_INFO||null,syncRequested:DC_SYNC.r||0,syncedAt:DC_SYNC.a||0};
   Object.keys(cIdx()).forEach(k=>{if(k.startsWith('sx-dc:')&&k!=='sx-dc:'+u)cDel(k);});
   const ok=cPut('sx-dc:'+u,o);
+  if(ok)boxSeal(u,o);
   try{if(ok&&DATA_VER&&!obHas())localStorage.setItem('sx-dv',u+'|'+DATA_VER);else localStorage.removeItem('sx-dv');}catch(_){}
 }
 addEventListener('pagehide',()=>dcWrite(true));
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')dcWrite(true);});
 function dcDrop(){clearTimeout(dcT);const u=dcName();if(u)cDel('sx-dc:'+u);try{localStorage.removeItem('sx-dv');}catch(_){}}
+/* ---------- instant sign-in on returning devices (web build only). A sealed copy of the device copy (sx-box:<name>) stays
+   on the device after log out, encrypted with AES-GCM under a random data key; that key is kept only wrapped by a key made
+   from the password (PBKDF2), so nobody can open the box without the password. While logged in the raw data key is in
+   sx-boxk:<name> (the token and the plain copy are on the device then anyway); log out removes it. At log in the box opens
+   on the device (about 0.1 s), the planner shows at once, and the server's answer follows: calls made meanwhile carry a
+   placeholder token that the web shim swaps for the real one (SX_TW), and a refusal goes back to the login page.
+   Boxes expire after 14 days; at most 3 accounts keep one; accounts with a picture password (two-step) get none. ---------- */
+const BOX_ITER=100000,BOX_MS=14*864e5;
+const b64e=u=>{let s='';for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode.apply(null,u.subarray(i,i+32768));return btoa(s);};
+const b64d=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const boxOk=()=>!!(window.SX_SHIM&&window.crypto&&crypto.subtle);
+async function boxPw(pw,salt){const m=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:BOX_ITER,hash:'SHA-256'},m,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
+async function gcmEnc(key,bytes){const iv=crypto.getRandomValues(new Uint8Array(12));return b64e(iv)+'.'+b64e(new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,bytes)));}
+async function gcmDec(key,str){const [a,b]=String(str).split('.');return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:b64d(a)},key,b64d(b)));}
+const rawKey=raw=>crypto.subtle.importKey('raw',raw,'AES-GCM',false,['encrypt','decrypt']);
+function boxGet(u){try{const b=JSON.parse(localStorage.getItem('sx-box:'+u)||'null');return b&&b.v===1&&b.s&&b.w?b:null;}catch(_){return null;}}
+function boxPut(u,b){try{localStorage.setItem('sx-box:'+u,JSON.stringify(b));return true;}catch(_){try{localStorage.removeItem('sx-box:'+u);}catch(e){}return false;}}
+/* after a typed log in that the server accepted: make (or reuse) the box and keep its data key while logged in */
+async function boxSetup(u,pw,tfa){
+  if(!boxOk())return;
+  try{
+    const now=Date.now();
+    Object.keys(localStorage).filter(k=>k.startsWith('sx-box:')&&k!=='sx-box:'+u).map(k=>[k,boxGet(k.slice(7))]).sort((a,b)=>((b[1]&&b[1].t)||0)-((a[1]&&a[1].t)||0))
+      .forEach(([k,b],i)=>{if(!b||i>=2||now-(b.t||0)>BOX_MS)localStorage.removeItem(k);});
+    if(tfa){localStorage.removeItem('sx-box:'+u);localStorage.removeItem('sx-boxk:'+u);return;}
+    let b=boxGet(u),raw=null;
+    if(b){try{raw=await gcmDec(await boxPw(pw,b64d(b.s)),b.w);}catch(_){raw=null;}}
+    if(!raw){const salt=crypto.getRandomValues(new Uint8Array(16));raw=crypto.getRandomValues(new Uint8Array(32));
+      b={v:1,s:b64e(salt),w:await gcmEnc(await boxPw(pw,salt),raw),t:now};}
+    b.t=now;boxPut(u,b);localStorage.setItem('sx-boxk:'+u,b64e(raw));
+    if(passKey&&dcName()===u)dcWrite();
+  }catch(e){console.warn('instant sign-in setup failed',e);}
+}
+/* seal the latest device copy into the box (only while logged in, when the data key is here) */
+let boxQ=Promise.resolve();
+function boxSeal(u,o){
+  if(!boxOk())return;let k=null;try{k=localStorage.getItem('sx-boxk:'+u);}catch(_){}if(!k)return;
+  const txt=JSON.stringify(o);
+  boxQ=boxQ.then(async()=>{const b=boxGet(u);if(!b)return;b.d=await gcmEnc(await rawKey(b64d(k)),new TextEncoder().encode(txt));b.t=Date.now();boxPut(u,b);}).catch(()=>{});
+}
+/* at log in: the device copy from the box, or null (no box, expired, wrong password, unreadable) */
+async function boxOpen(u,pw){
+  if(!boxOk())return null;const b=boxGet(u);if(!b||!b.d||Date.now()-(b.t||0)>BOX_MS)return null;
+  try{const raw=await gcmDec(await boxPw(pw,b64d(b.s)),b.w);
+    const o=JSON.parse(new TextDecoder().decode(await gcmDec(await rawKey(raw),b.d)));
+    return o&&o.v===1&&o.user&&o.user.name===u&&o.settings?o:null;}catch(_){return null;}
+}
 function dcRead(){const u=dcName();if(!u)return null;const o=cJSON('sx-dc:'+u);return o&&o.v===1&&o.user&&o.user.name===u&&o.settings?o:null;}
 let DC_SYNC={r:0,a:0};
 /* ---------- changes the server hasn't confirmed yet (sx-ob:<name>, never evicted: they can't be fetched again). Written the
@@ -13664,10 +13718,34 @@ if(window.SX_REF)sxRefArrived(window.SX_REF);
     /* the request goes out and the clock starts on this same frame, so the tap answers at once (well under 50 ms); the
        clock plays for as long as the answer takes (it holds on the color until the account's data is in), and a "no"
        stops it early and shows why */
-    const su=signup;let r=null;
-    const authP=authCall(su?'signup':'login',name,pw,su?refIn.value:'',sq).then(v=>(r=v),()=>(r=null));
-    const dataP=authP.then(v=>{
+    const su=signup;let r=null,answered=false,instant=false;
+    const authP=authCall(su?'signup':'login',name,pw,su?refIn.value:'',sq).then(v=>(r=v),()=>(r=null)).then(v=>{answered=true;return v;});
+    /* instant sign-in: this device's sealed copy opens with the password while the server checks it */
+    const boxP=!su&&!sq?boxOpen(name,pw):Promise.resolve(null);
+    let tw=null;
+    const goInstant=o=>{
+      instant=true;const tp=name+':'+'0'.repeat(64);
+      window.SX_TP=tp;window.SX_TW=new Promise((res,rej)=>{tw={res,rej};});window.SX_TW.catch(()=>{});
+      passKey=tp;state.user=o.user;resetAccountState();
+      state.view='home';try{localStorage.setItem('sx-tab','home');}catch(_){}
+      applyData(o,true);render();
+    };
+    /* the server's answer after an instant sign-in: the real token replaces the placeholder, or back to the login page */
+    authP.then(v=>{
+      if(!instant)return;
+      if(v&&v.token){setToken(v.token);state.user=Object.assign({},state.user,v.user);tw.res(v.token);window.SX_TW=null;
+        boxSetup(name,pw,false);loadData(v.data).then(ok=>{if(ok&&v.data)setTimeout(()=>{loadData().catch(()=>{});},60);});return;}
+      tw.rej(new Error('auth'));window.SX_TW=null;
+      /* refused: nothing of this account stays readable (the plain copy written meanwhile goes too) */
+      try{logOutClose();}catch(_){}try{dcDrop();}catch(_){}passKey='';state.user=null;resetAccountState();render();
+      if(v&&/^(nouser|need2fa|tfawrong|banned)$/.test(v.error||'')){try{localStorage.removeItem('sx-box:'+name);}catch(_){}}
+      if(splashShow)splashShow(v&&v.error==='need2fa'?'Log in again to enter your pictures':ERR[v&&v.error]||ERR.conn);
+    });
+    const dataP=Promise.race([boxP.then(o=>{if(o&&!answered){goInstant(o);return true;}return new Promise(()=>{});}),authP.then(()=>srvP())]);
+    const srvP=()=>authP.then(v=>{
+      if(instant)return true;
       if(!v||!v.token)return false;
+      if(!su)boxSetup(name,pw,!!sq);
       try{localStorage.removeItem('sx-ref');}catch(_){}refIn.value='';
       setToken(v.token);state.user=v.user;
       resetAccountState();
