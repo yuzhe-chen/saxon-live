@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Space Station Idle</title>
+<style>
+html,body{margin:0;height:100%;background:#0b0f1a;overflow:hidden}
+iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+/* the game runs on itch.io (the author's official embed), so this button goes back to the games menu */
+#back{position:absolute;left:0;top:50%;transform:translateY(-50%);z-index:2;width:24px;height:46px;border:0;border-radius:0 6px 6px 0;padding:0;background:rgba(0,0,0,.45);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.7}
+#back:hover{opacity:1}
+#back svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.6}
+#credit{position:absolute;right:8px;bottom:6px;z-index:2;font:600 11px system-ui,-apple-system,"Segoe UI",sans-serif;color:rgba(255,255,255,.55);text-decoration:none}
+#credit:hover{color:#fff}
+</style></head><body>
+<!-- Space Station Idle by Dev RobleUY (robleuy.itch.io/spacestationidle). It has no licence for copying, so it is not hosted here:
+     this page shows itch.io's own embed of it, the way the author offers. Saves live with itch.io, not the planner account. -->
+<iframe id="g" src="https:&#47;&#47;itch.io/embed-upload/13039288?color=0b0f1a" allow="autoplay; fullscreen; gamepad" allowfullscreen title="Space Station Idle"></iframe>
+<button id="back" aria-label="Games" title="Games"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+<a id="credit" href="https:&#47;&#47;robleuy.itch.io/spacestationidle" target="_blank" rel="noopener">by Dev RobleUY on itch.io</a>
+<script>
+var g=document.getElementById('g');
+document.getElementById('back').onclick=function(){try{parent.postMessage({type:'games-menu'},'*');}catch(e){}};
+g.addEventListener('load',function(){g.focus();});
+</script></body></html>
