@@ -1412,7 +1412,6 @@ html.home-on body::before{opacity:1}
 .hm-os .hm-oi{text-decoration:none;color:var(--fg)}
 .hm-btns.hm-tutonly{display:block}
 .hm-edap{margin-top:18px;padding-top:16px;border-top:2px solid var(--line);display:flex}
-.hm-btn.hm-tutbig{width:100%;justify-content:center;text-align:center}
 @media (max-width:1100px){.mx{grid-template-columns:minmax(0,1fr)}.mx-games{grid-column:1/-1}.mx-pop{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (max-width:760px){.mx{grid-template-columns:minmax(0,1fr)}.mx-fe{grid-template-columns:minmax(0,1fr)}.mx-asg{max-height:none}.mx-pop{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* Desmos: the graphing calculator full screen, closed with × or Esc */
@@ -3776,8 +3775,6 @@ html #v-home .hm-btns:not(.hm-tutonly)>.hm-btn:not(#hm-asg){flex:1 1 auto;paddin
 html #v-home .hm-btns:not(.hm-tutonly) .hm-stk .hm-btn{width:100%;box-sizing:border-box}
 @media (max-width:430px){html #v-home .hm-btns:not(.hm-tutonly)>.hm-btn:not(#hm-asg){padding-left:5px;padding-right:5px;letter-spacing:0}}
 .hm-stk .hm-btn{text-align:center;justify-content:center;text-decoration:none}
-#v-home .hm-btn.hm-tutbig{animation:faqblink 1.1s ease-in-out infinite}
-@media (prefers-reduced-motion:reduce){#v-home .hm-btn.hm-tutbig{animation:none}}
 html #v-home .hm-btn.hm-hl,html.pg2 #v-home .hm-btn.hm-hl{background:var(--gold-hi);color:#4b3600;border-color:var(--gold-dark);display:inline-flex;align-items:center;gap:6px}
 #v-home .hm-btn.hm-hl svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 /* secondary buttons carry blue text, as ProfeGPT's do; option groups (tabs) stay gray until chosen */
@@ -12453,7 +12450,7 @@ function renderHome(fly){
       <div class="hm-sites" id="hm-row"></div></div>
       <div class="hm-more" id="hm-more"></div>`;
     siteLinks(el);
-    if(tn){const b=el.querySelector('.hm-btns');if(b){b.classList.add('hm-tutonly');b.innerHTML='<button type="button" class="hm-btn hm-tutbig" id="hm-tut" data-act-tut>Start the tutorial</button>';}}
+    if(tn){const b=el.querySelector('.hm-btns');if(b){b.classList.add('hm-tutonly');b.innerHTML='<button type="button" class="hbtn hb-box faq-btn blink" id="hm-tut" data-act-tut>Start the tutorial</button>';}}
     fly=true;
   }
   el.dataset.hv=hv;
