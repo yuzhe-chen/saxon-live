@@ -2345,6 +2345,17 @@ nav.tabs .mmenu .mcolors button.kbtn:hover{background:var(--panel);color:var(--f
 #spclock svg{position:absolute;inset:0;width:100%;height:100%;display:block;will-change:transform}
 /* the picture has already faded out when the clock plays: the browser skips drawing it (smoother frames) */
 #splash.clk .sp-art{content-visibility:hidden}
+.ro-bar{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:1600;display:flex;gap:10px;align-items:center;max-width:calc(100vw - 24px);
+  padding:9px 16px;border-radius:12px;background:var(--fg,#4b4b4b);color:var(--bg,#fff);font:700 13px/1.3 Nunito,system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.ro-bar span{font-weight:600;opacity:.85}
+.hm-season{font:800 14px/1.3 var(--font-ui);color:var(--sub);margin:-10px 0 14px}
+.egg-cf{position:fixed;top:-12px;width:9px;height:14px;border-radius:2px;z-index:2000;pointer-events:none;animation:eggfall 3s cubic-bezier(.3,.6,.5,1) forwards}
+@keyframes eggfall{to{transform:translate(var(--x),105vh) rotate(var(--r))}}
+.egg-spin{animation:eggspin .9s cubic-bezier(.4,1.6,.5,1)}
+@keyframes eggspin{to{transform:rotate(720deg)}}
+/* December: snow falling over the login page (a canvas, see seasonal touches; none for reduced motion) */
+html.sx-snow #splash .sp-snow{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:50}
+@media (max-width:600px){.ro-bar{flex-direction:column;gap:2px;text-align:center}}
 #spcover{position:fixed;inset:0;z-index:1700;background:#1cb0f6;pointer-events:none;transition:opacity .5s ease}
 #spcover.off{opacity:0}
 /* waiting for the account's data on the cover: waves of bars streak across like log out's (wide and close at first, then thinner
@@ -7076,6 +7087,53 @@ function normalizeCourse(input){
     if (!Array.isArray(ch.m)) ch.m = [];
     return { list: ch.g.members.slice(), group: true, ch: ch };
   };
+  /* ---- class chats: everyone who shares their classes and set a period for a class is in one group chat with the others in
+     that class (same school, same class, same period), made the first time two of them meet. Ids are "gk" + a hash of
+     school|class key|period, so the same class always lands in the same chat. Leaving one by hand keeps you out (a.kx);
+     turning Class chats or Share my classes off leaves every class chat you were put in (a.kc). Nobody owns a class chat. */
+  var fnv = function (str) { var h1 = 0x811c9dc5, h2 = 0x01000193 ^ 0x5bd1e995;
+    for (var i = 0; i < str.length; i++) { var ch = str.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 16777619) >>> 0; h2 = Math.imul(h2 ^ ch, 2246822519) >>> 0; }
+    return ('0000000' + h1.toString(36)).slice(-7) + ('0000000' + h2.toString(36)).slice(-7); };
+  SX.classChatWant = function (st) {
+    st = st && typeof st === 'object' ? st : {};
+    var out = {}; if (!st.shareClasses || st.classChats === false) return out;
+    var school = typeof st.school === 'string' ? st.school : '';
+    (Array.isArray(st.courses) ? st.courses : []).forEach(function (c) {
+      if (!c || !c.name) return; var k = SX.courseKey(c.name), p = st.periods && Number(st.periods[c.id]);
+      if (!k || !(p >= 1 && p <= 9)) return;
+      out['gk' + fnv(school + '|' + k + '|' + p)] = String(c.name).slice(0, 48) + ' · Period ' + p;
+    });
+    return out;
+  };
+  SX.classChatsSync = function (io, me, st) {
+    var want = SX.classChatWant(st), a = soc(io, me), sig = Object.keys(want).sort().join(',');
+    if ((a.ks || '') === sig) return false;
+    var kc = Array.isArray(a.kc) ? a.kc : [], kx = Array.isArray(a.kx) ? a.kx : [], now = io.now(), changed = false;
+    kc.slice().forEach(function (id) {
+      if (want[id]) return;
+      var ch = jget(io, 'chat', id);
+      if (ch && ch.g && Array.isArray(ch.g.members)) { drop(ch.g.members, me); io.put('chat', id, JSON.stringify(ch)); }
+      delete a.c[id]; drop(kc, id); changed = true;
+    });
+    Object.keys(want).forEach(function (id) {
+      if (kc.indexOf(id) >= 0 || kx.indexOf(id) >= 0 || a.c[id]) return;
+      var ch = jget(io, 'chat', id) || { m: [], g: { name: want[id], members: [], owner: '', cls: 1 } };
+      if (!ch.g || !Array.isArray(ch.g.members)) return;
+      if (!Array.isArray(ch.m)) ch.m = [];
+      if (ch.g.members.length >= SX.GROUP_MAX) return;
+      if (ch.g.members.indexOf(me) < 0) ch.g.members.push(me);
+      io.put('chat', id, JSON.stringify(ch));
+      /* a class chat shows in the lists once two people are in it: the second one in makes it appear for the first too */
+      var entry = function () { return { l: now, r: now, p: '', t: ch.g.name || want[id], lg: lgOf(ch.g) }; };
+      if (ch.g.members.length >= 2) {
+        a.c[id] = entry();
+        ch.g.members.forEach(function (n) { if (n === me) return; var x = soc(io, n); if (!x.c[id] && Array.isArray(x.kc) && x.kc.indexOf(id) >= 0) { x.c[id] = entry(); socPut(io, n, x); } });
+      }
+      kc.push(id); changed = true;
+    });
+    a.kc = kc.slice(-40); a.ks = sig; socPut(io, me, a);
+    return changed;
+  };
   SX.socialState = function (io, me, a, rd) {
     var o = a || soc(io, me); rd = rd || reads(io, me);
     var convs = Object.keys(o.c).map(function (id) { var c = o.c[id];
@@ -7362,6 +7420,8 @@ function normalizeCourse(input){
     if (op === 'leave') {
       if (!cv.group) { delete a.c[id]; socPut(io, me, a); return state(); }
       drop(cv.ch.g.members, me); delete a.c[id]; ssDrop(a, '', id);
+      /* a class chat left by hand stays left (it isn't joined again automatically) */
+      if (/^gk/.test(id)) { a.kx = (Array.isArray(a.kx) ? a.kx : []).filter(function (x) { return x !== id; }).concat([id]).slice(-60); if (Array.isArray(a.kc)) drop(a.kc, id); }
       if (cv.ch.g.owner === me) cv.ch.g.owner = cv.ch.g.members[0] || '';
       cv.list = cv.ch.g.members.slice();
       /* the last one out: the conversation and its archived pages go */
@@ -8349,6 +8409,7 @@ async function api(path,opts){
   if(method==='GET'||path==='/api/data'||apiIsRead(path,opts))return apiRaw(path,opts);
   writing++;writeGen++;
   /* kept on the device until the server takes it (obAdd): a resend at start-up passes its outbox number as opts.obS */
+  if(window.SX_RO){writing--;writeGen++;roNotice();throw new Error('offline');}
   let obS=0;if(opts&&opts.obS){obS=opts.obS;opts=Object.assign({},opts);delete opts.obS;}else if(DV_PATHS.test(path))obS=obAdd(path,opts);
   const key=writeKey(path,opts),prev=writeChains.get(key)||Promise.resolve();
   const run=prev.catch(()=>{}).then(async()=>{
@@ -8366,6 +8427,70 @@ async function api(path,opts){
     if(!writing&&reloadAfterWrites){reloadAfterWrites=false;setTimeout(()=>{if(!writing)loadData();},300);}
   }
 }
+/* read-only (the last resort above): a bar while it lasts, and a short note when a change is refused */
+/* ---------- seasonal touches: a line under Home's date from the school calendar (EVENTS), and snow on the login page in
+   December ---------- */
+function seasonLine(ds){
+  const ev=(re,from)=>{const e=EVENTS.find(x=>x[0]>=from&&re.test(x[1]));return e?e[0]:null;};
+  const schoolDays=(a,b)=>{let n=0;for(let d=a;d<b;d=addDays(d,1))if(isSchoolDay(d))n++;return n;};
+  const md=ds.slice(5);
+  if(md==='10-31')return '\u{1F383} Happy Halloween';
+  if(md==='01-01'||md==='01-02')return '\u{1F386} Happy New Year';
+  if(md==='02-14')return '\u{1F48C} Happy Valentine’s Day';
+  const tg=ev(/Thanksgiving/i,addDays(ds,-1));if(tg&&tg>=ds&&tg<=addDays(ds,6))return '\u{1F983} Happy Thanksgiving week';
+  const wb=ev(/Winter Break/i,addDays(ds,-14));
+  if(wb){if(ds>=wb&&ds<=addDays(wb,12))return '❄️ Enjoy winter break';
+    if(wb>ds&&wb<=addDays(ds,30)){const n=schoolDays(ds,wb);if(n>0)return '❄️ '+n+' school day'+(n===1?'':'s')+' until winter break';}}
+  if(YEAR_END>=ds&&YEAR_END<=addDays(ds,35)){const n=schoolDays(ds,addDays(YEAR_END,1));if(n>0)return '☀️ '+n+' school day'+(n===1?'':'s')+' until summer';}
+  return '';
+}
+(function(){const m=new Date().getMonth();if(m!==11||matchMedia('(prefers-reduced-motion: reduce)').matches)return;document.documentElement.classList.add('sx-snow');
+  /* real flakes: each its own size, speed, sway and opacity; nearer (bigger) ones fall faster; drawn only while the login page shows */
+  const start=()=>{const sp=document.getElementById('splash');if(!sp||sp.querySelector('.sp-snow'))return;
+    const cv=document.createElement('canvas');cv.className='sp-snow';cv.setAttribute('aria-hidden','true');sp.appendChild(cv);
+    const g=cv.getContext('2d');let W=0,H=0,dpr=1,fl=[],last=0,col='#fff',seen=0;
+    /* white flakes on a dark page, soft icy blue on a light one (checked about once a second) */
+    const tone=()=>{const t=document.documentElement.getAttribute('data-theme'),dark=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;col=dark?'#fff':'#8fc2e3';};
+    const size=()=>{dpr=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;g.setTransform(dpr,0,0,dpr,0,0);
+      const n=Math.round(Math.min(140,W*H/9000));while(fl.length<n)fl.push(flake(true));fl.length=n;};
+    const flake=any=>{const z=Math.random();return {x:Math.random()*W,y:any?Math.random()*H:-10,r:.8+z*z*2.8,v:18+z*46,a:.35+z*.55,ph:Math.random()*6.28,sw:6+Math.random()*16,f:.4+Math.random()*.9};};
+    addEventListener('resize',size);size();
+    const tick=t=>{const dt=Math.min(.05,(t-(last||t))/1000);last=t;
+      if(t-seen>1000){seen=t;tone();}
+      if(!document.hidden&&getComputedStyle(sp).display!=='none'&&!sp.classList.contains('gone')){g.clearRect(0,0,W,H);
+        for(const p of fl){p.y+=p.v*dt;p.ph+=p.f*dt;const x=p.x+Math.sin(p.ph)*p.sw;if(p.y>H+6){Object.assign(p,flake(false));}
+          g.globalAlpha=p.a;g.beginPath();g.arc(x,p.y,p.r,0,6.283);g.fillStyle=col;g.fill();}}
+      requestAnimationFrame(tick);};
+    requestAnimationFrame(tick);};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else setTimeout(start,0);})();
+/* ---------- easter eggs ---------- */
+function eggToast(t){const o=document.getElementById('undo-toast');if(o)o.remove();const d=document.createElement('div');d.id='undo-toast';d.className='undo-toast';
+  d.setAttribute('role','status');d.innerHTML='<span></span>';d.firstChild.textContent=t;document.body.appendChild(d);setTimeout(()=>{if(d.isConnected)d.remove();},3500);}
+function eggConfetti(){if(matchMedia('(prefers-reduced-motion: reduce)').matches)return eggToast('\u{1F389} Party mode');
+  const C=['#1cb0f6','#58cc02','#ffc800','#ff4b4b','#ce82ff','#ff9600'];
+  for(let i=0;i<90;i++){const p=document.createElement('i');p.className='egg-cf';
+    p.style.cssText=`left:${Math.random()*100}vw;background:${C[i%C.length]};--r:${Math.round(Math.random()*720-360)}deg;--x:${Math.round(Math.random()*160-80)}px;animation-delay:${(Math.random()*.6).toFixed(2)}s;animation-duration:${(2.2+Math.random()*1.4).toFixed(2)}s`;
+    document.body.appendChild(p);setTimeout(()=>p.remove(),4500);}
+  eggToast('\u{1F389} Party mode');}
+/* the Konami code anywhere; "dvd" typed on the login page (not in a box) opens the screensaver; the logo clicked 7 times spins */
+(function(){const K=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];let ki=0,typed='',dvdCov=null,dvdStop=null;
+  addEventListener('keydown',e=>{
+    if(dvdCov&&e.key==='Escape'){dvdStop();dvdCov.remove();dvdCov=null;return;}
+    const k=e.key.length===1?e.key.toLowerCase():e.key;ki=k===K[ki]?ki+1:(k===K[0]?1:0);if(ki===K.length){ki=0;eggConfetti();}
+    const t=e.target;if(t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)))return;
+    if(e.key.length!==1)return;typed=(typed+e.key.toLowerCase()).slice(-3);
+    if(typed==='dvd'&&!state.user&&!dvdCov){typed='';dvdCov=document.createElement('div');dvdCov.id='spcover';dvdCov.setAttribute('aria-hidden','true');
+      dvdCov.style.background='#1cb0f6';document.body.appendChild(dvdCov);dvdStop=coverWait(dvdCov);eggToast('Press Esc to leave the screensaver');}
+  });
+  let clicks=[];document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.brand-logo,.sp-logo');if(!b)return;
+    const now=Date.now();clicks=clicks.filter(t=>now-t<2500).concat([now]);if(clicks.length>=7){clicks=[];b.classList.remove('egg-spin');void b.offsetWidth;b.classList.add('egg-spin');eggToast('\u{1F300} You found a secret');}},true);
+})();
+function roBanner(on){let b=document.getElementById('ro-bar');if(!on){if(b)b.remove();return;}
+  if(b)return;b=document.createElement('div');b.id='ro-bar';b.className='ro-bar';b.setAttribute('role','status');
+  b.innerHTML='<b>Offline, read-only</b><span>Your planner is from this device. Changes work again once it reconnects.</span>';document.body.appendChild(b);}
+function roNotice(){const t=document.getElementById('undo-toast');if(t)t.remove();
+  const d=document.createElement('div');d.id='undo-toast';d.className='undo-toast';d.setAttribute('role','alert');
+  d.innerHTML='<span>Offline: that change wasn\'t saved</span>';document.body.appendChild(d);setTimeout(()=>{if(d.isConnected)d.remove();},5000);}
 function classesFailed(){const t=document.getElementById('undo-toast');if(t)t.remove();
   const d=document.createElement('div');d.id='undo-toast';d.className='undo-toast';d.setAttribute('role','alert');
   d.innerHTML='<span>Classes didn\'t save, reload the page</span><button type="button" class="kbtn">Reload</button>';
@@ -8710,6 +8835,7 @@ function applyData(d,cached){
     state.settings.quickGames=Array.isArray(st.quickGames)?st.quickGames.slice(0,5):[];state.settings.homeView=st.homeView||'mixed';
     state.settings.homePages=Array.isArray(st.homePages)?[...st.homePages]:[];state.settings.homeRes=Array.isArray(st.homeRes)?st.homeRes.slice(0,12):[];
     state.settings.shareClasses=!!st.shareClasses;
+    state.settings.classChats=st.classChats!==false;
     state.settings.focusMode=!!st.focusMode;state.settings.courseOrder=Array.isArray(st.courseOrder)?st.courseOrder.filter(x=>typeof x==='string'):[];
     state.calcmap=d.calcmap||{};
     state.settings.pageColors={...(st.pageColors||{})};state.settings.pageFade=!!st.pageFade;['decoOn','sensPics','sensGames','sensTools','footerOff'].forEach(k=>state.settings[k]=!!st[k]);state.settings.pageGrads={...(st.pageGrads||{})};state.settings.noteCols=Array.isArray(st.noteCols)?st.noteCols.slice(0,12):[];
@@ -8848,7 +8974,9 @@ function confetti(x,y){
   }
 }
 async function removeTask(id){try{await api('/api/task/'+encodeURIComponent(id),{method:'DELETE'});}catch(e){console.warn('delete failed',e);}}
-async function saveSettings(){if(!settingsLoaded)return;SX.scrubCourses(COURSES);try{await api('/api/settings',{method:'POST',body:JSON.stringify({colors:state.settings.colors,periods:state.settings.periods,shareClasses:!!state.settings.shareClasses,
+/* after a change that can add or remove class chats: refresh Chat's lists a moment later (if Chat has loaded) */
+function chClassChatsSoon(){setTimeout(()=>{try{chatSchedule(0);}catch(_){}},1500);}
+async function saveSettings(){if(!settingsLoaded)return;SX.scrubCourses(COURSES);try{await api('/api/settings',{method:'POST',body:JSON.stringify({colors:state.settings.colors,periods:state.settings.periods,shareClasses:!!state.settings.shareClasses,classChats:state.settings.classChats!==false,
   seenTips:state.settings.seenTips||[],usedPages:state.settings.usedPages||[],
   lastGame:state.settings.lastGame||'',clockStyle:state.settings.clockStyle||'classic',advisoryCourse:state.settings.advisoryCourse||'',courses:COURSES,ical:state.settings.ical||'',fullNames:!!state.settings.fullNames,quickGames:state.settings.quickGames||[],focusMode:!!state.settings.focusMode,pageFade:!!state.settings.pageFade,decoOn:!!state.settings.decoOn,sensPics:!!state.settings.sensPics,sensGames:!!state.settings.sensGames,sensTools:!!state.settings.sensTools,footerOff:!!state.settings.footerOff,pageGrads:state.settings.pageGrads||{},noteCols:state.settings.noteCols||[],pageColors:state.settings.pageColors||{},courseOrder:state.settings.courseOrder||[],homeView:state.settings.homeView||'mixed',homeChosen:!!state.settings.homeChosen,homePages:state.settings.homePages||[],homeRes:state.settings.homeRes||[],quickLinks:Array.isArray(state.settings.quickLinks)?state.settings.quickLinks:null,dynRes:!!state.settings.dynRes,hideGames:!!state.settings.hideGames,hideChat:!!state.settings.hideChat,faqNew:!!state.settings.faqNew,oppStar:state.settings.oppStar||[],oppArch:state.settings.oppArch||[],gamesIntro:!!state.settings.gamesIntro,gameStar:state.settings.gameStar||[],hidePages:state.settings.hidePages||[],tutorialNew:!!state.settings.tutorialNew,rel:state.settings.rel||{},lunch:state.settings.lunch||{},school:state.settings.school||'',rotFlip:!!state.settings.rotFlip,gpa:SX.cleanGpa(state.settings.gpa),gpaYear:SX.cleanGpaYear(state.settings.gpaYear),gpaByYear:!!state.settings.gpaByYear})});}catch(e){console.warn('save failed',e);}}
 async function saveNote(n){if(STALE.has(n))return;try{await api('/api/advisory',{method:'POST',body:JSON.stringify(n)});}catch(e){console.warn('save failed',e);}}
@@ -10375,6 +10503,9 @@ function settingsHTML(m,page){
     <input type="checkbox" class="switch" id="${m}focusmode" ${state.settings.focusMode?'checked':''} aria-label="focus mode"></div>`+
     `<div class="row g-chat"><span>Friends can see my classes</span>
     <input type="checkbox" class="switch" id="${m}shareclasses" ${state.settings.shareClasses?'checked':''} aria-label="friends can see my classes"></div>`+
+    /* class chats: with classes shared, a group chat for each class with a period (same school, class and period) */
+    `<div class="row g-chat"><span>Class chats</span>
+    <input type="checkbox" class="switch" id="${m}classchats" ${state.settings.classChats!==false?'checked':''}${state.settings.shareClasses?'':' disabled'} aria-label="join a group chat for each of my classes"></div>`+
     `<div class="row"><span>Classes and colors</span><button class="kbtn" data-act="classes">Edit</button></div>
     <div class="sx-ical"><label class="fl" for="${m}ical">Schoology calendar</label>
       <input type="text" id="${m}ical" value="${esc(state.settings.ical||'')}" placeholder="iCal link" autocomplete="off" spellcheck="false">
@@ -10887,7 +11018,11 @@ document.addEventListener('change',async e=>{
     state.settings.focusMode=e.target.checked;document.querySelectorAll('#focusmode,#mfocusmode,#sfocusmode').forEach(x=>x.checked=e.target.checked);render();await saveSettings();return;}
   /* friends may see this account's classes ([Name]'s Classes in People); off until turned on */
   if(e.target.id==='shareclasses'||e.target.id==='mshareclasses'||e.target.id==='sshareclasses'){
-    state.settings.shareClasses=e.target.checked;document.querySelectorAll('#shareclasses,#mshareclasses,#sshareclasses').forEach(x=>x.checked=e.target.checked);await saveSettings();return;}
+    state.settings.shareClasses=e.target.checked;document.querySelectorAll('#shareclasses,#mshareclasses,#sshareclasses').forEach(x=>x.checked=e.target.checked);
+    document.querySelectorAll('#classchats,#mclasschats,#sclasschats').forEach(x=>x.disabled=!e.target.checked);await saveSettings();chClassChatsSoon();return;}
+  /* class chats follow on the server when the settings land; Chat's lists pick them up on their next check */
+  if(e.target.id==='classchats'||e.target.id==='mclasschats'||e.target.id==='sclasschats'){
+    state.settings.classChats=e.target.checked;document.querySelectorAll('#classchats,#mclasschats,#sclasschats').forEach(x=>x.checked=e.target.checked);await saveSettings();chClassChatsSoon();return;}
   if(e.target.dataset&&e.target.dataset.hide&&HIDE_ITEMS.some(x=>x[0]===e.target.dataset.hide)){
     state.settings[e.target.dataset.hide]=e.target.checked;
     document.querySelectorAll('[data-hide="'+e.target.dataset.hide+'"]').forEach(x=>x.checked=e.target.checked);
@@ -11147,7 +11282,8 @@ function suSchoolHTML(){
 function suPickerHTML(){
   if(!SCHOOLS_ALL)return `<div class="sx-none">Loading schools...</div>`;
   const q=(SU_PICK.q||'').trim().toLowerCase(),all=Object.values(SCHOOLS_ALL.schools).sort((a,b)=>a.name.localeCompare(b.name));
-  const hit=all.filter(x=>!q||x.name.toLowerCase().includes(q)).slice(0,40);
+  /* every school that matches (109 in all; the list scrolls), never cut off partway */
+  const hit=all.filter(x=>!q||x.name.toLowerCase().includes(q));
   const lang=!q||'langley high school'.includes(q);
   return `<div class="panel su-pick"><input type="text" id="su-schq" value="${esc(SU_PICK.q||'')}" placeholder="Search your school" autocomplete="off" spellcheck="false">
     <div class="su-pl">${lang?`<button type="button" class="cdd-item${!schoolId()?' on':''}" data-act="schset" data-id="">Langley High School</button>`:''}${hit.map(x=>`<button type="button" class="cdd-item${x.id===schoolId()?' on':''}" data-act="schset" data-id="${esc(x.id)}">${esc(x.name)} <span class="sx-none">${esc(x.district)}</span></button>`).join('')}${!hit.length&&!lang?'<div class="sx-none">No school by that name yet</div>':''}</div></div>`;}
@@ -12322,7 +12458,9 @@ function renderHome(fly){
     fly=true;
   }
   el.dataset.hv=hv;
-  {const k=el.querySelector('.hm-kicker');if(k)k.textContent=fmtLong(todayStr());}
+  {const k=el.querySelector('.hm-kicker');if(k)k.textContent=fmtLong(todayStr());
+   const sl=seasonLine(todayStr());let sn=el.querySelector('.hm-season');
+   if(sl){if(!sn&&k){sn=document.createElement('div');sn.className='hm-season';k.after(sn);}if(sn)sn.textContent=sl;}else if(sn)sn.remove();}
   hmQuick(el);hmMain(el,hv);hmMore(el,own,noChat,noGames);
   fitHomeGuide();
   /* behind the login page the cards wait; homeFly drops them in once it's gone */
@@ -13609,6 +13747,15 @@ if(window.SX_REF)sxRefArrived(window.SX_REF);
     /* the server's answer after an instant sign-in: the real token replaces the placeholder, or back to the login page */
     authP.then(v=>{
       if(!instant)return;
+      /* last resort: no route reached the server at all (not a refusal). The planner stays up from this device's sealed copy,
+         read-only, and the login is tried again every 20 s; the first answer decides as below */
+      if(!v){window.SX_RO=true;roBanner(true);
+        const again=()=>authCall('login',name,pw,'',null).then(w=>w,()=>null).then(w=>{if(!window.SX_RO)return;if(!w){setTimeout(again,20000);return;}
+          window.SX_RO=false;roBanner(false);decide(w);});
+        setTimeout(again,20000);return;}
+      decide(v);
+    });
+    const decide=v=>{
       if(v&&v.token){setToken(v.token);state.user=Object.assign({},state.user,v.user);tw.res(v.token);window.SX_TW=null;
         boxSetup(name,pw,false);loadData(v.data).then(ok=>{if(ok&&v.data)setTimeout(()=>{loadData().catch(()=>{});},60);});return;}
       tw.rej(new Error('auth'));window.SX_TW=null;
@@ -13616,7 +13763,7 @@ if(window.SX_REF)sxRefArrived(window.SX_REF);
       try{logOutClose();}catch(_){}try{dcDrop();}catch(_){}passKey='';state.user=null;resetAccountState();render();
       if(v&&/^(nouser|need2fa|tfawrong|banned)$/.test(v.error||'')){try{localStorage.removeItem('sx-box:'+name);}catch(_){}}
       if(splashShow)splashShow(v&&v.error==='need2fa'?'Log in again to enter your pictures':ERR[v&&v.error]||ERR.conn);
-    });
+    };
     const dataP=Promise.race([boxP.then(o=>{if(o&&!answered){goInstant(o);return true;}return new Promise(()=>{});}),authP.then(()=>srvP())]);
     const srvP=()=>authP.then(v=>{
       if(instant)return true;
