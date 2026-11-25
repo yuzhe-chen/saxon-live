@@ -490,7 +490,7 @@ input[type=color]::-webkit-color-swatch{border:none}
 .opp-ib:hover{background:var(--panel2);color:var(--fg)}
 .opp-ib svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}
 .opp-ib.on{color:#d4a017}.opp-ib.on svg{fill:currentColor}
-.opp-card.starred{box-shadow:inset 3px 0 0 #d4a017}
+.opp-card.starred{box-shadow:inset 0 0 0 2px #d4a017}
 /* as many columns as fit: about 380px each, one column on a phone */
 .opp-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(380px,100%),1fr));gap:14px;align-items:start}
 .opp-card{background:var(--box,var(--panel));padding:14px 16px;display:flex;flex-direction:column;gap:7px;min-width:0}
@@ -1050,7 +1050,7 @@ input.lib-q{width:calc(100% + 2 * var(--reach));margin:0 calc(-1 * var(--reach))
 .shot-disabled{aspect-ratio:380/182}
 .shot-enable{aspect-ratio:565/107}
 .ical-steps{margin:0;padding-left:1.4em}.ical-steps li+li{margin-top:12px}
-.su-intro{background:var(--panel);padding:12px 18px;font-size:13.5px;line-height:1.5;margin-bottom:18px;box-shadow:inset 3px 0 0 var(--accent)}
+.su-intro{background:var(--panel);padding:12px 18px;font-size:13.5px;line-height:1.5;margin-bottom:18px;border:2px solid var(--line);border-radius:var(--rs,12px)}
 .su-step{background:var(--panel);padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-width:0;margin-bottom:18px}
 .su-school{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px}.su-school .su-sn{font-weight:800;font-size:15px}.su-school .fl{margin:0}
 .su-school #su-lunchc{width:150px}.su-pick{padding:10px;display:flex;flex-direction:column;gap:8px}.su-pick .su-pl{max-height:320px;overflow:auto;display:flex;flex-direction:column}
@@ -2267,7 +2267,7 @@ nav.tabs .mmenu .mcolors button.kbtn:hover{background:var(--panel);color:var(--f
 #splash .lp-wd small{font:800 10px/1 var(--font-ui);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
 #splash .lp-wd small.g{color:var(--green)}
 #splash .lp-wd small.o{color:var(--gold)}
-#splash .lp-wd span{display:block;font:700 11px/1.25 var(--font-ui);color:var(--fg);background:color-mix(in srgb,var(--cc) 16%,var(--bg));border-left:3px solid var(--cc);border-radius:5px;padding:4px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#splash .lp-wd span{display:block;font:700 11px/1.25 var(--font-ui);color:var(--fg);background:color-mix(in srgb,var(--cc) 22%,var(--bg));border-radius:5px;padding:4px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #splash .lp-notes{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 #splash .lp-note{border-radius:14px;padding:12px 14px 14px;font:600 13px/1.4 var(--font-ui);color:#4b4b4b;background:#fff1b8;border-bottom:4px solid #f2d466}
 #splash .lp-note.b{background:#d3ecff;border-bottom-color:#9fd1fb}
@@ -2290,7 +2290,11 @@ nav.tabs .mmenu .mcolors button.kbtn:hover{background:var(--panel);color:var(--f
 #splash .lp-mock u.so{background:var(--gold-bg);color:var(--gold)}
 #splash .lp-mock u.mp{background:var(--green-bg);color:var(--green)}
 #splash .lp kbd{font:800 12px/1 var(--font-ui);color:var(--fg);background:var(--bg);border:2px solid var(--line);border-bottom-width:4px;border-radius:8px;padding:2px 7px}
-#splash .lp-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin:0 0 24px}
+#splash .lp-cards{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin:0 0 24px}
+#splash .lp-cards .lp-card{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:20px;align-items:center;padding:18px 24px}
+#splash .lp-cards .lp-card>i{grid-row:1/3;margin:0!important}
+#splash .lp-cards .lp-card h3{margin:0 0 4px!important}
+#splash .lp-cards .lp-card p{margin:0!important}
 #splash .lp-card{background:var(--bg);border:2px solid var(--line);border-bottom-width:4px;border-radius:24px;padding:28px 26px 30px}
 #splash .lp-card>i{width:60px;height:60px;margin:0 0 14px}
 #splash .lp-card h3{font-size:23px;margin:0 0 8px}
@@ -4239,6 +4243,8 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
   :is(#docs,#spdoc) .rdoc td[data-label="Where"]{color:var(--fg2);font-size:14px}
   :is(#docs,#spdoc) .rdoc td[data-label="Where"]::before{display:none}
 }
+/* no eyebrow styling on the date above the title (vibe-code checklist) */
+.hm-kicker,#splash .sp-kicker{text-transform:none!important;letter-spacing:0!important;margin-right:0!important}
 </style>
 <script>
 /* realtime.js: Saxon Planner's push layer, no dependencies, no external scripts.
@@ -5079,7 +5085,6 @@ html.pfade:not(.splash-on) #games .gm-pick{background:transparent}
  <div class="sp-more" id="spmore">
   <section class="lp" aria-labelledby="lp-h">
     <div class="lp-head">
-      <div class="lp-kick">What it does</div>
       <h2 id="lp-h">Your classes, homework and notes in one place</h2>
       <p>Saxon Planner is a school planner built around your schedule. Add your classes once, paste your Schoology link, and your assignments show up on their own.</p>
     </div>
@@ -7329,7 +7334,7 @@ function normalizeCourse(input){
     (Array.isArray(st.courses) ? st.courses : []).forEach(function (c) {
       if (!c || !c.name) return; var k = SX.courseKey(c.name), p = st.periods && Number(st.periods[c.id]);
       if (!k || !(p >= 1 && p <= 9)) return;
-      out['gk' + fnv(school + '|' + k + '|' + p)] = String(c.name).slice(0, 48) + ' · Period ' + p;
+      out['gk' + fnv(school + '|' + k + '|' + p)] = String(c.name).slice(0, 48) + ', period ' + p;
     });
     return out;
   };
@@ -9748,10 +9753,10 @@ function renderAdvisory(){
 
 /* ---------- assignments view: every assignment not done yet, oldest first ---------- */
 /* kind words where there's nothing to do, and small tips while things load (each picked once a day, so a page doesn't flicker) */
-const CHEER={none:['All caught up. Nice work!','Nothing due. Go enjoy your day.','You’re on top of everything.','Clear skies ahead. Treat yourself.','Zero assignments. Legendary.','Free time unlocked. You earned it.'],
-  od:['Nothing overdue. You’re right on time!','No late work. Keep it up!','Everything’s on time. Love to see it.'],
-  day:['Nothing due. Enjoy it!','A free day. Nice.','Nothing due today. You’re ahead!'],
-  todo:['All clear. Add a note when something comes up.','Nothing on your list. Enjoy the calm.','Your to-do list is empty. Well done!']};
+const CHEER={none:['You’re all caught up.','There’s nothing due right now, so go enjoy your day.','You’re on top of everything.','Nothing is waiting on you right now.','Your assignment list is empty.','You’ve earned some free time.'],
+  od:['Nothing is overdue.','You have no late work, so keep it up.','Everything is on time.'],
+  day:['Nothing is due on this day.','This day is free.','Nothing is due today, so you’re ahead.'],
+  todo:['Your list is clear. Add a note when something comes up.','There’s nothing on your list right now.','Your to-do list is empty.']};
 const cheerDay=()=>{const d=new Date();return d.getFullYear()*400+d.getMonth()*32+d.getDate();};
 function cheer(k){const a=CHEER[k]||CHEER.none;return esc(a[(cheerDay()+(k||'').length*7)%a.length]);}
 const TIPS=['Tip: press H to hide a game instantly.','Tip: drag an assignment onto another day to move it.','Tip: press Ctrl+Z to bring back the last assignment you removed.',
@@ -16607,7 +16612,7 @@ function metricaPick(gm){
   g.innerHTML=`<div class="mx" role="region" aria-label="${esc(gm.name)}"><header class="mx-top"><button class="mx-back" data-mx-back aria-label="Back" title="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
     <div class="mx-brand" data-mx-back>${esc(gm.name.toLowerCase())}</div></header>
     <div class="mx-main"><div class="mx-wrap"><h1 class="mx-h1">${esc(gm.name.toLowerCase())}</h1><div class="mx-modes n${gm.modes.length}">${gm.modes.map(([id,n,d],i)=>`<button class="mx-mode" data-game="${id}" aria-label="${esc(n)}">${MX_PV[id]||''}
-      <span class="mx-info"><span class="mx-lbl">World 0${i+1}</span><span class="mx-name">${esc(n.toLowerCase())}</span><span class="mx-d">${esc(d)}</span>
+      <span class="mx-info"><span class="mx-lbl">World ${i+1}</span><span class="mx-name">${esc(n.toLowerCase())}</span><span class="mx-d">${esc(d)}</span>
       <span class="mx-go"><svg viewBox="0 0 10 10"><path d="M1 0l9 5-9 5z"/></svg>Play</span></span></button>`).join('')}</div></div></div></div>`;
   g.hidden=false;
   const ms=[...g.querySelectorAll('.mx-mode')];
